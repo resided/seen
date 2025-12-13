@@ -24,6 +24,7 @@ export default function Home() {
         <title>Seen. - Mini App Discovery</title>
         <meta name="description" content="Helping Farcaster builders get seen" />
         <meta name="fc:miniapp" content={JSON.stringify(frame)} />
+        <meta name="base:app_id" content="693dfb85d19763ca26ddc297" />
         <meta property="og:title" content="Seen. - Mini App Discovery" />
         <meta property="og:description" content="Helping Farcaster builders get seen" />
         <meta property="og:image" content="https://seen-red.vercel.app/logo.png" />
