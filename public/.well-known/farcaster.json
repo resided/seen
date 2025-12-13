@@ -1,0 +1,18 @@
+{
+  "accountAssociation": {
+    "header": "",
+    "payload": "",
+    "signature": ""
+  },
+  "frame": {
+    "version": "1",
+    "name": "Seen.",
+    "iconUrl": "https://seen-red.vercel.app/icon.png",
+    "homeUrl": "https://seen-red.vercel.app",
+    "imageUrl": "https://seen-red.vercel.app/og-image.png",
+    "buttonTitle": "Open Seen",
+    "splashImageUrl": "https://seen-red.vercel.app/icon.png",
+    "splashBackgroundColor": "#000000"
+  }
+}
+
