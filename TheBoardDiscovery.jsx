@@ -7,7 +7,7 @@ import SubmitForm from './components/SubmitForm';
 // ============================================
 
 const CATEGORIES = [
-  { id: 'main', label: 'MAIN' },
+  { id: 'main', label: 'FEATURED' },
   { id: 'defi', label: 'DEFI' },
   { id: 'social', label: 'SOCIAL' },
   { id: 'games', label: 'GAMES' },
@@ -387,7 +387,7 @@ export default function Seen() {
       {/* Category nav */}
       <div className="border-b border-white">
         <div className="max-w-4xl mx-auto">
-          <div className="flex overflow-x-auto">
+          <div className="flex overflow-x-auto scrollbar-hide">
             {CATEGORIES.map(cat => (
               <button
                 key={cat.id}
@@ -480,17 +480,33 @@ export default function Seen() {
           color: #000;
         }
         
+        /* Custom scrollbar styling */
         ::-webkit-scrollbar {
-          width: 4px;
+          width: 6px;
+          height: 6px;
         }
         ::-webkit-scrollbar-track {
           background: #000;
         }
         ::-webkit-scrollbar-thumb {
-          background: #333;
+          background: #666;
+          border-radius: 3px;
         }
         ::-webkit-scrollbar-thumb:hover {
-          background: #fff;
+          background: #999;
+        }
+        /* Firefox scrollbar */
+        * {
+          scrollbar-width: thin;
+          scrollbar-color: #666 #000;
+        }
+        /* Hide scrollbar for category nav but keep functionality */
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
         }
       `}</style>
     </div>
