@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import SubmitForm from './components/SubmitForm';
 
 // ============================================
 // SEEN. - MINI APP DISCOVERY
@@ -13,28 +14,6 @@ const CATEGORIES = [
   { id: 'tools', label: 'TOOLS' },
   { id: 'nft', label: 'NFT' },
 ];
-
-// Today's featured Mini App
-const FEATURED_APP = {
-  id: 1,
-  name: 'ZORA',
-  tagline: 'MINT AND COLLECT ONCHAIN MEDIA',
-  description: 'The easiest way to create, collect, and earn onchain. Mint NFTs, create splits, and build your collector base directly from Farcaster.',
-  builder: 'JACOB.ETH',
-  builderFid: 12345,
-  category: 'nft',
-  launchDate: 'DEC 13, 2025',
-  stats: {
-    installs: 23847,
-    dau: 4201,
-    tips: 12.4,
-  },
-  links: {
-    miniapp: 'https://warpcast.com/~/mini-app/zora',
-    website: 'https://zora.co',
-    github: 'https://github.com/ourzora',
-  }
-};
 
 // Sample chat messages
 const INITIAL_MESSAGES = [
@@ -249,11 +228,11 @@ const LiveChat = ({ messages, onSend }) => {
 // ============================================
 // SUBMIT CTA
 // ============================================
-const SubmitSection = () => (
+const SubmitSection = ({ onSubmit }) => (
   <div className="border border-white p-6 text-center">
-    <h3 className="text-xl font-black tracking-tight mb-2">GET YOUR MINI APP FEATURED</h3>
+    <h3 className="text-xl font-black tracking-tight mb-2">GET YOUR PROJECT FEATURED</h3>
     <p className="text-sm text-gray-500 tracking-wider mb-4">
-      STRUGGLING TO GET SEEN? SUBMIT YOUR APP FOR TOMORROW'S SPOTLIGHT.
+      STRUGGLING TO GET SEEN? SUBMIT YOUR PROJECT FOR TOMORROW'S SPOTLIGHT.
     </p>
     <div className="grid grid-cols-3 gap-4 mb-6 text-left">
       <div>
@@ -269,8 +248,11 @@ const SubmitSection = () => (
         <div className="text-[9px] tracking-[0.2em] text-gray-500">TO SUBMIT</div>
       </div>
     </div>
-    <button className="w-full py-4 bg-white text-black font-black text-sm tracking-[0.3em] hover:bg-gray-200 transition-all">
-      SUBMIT YOUR APP
+    <button 
+      onClick={onSubmit}
+      className="w-full py-4 bg-white text-black font-black text-sm tracking-[0.3em] hover:bg-gray-200 transition-all"
+    >
+      SUBMIT YOUR PROJECT
     </button>
   </div>
 );
@@ -278,31 +260,31 @@ const SubmitSection = () => (
 // ============================================
 // UPCOMING QUEUE
 // ============================================
-const UpcomingQueue = () => {
-  const queue = [
-    { name: 'PODS', builder: 'PODS.ETH', category: 'SOCIAL', position: 1 },
-    { name: 'BRACKET', builder: 'BRACKET.ETH', category: 'GAMES', position: 2 },
-    { name: 'PAYFLOW', builder: 'PAYFLOW.ETH', category: 'DEFI', position: 3 },
-  ];
-
+const UpcomingQueue = ({ queue = [] }) => {
   return (
     <div className="border border-white">
       <div className="border-b border-white p-3">
         <span className="text-[10px] tracking-[0.3em]">UPCOMING</span>
       </div>
       <div className="divide-y divide-white/20">
-        {queue.map(app => (
-          <div key={app.position} className="p-3 flex items-center gap-3">
-            <div className="w-6 h-6 border border-white flex items-center justify-center text-[10px] font-bold">
-              {app.position}
+        {queue.length > 0 ? (
+          queue.map((app, index) => (
+            <div key={app.id || index} className="p-3 flex items-center gap-3">
+              <div className="w-6 h-6 border border-white flex items-center justify-center text-[10px] font-bold">
+                {index + 1}
+              </div>
+              <div className="flex-1">
+                <div className="text-sm font-bold">{app.name}</div>
+                <div className="text-[10px] text-gray-500">{app.builder}</div>
+              </div>
+              <div className="text-[9px] tracking-[0.2em] text-gray-500">{app.category?.toUpperCase()}</div>
             </div>
-            <div className="flex-1">
-              <div className="text-sm font-bold">{app.name}</div>
-              <div className="text-[10px] text-gray-500">{app.builder}</div>
-            </div>
-            <div className="text-[9px] tracking-[0.2em] text-gray-500">{app.category}</div>
+          ))
+        ) : (
+          <div className="p-6 text-center text-gray-500 text-sm">
+            NO PROJECTS IN QUEUE
           </div>
-        ))}
+        )}
       </div>
       <div className="border-t border-white p-3">
         <button className="w-full text-[10px] tracking-[0.2em] text-gray-500 hover:text-white transition-all">
@@ -320,7 +302,28 @@ export default function Seen() {
   const [category, setCategory] = useState('main');
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [time, setTime] = useState(new Date());
+  const [featuredApp, setFeaturedApp] = useState(null);
+  const [queue, setQueue] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showSubmitForm, setShowSubmitForm] = useState(false);
   
+  // Fetch projects from API
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const response = await fetch('/api/projects');
+        const data = await response.json();
+        setFeaturedApp(data.featured);
+        setQueue(data.queue);
+      } catch (error) {
+        console.error('Error fetching projects:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchProjects();
+  }, []);
   
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
@@ -341,6 +344,16 @@ export default function Seen() {
   const handleTip = () => {
     // Would trigger wallet transaction
     console.log('Tip builder');
+  };
+
+  const handleSubmitSuccess = () => {
+    // Refresh projects after submission
+    fetch('/api/projects')
+      .then(res => res.json())
+      .then(data => {
+        setFeaturedApp(data.featured);
+        setQueue(data.queue);
+      });
   };
 
   return (
@@ -398,14 +411,24 @@ export default function Seen() {
           <div className="grid lg:grid-cols-[1fr,340px] gap-6">
             {/* Left: Featured + Submit */}
             <div className="space-y-6">
-              <FeaturedApp app={FEATURED_APP} onTip={handleTip} />
-              <SubmitSection />
+              {loading ? (
+                <div className="border border-white p-6 text-center">
+                  <div className="text-sm text-gray-500">LOADING...</div>
+                </div>
+              ) : featuredApp ? (
+                <FeaturedApp app={featuredApp} onTip={handleTip} />
+              ) : (
+                <div className="border border-white p-6 text-center">
+                  <div className="text-sm text-gray-500">NO FEATURED PROJECT</div>
+                </div>
+              )}
+              <SubmitSection onSubmit={() => setShowSubmitForm(true)} />
             </div>
             
             {/* Right: Chat + Queue */}
             <div className="space-y-6">
               <LiveChat messages={messages} onSend={handleSendMessage} />
-              <UpcomingQueue />
+              <UpcomingQueue queue={queue} />
             </div>
           </div>
         ) : (
@@ -418,6 +441,14 @@ export default function Seen() {
           </div>
         )}
       </main>
+
+      {/* Submit Form Modal */}
+      {showSubmitForm && (
+        <SubmitForm
+          onClose={() => setShowSubmitForm(false)}
+          onSubmit={handleSubmitSuccess}
+        />
+      )}
       
       {/* Styles */}
       <style jsx global>{`
