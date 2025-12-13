@@ -321,22 +321,6 @@ export default function Seen() {
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [time, setTime] = useState(new Date());
   
-  // Initialize Farcaster SDK
-  useEffect(() => {
-    // Call ready() when component mounts
-    if (typeof window !== 'undefined') {
-      // Wait for SDK to be available
-      const initSDK = () => {
-        if (window.farcaster?.actions) {
-          window.farcaster.actions.ready();
-        } else {
-          // Retry if SDK not loaded yet
-          setTimeout(initSDK, 100);
-        }
-      };
-      initSDK();
-    }
-  }, []);
   
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
