@@ -7,11 +7,11 @@
   "frame": {
     "version": "1",
     "name": "Seen.",
-    "iconUrl": "https://seen-red.vercel.app/icon.png",
+    "iconUrl": "https://seen-red.vercel.app/logo.png",
     "homeUrl": "https://seen-red.vercel.app",
-    "imageUrl": "https://seen-red.vercel.app/og-image.png",
+    "imageUrl": "https://seen-red.vercel.app/logo.png",
     "buttonTitle": "Open Seen",
-    "splashImageUrl": "https://seen-red.vercel.app/icon.png",
+    "splashImageUrl": "https://seen-red.vercel.app/logo.png",
     "splashBackgroundColor": "#000000"
   }
 }
