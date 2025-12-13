@@ -11,9 +11,13 @@ const SubmitForm = ({ onClose, onSubmit }) => {
     miniapp: '',
     website: '',
     github: '',
+    submissionType: 'queue', // 'queue' (free) or 'featured' (paid)
   });
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
+  
+  // Featured submission pricing (configurable)
+  const FEATURED_PRICE = 0.01; // ETH or tokens - adjust as needed
 
   const handleChange = (e) => {
     setFormData({
@@ -27,6 +31,10 @@ const SubmitForm = ({ onClose, onSubmit }) => {
     setSubmitting(true);
     setMessage('');
 
+    // If featured submission, payment would be handled here
+    // For now, just submit with payment amount
+    const paymentAmount = formData.submissionType === 'featured' ? FEATURED_PRICE : 0;
+
     try {
       const response = await fetch('/api/submit', {
         method: 'POST',
@@ -35,6 +43,8 @@ const SubmitForm = ({ onClose, onSubmit }) => {
         },
         body: JSON.stringify({
           ...formData,
+          submissionType: formData.submissionType,
+          paymentAmount: paymentAmount,
           links: {
             miniapp: formData.miniapp,
             website: formData.website,
@@ -46,11 +56,19 @@ const SubmitForm = ({ onClose, onSubmit }) => {
       const data = await response.json();
 
       if (response.ok) {
-        setMessage('SUBMITTED! YOUR PROJECT WILL BE REVIEWED.');
+        if (formData.submissionType === 'featured') {
+          setMessage(`SUBMITTED! PAYMENT REQUIRED: ${FEATURED_PRICE} ETH. YOU WILL BE REDIRECTED TO PAY.`);
+          // TODO: Handle payment flow here
+          // - Connect wallet
+          // - Send transaction
+          // - Verify payment
+        } else {
+          setMessage('SUBMITTED! YOUR PROJECT WILL BE ADDED TO THE QUEUE.');
+        }
         setTimeout(() => {
           onSubmit?.();
           onClose();
-        }, 2000);
+        }, 3000);
       } else {
         setMessage(data.error || 'SUBMISSION FAILED');
       }
@@ -153,6 +171,42 @@ const SubmitForm = ({ onClose, onSubmit }) => {
                 className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
                 placeholder="12345"
               />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+              SUBMISSION TYPE *
+            </label>
+            <div className="space-y-2">
+              <label className="flex items-center gap-3 p-3 border border-white cursor-pointer hover:bg-white/10">
+                <input
+                  type="radio"
+                  name="submissionType"
+                  value="queue"
+                  checked={formData.submissionType === 'queue'}
+                  onChange={handleChange}
+                  className="accent-white"
+                />
+                <div className="flex-1">
+                  <div className="text-sm font-bold">FREE QUEUE</div>
+                  <div className="text-[10px] text-gray-500">Added to queue, no payment required</div>
+                </div>
+              </label>
+              <label className="flex items-center gap-3 p-3 border border-white cursor-pointer hover:bg-white/10">
+                <input
+                  type="radio"
+                  name="submissionType"
+                  value="featured"
+                  checked={formData.submissionType === 'featured'}
+                  onChange={handleChange}
+                  className="accent-white"
+                />
+                <div className="flex-1">
+                  <div className="text-sm font-bold">FEATURED SLOT</div>
+                  <div className="text-[10px] text-gray-500">{FEATURED_PRICE} ETH - Priority placement</div>
+                </div>
+              </label>
             </div>
           </div>
 

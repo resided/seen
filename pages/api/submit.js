@@ -14,12 +14,19 @@ export default function handler(req, res) {
       builder,
       builderFid,
       category,
+      submissionType,
+      paymentAmount,
       links
     } = req.body
 
     // Validate required fields
     if (!name || !tagline || !description || !builder || !category) {
       return res.status(400).json({ error: 'Missing required fields' })
+    }
+
+    // Validate featured submission has payment
+    if (submissionType === 'featured' && (!paymentAmount || paymentAmount <= 0)) {
+      return res.status(400).json({ error: 'Featured submissions require payment' })
     }
 
     const project = submitProject({
@@ -29,6 +36,8 @@ export default function handler(req, res) {
       builder,
       builderFid: builderFid || 0,
       category: category.toLowerCase(),
+      submissionType: submissionType || 'queue',
+      paymentAmount: paymentAmount || 0,
       links: links || {}
     })
 
