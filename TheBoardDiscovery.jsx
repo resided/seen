@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 // ============================================
-// THE BOARD - MINI APP DISCOVERY
+// SEEN. - MINI APP DISCOVERY
 // Helping Farcaster builders get seen
 // ============================================
 
@@ -316,10 +316,27 @@ const UpcomingQueue = () => {
 // ============================================
 // MAIN APP
 // ============================================
-export default function TheBoard() {
+export default function Seen() {
   const [category, setCategory] = useState('main');
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [time, setTime] = useState(new Date());
+  
+  // Initialize Farcaster SDK
+  useEffect(() => {
+    // Call ready() when component mounts
+    if (typeof window !== 'undefined') {
+      // Wait for SDK to be available
+      const initSDK = () => {
+        if (window.farcaster?.actions) {
+          window.farcaster.actions.ready();
+        } else {
+          // Retry if SDK not loaded yet
+          setTimeout(initSDK, 100);
+        }
+      };
+      initSDK();
+    }
+  }, []);
   
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
@@ -348,7 +365,7 @@ export default function TheBoard() {
       <header className="border-b border-white">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-black tracking-[-0.02em]">THE BOARD</h1>
+            <h1 className="text-xl font-black tracking-[-0.02em]">SEEN.</h1>
             <p className="text-[9px] tracking-[0.3em] text-gray-500">MINI APP DISCOVERY</p>
           </div>
           <div className="flex items-center gap-6">

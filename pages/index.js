@@ -1,6 +1,6 @@
-import TheBoard from '../TheBoardDiscovery'
+import Seen from '../TheBoardDiscovery'
 
 export default function Home() {
-  return <TheBoard />
+  return <Seen />
 }
 
