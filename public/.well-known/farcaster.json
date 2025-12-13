@@ -1,18 +1,33 @@
 {
+  "frame": {
+    "name": "Seen",
+    "version": "1",
+    "iconUrl": "https://seen-red.vercel.app/logo.png",
+    "homeUrl": "https://seen-red.vercel.app",
+    "imageUrl": "https://seen-red.vercel.app/logo.png",
+    "splashImageUrl": "https://seen-red.vercel.app/logo.png",
+    "splashBackgroundColor": "#000000",
+    "webhookUrl": "https://seen-red.vercel.app/api/webhook",
+    "subtitle": "Get Seen!",
+    "description": "app and project discovery board, get noticed!",
+    "screenshotUrls": [
+      "https://seen-red.vercel.app/logo.png"
+    ],
+    "primaryCategory": "social",
+    "tags": [
+      "social",
+      "marketing",
+      "discovery"
+    ],
+    "heroImageUrl": "https://seen-red.vercel.app/logo.png",
+    "tagline": "Get Seen - post your project",
+    "buttonTitle": "Get Seen",
+    "ogTitle": "Seen - Community Notice Board",
+    "ogImageUrl": "https://seen-red.vercel.app/logo.png"
+  },
   "accountAssociation": {
     "header": "eyJmaWQiOjM0MjQzMywidHlwZSI6ImF1dGgiLCJrZXkiOiIweDlGYUEzZWMxNjZDMjlCOTU0MjZENWJiQjc5RDNCNDVBZDUxQ0QxYzIifQ",
     "payload": "eyJkb21haW4iOiJzZWVuLXJlZC52ZXJjZWwuYXBwIn0",
     "signature": "3ix3TuzpkfESthdPbxe5p5fu/LQ965THOJaDZnBboDQ1qsnaWrnVX9Zyko0ovA/E4BjQeWCQSYi5P54lAQ7IAxw="
-  },
-  "frame": {
-    "version": "1",
-    "name": "Seen.",
-    "iconUrl": "https://seen-red.vercel.app/logo.png",
-    "homeUrl": "https://seen-red.vercel.app",
-    "imageUrl": "https://seen-red.vercel.app/logo.png",
-    "buttonTitle": "Open Seen",
-    "splashImageUrl": "https://seen-red.vercel.app/logo.png",
-    "splashBackgroundColor": "#000000"
   }
 }
-
