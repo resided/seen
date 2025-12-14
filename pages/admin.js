@@ -383,6 +383,8 @@ export default function Admin() {
     
     try {
       console.log('Approving project:', projectId);
+      setMessage('Approving project...');
+      
       const response = await fetch('/api/admin/approve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -390,18 +392,32 @@ export default function Admin() {
         credentials: 'include',
       });
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        console.error('Failed to parse response:', jsonError);
+        const text = await response.text();
+        setMessage(`ERROR: Invalid response from server. Status: ${response.status}. Response: ${text.substring(0, 200)}`);
+        return;
+      }
+
       if (response.ok) {
-        setMessage(`Project ${projectId} approved and added to queue!`);
-        fetchSubmissions(); // Refresh list
-        fetchLiveProjects(); // Refresh live projects
+        setMessage(`SUCCESS: Project ${projectId} approved and added to queue! Refreshing...`);
+        // Immediately refresh to show updated status
+        setTimeout(() => {
+          fetchSubmissions(); // Refresh list
+          fetchLiveProjects(); // Refresh live projects
+          setMessage(`Project ${projectId} approved and added to queue!`);
+        }, 500);
       } else {
-        setMessage(data.error || 'Failed to approve');
-        console.error('Approve error:', data);
+        const errorMsg = data.error || `Failed to approve (Status: ${response.status})`;
+        setMessage(`ERROR: ${errorMsg}`);
+        console.error('Approve error:', { status: response.status, data, projectId });
       }
     } catch (error) {
       console.error('Error approving project:', error);
-      setMessage('Error approving project: ' + error.message);
+      setMessage(`ERROR: Error approving project: ${error.message || 'Network error'}`);
     }
   };
 
@@ -1694,12 +1710,15 @@ export default function Admin() {
                   <div className="flex gap-4 pt-4 border-t border-white">
                     <button
                       type="button"
-                      onClick={(e) => {
+                      onClick={async (e) => {
                         e.preventDefault();
                         e.stopPropagation();
+                        console.log('APPROVE button clicked, submission:', submission);
                         if (submission?.id) {
-                          handleApprove(submission.id);
+                          console.log('Calling handleApprove with ID:', submission.id);
+                          await handleApprove(submission.id);
                         } else {
+                          console.error('Missing submission ID:', submission);
                           setMessage('ERROR: Missing submission ID');
                         }
                       }}
