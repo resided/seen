@@ -1287,14 +1287,14 @@ export default function Admin() {
                       type="number"
                       step="0.01"
                       name="stats.tips"
-                      value={tipsUsdDisplay.edit !== '' ? tipsUsdDisplay.edit : (ethPrice ? (editFormData.stats.tips * ethPrice).toFixed(2) : editFormData.stats.tips)}
+                      value={tipsUsdDisplay.edit !== '' ? tipsUsdDisplay.edit : (ethPrice && editFormData.stats.tips ? (editFormData.stats.tips * ethPrice).toFixed(2) : '0')}
                       onChange={handleEditFormChange}
                       className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
                       placeholder="0"
                     />
-                    {ethPrice && (
+                    {ethPrice && tipsUsdDisplay.edit && parseFloat(tipsUsdDisplay.edit) > 0 && (
                       <p className="text-[10px] text-gray-600 mt-1">
-                        ≈ {(parseFloat(tipsUsdDisplay.edit || 0) / ethPrice).toFixed(6)} ETH
+                        ≈ {(parseFloat(tipsUsdDisplay.edit) / ethPrice).toFixed(6)} ETH
                       </p>
                     )}
                   </div>
