@@ -312,11 +312,15 @@ export default function Admin() {
 
       const data = await response.json();
       if (response.ok) {
-        setMessage(data.message || 'Project updated successfully!');
+        setMessage(data.message || 'Project updated successfully! Refreshing...');
         setEditingProject(null);
-        fetchLiveProjects(); // Refresh live projects
-        fetchArchivedProjects(); // Refresh archived projects
-        fetchSubmissions(); // Refresh submissions in case status changed
+        // Immediately refresh to show updated stats
+        setTimeout(() => {
+          fetchLiveProjects(); // Refresh live projects
+          fetchArchivedProjects(); // Refresh archived projects
+          fetchSubmissions(); // Refresh submissions in case status changed
+          setMessage('Project updated successfully!');
+        }, 500);
       } else {
         setMessage(data.error || 'Failed to update project');
       }
@@ -470,6 +474,52 @@ export default function Admin() {
     } catch (error) {
       console.error('Error processing refund:', error);
       setMessage('Error processing refund: ' + error.message);
+    }
+  };
+
+  const handleQuickStatsUpdate = async (projectId, statType, value) => {
+    if (!projectId || !statType || value === null || value === undefined) {
+      setMessage('ERROR: Invalid stats update');
+      return;
+    }
+
+    try {
+      console.log('Quick updating stats:', { projectId, statType, value });
+      const currentProject = liveProjects.find(p => p.id === projectId) || archivedProjects.find(p => p.id === projectId);
+      const currentStats = currentProject?.stats || { views: 0, clicks: 0, tips: 0 };
+      
+      const updatedStats = {
+        ...currentStats,
+        [statType]: value,
+      };
+
+      const response = await fetch('/api/admin/update-project', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: String(projectId),
+          stats: updatedStats,
+          fid: userFid || null,
+        }),
+        credentials: 'include',
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setMessage(`${statType.toUpperCase()} updated to ${value}! Refreshing...`);
+        // Immediately refresh to show updated stats
+        setTimeout(() => {
+          fetchLiveProjects();
+          fetchArchivedProjects();
+          setMessage('');
+        }, 500);
+      } else {
+        setMessage(data.error || `Failed to update ${statType}`);
+        console.error('Quick stats update error:', data);
+      }
+    } catch (error) {
+      console.error('Error updating stats:', error);
+      setMessage(`Error updating ${statType}: ` + error.message);
     }
   };
 
@@ -1158,6 +1208,18 @@ export default function Admin() {
                           EDIT
                         </button>
                         <button
+                          onClick={() => {
+                            const newClicks = prompt(`Update clicks for ${project.name}:\nCurrent: ${project.stats?.clicks || 0}\nEnter new value:`, project.stats?.clicks || 0);
+                            if (newClicks !== null && !isNaN(newClicks)) {
+                              handleQuickStatsUpdate(project.id, 'clicks', parseInt(newClicks));
+                            }
+                          }}
+                          className="px-4 py-2 bg-green-600 text-white font-bold hover:bg-green-500 transition-all text-xs"
+                          title="Quick update clicks"
+                        >
+                          SET CLICKS
+                        </button>
+                        <button
                           onClick={() => handleArchive(project.id, true)}
                           className="px-4 py-2 bg-gray-600 text-white font-bold hover:bg-gray-500 transition-all"
                         >
@@ -1223,6 +1285,18 @@ export default function Admin() {
                             className="px-4 py-2 bg-blue-500 text-white font-bold hover:bg-blue-400 transition-all"
                           >
                             EDIT
+                          </button>
+                          <button
+                            onClick={() => {
+                              const newClicks = prompt(`Update clicks for ${project.name}:\nCurrent: ${project.stats?.clicks || 0}\nEnter new value:`, project.stats?.clicks || 0);
+                              if (newClicks !== null && !isNaN(newClicks)) {
+                                handleQuickStatsUpdate(project.id, 'clicks', parseInt(newClicks));
+                              }
+                            }}
+                            className="px-4 py-2 bg-green-600 text-white font-bold hover:bg-green-500 transition-all text-xs"
+                            title="Quick update clicks"
+                          >
+                            SET CLICKS
                           </button>
                           <button
                             onClick={() => handleArchive(project.id, false)}
