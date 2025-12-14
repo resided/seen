@@ -1095,6 +1095,18 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
     }
   }, [showTipModal, ethPrice, customTipAmount, customTipAmountUsd]);
 
+  // Track view when project card is displayed
+  useEffect(() => {
+    if (project?.id) {
+      // Track view when component mounts
+      fetch('/api/track-click', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId: project.id, type: 'view' }),
+      }).catch(() => {}); // Fail silently
+    }
+  }, [project?.id]);
+
   const handleOpenClick = async () => {
     if (!project.links?.miniapp) return;
     
