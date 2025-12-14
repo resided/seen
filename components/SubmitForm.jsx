@@ -11,6 +11,7 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false }) 
     miniapp: '',
     website: '',
     github: '',
+    twitter: '',
     submissionType: 'queue', // 'queue' (free) or 'featured' (paid)
   });
   const [submitting, setSubmitting] = useState(false);
@@ -64,6 +65,7 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false }) 
             miniapp: formData.miniapp,
             website: formData.website,
             github: formData.github,
+            twitter: formData.twitter || null,
           },
           submitterFid: userFid || null, // Pass current user's FID for score validation
         }),
@@ -286,6 +288,21 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false }) 
                 placeholder="https://github.com/yourproject"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+              TWITTER / X (OPTIONAL)
+            </label>
+            <input
+              type="text"
+              name="twitter"
+              value={formData.twitter}
+              onChange={handleChange}
+              className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+              placeholder="@username or https://x.com/username"
+            />
+            <p className="text-[10px] text-gray-600 mt-1">If provided, a "Follow on X" button will appear on your featured project</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4 pt-4">

@@ -30,6 +30,25 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    // Extract Twitter/X username from user data
+    // Neynar returns social links in various formats
+    let twitter = null;
+    if (user.profile?.social_links) {
+      const twitterLink = user.profile.social_links.find(
+        link => link.type === 'twitter' || link.type === 'x' || link.url?.includes('twitter.com') || link.url?.includes('x.com')
+      );
+      if (twitterLink) {
+        twitter = twitterLink.url || twitterLink.username;
+      }
+    }
+    // Also check legacy fields
+    if (!twitter && user.twitter) {
+      twitter = user.twitter;
+    }
+    if (!twitter && user.profile?.twitter) {
+      twitter = user.profile.twitter;
+    }
+
     // Return formatted user data
     return res.status(200).json({
       fid: user.fid,
@@ -40,6 +59,7 @@ export default async function handler(req, res) {
       profileUrl: user.username ? `https://farcaster.xyz/${user.username}` : `https://farcaster.xyz/profiles/${user.fid}`,
       verified: user.verified_addresses?.eth_addresses?.length > 0,
       neynarUserScore: user.experimental?.neynar_user_score || null,
+      twitter: twitter, // Add Twitter/X link
     });
   } catch (error) {
     console.error('Error fetching user profile:', error);

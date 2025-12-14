@@ -149,13 +149,38 @@ export default function Admin() {
 
       const data = await response.json();
       if (response.ok) {
-        setMessage(`Project ${projectId} approved!`);
+        setMessage(`Project ${projectId} approved and added to queue!`);
         fetchSubmissions(); // Refresh list
       } else {
         setMessage(data.error || 'Failed to approve');
       }
     } catch (error) {
       setMessage('Error approving project');
+    }
+  };
+
+  const handleFeature = async (projectId) => {
+    if (!confirm('Feature this project immediately? This will replace the current featured project.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/admin/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, action: 'feature', fid: userFid || null }),
+        credentials: 'include',
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setMessage(`Project ${projectId} approved and featured immediately!`);
+        fetchSubmissions(); // Refresh list
+      } else {
+        setMessage(data.error || 'Failed to feature project');
+      }
+    } catch (error) {
+      setMessage('Error featuring project');
     }
   };
 
@@ -395,6 +420,12 @@ export default function Admin() {
                       className="px-6 py-2 bg-white text-black font-bold hover:bg-gray-200 transition-all"
                     >
                       APPROVE
+                    </button>
+                    <button
+                      onClick={() => handleFeature(submission.id)}
+                      className="px-6 py-2 bg-yellow-500 text-black font-bold hover:bg-yellow-400 transition-all"
+                    >
+                      FEATURE NOW
                     </button>
                     <button
                       onClick={() => handleReject(submission.id)}

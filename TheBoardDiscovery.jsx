@@ -267,9 +267,18 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false }) => {
               <button
                 onClick={() => {
                   const xUsername = app.links?.twitter || app.twitter || builderData?.twitter;
-                  const xUrl = xUsername.startsWith('http') 
-                    ? xUsername 
-                    : `https://x.com/${xUsername.replace('@', '')}`;
+                  if (!xUsername) return;
+                  
+                  // Handle different formats: URL, @username, or plain username
+                  let xUrl;
+                  if (xUsername.startsWith('http://') || xUsername.startsWith('https://')) {
+                    xUrl = xUsername;
+                  } else if (xUsername.startsWith('@')) {
+                    xUrl = `https://x.com/${xUsername.slice(1)}`;
+                  } else {
+                    xUrl = `https://x.com/${xUsername.replace('@', '')}`;
+                  }
+                  
                   window.open(xUrl, '_blank', 'noopener,noreferrer');
                 }}
                 className="text-[10px] tracking-[0.2em] px-3 py-1.5 border border-white hover:bg-white hover:text-black transition-all"

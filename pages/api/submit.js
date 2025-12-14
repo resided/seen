@@ -1,5 +1,5 @@
 // API route to submit a new project
-import { submitProject } from '../../lib/projects'
+import { submitProject, checkFeaturedPaymentCooldown } from '../../lib/projects'
 import { fetchUserByFid } from '../../lib/neynar'
 
 const MIN_NEYNAR_SCORE = 0.62; // Minimum Neynar user score required to submit
@@ -62,6 +62,17 @@ export default async function handler(req, res) {
     // Validate featured submission has payment
     if (submissionType === 'featured' && (!paymentAmount || paymentAmount <= 0)) {
       return res.status(400).json({ error: 'Featured submissions require payment' })
+    }
+
+    // Check 24-hour cooldown for featured submissions
+    if (submissionType === 'featured' && submitterFid) {
+      const cooldown = await checkFeaturedPaymentCooldown(parseInt(submitterFid));
+      if (!cooldown.allowed) {
+        return res.status(429).json({
+          error: `You can only submit one featured project per 24 hours. Please wait ${cooldown.hoursRemaining} more hour(s) before submitting another featured project.`,
+          hoursRemaining: cooldown.hoursRemaining,
+        });
+      }
     }
 
     const project = await submitProject({
