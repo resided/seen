@@ -1048,33 +1048,53 @@ const CategoryRankings = ({ category, ethPrice }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!category) return; // Guard against invalid category
+    if (!category) {
+      setRankings([]);
+      setLoading(false);
+      return;
+    }
+    
+    let isMounted = true; // Track if component is still mounted
     
     const fetchRankings = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`/api/projects/rankings?category=${category}&limit=10`);
+        const response = await fetch(`/api/projects/rankings?category=${encodeURIComponent(category)}&limit=10`);
         if (!response.ok) {
           throw new Error(`Failed to fetch rankings: ${response.status}`);
         }
         const data = await response.json();
-        if (data && data.rankings) {
-          setRankings(Array.isArray(data.rankings) ? data.rankings : []);
-        } else {
-          setRankings([]);
+        if (isMounted) {
+          if (data && data.rankings && Array.isArray(data.rankings)) {
+            setRankings(data.rankings);
+          } else {
+            setRankings([]);
+          }
         }
       } catch (error) {
         console.error('Error fetching rankings:', error);
-        setRankings([]); // Set empty array on error to prevent crashes
+        if (isMounted) {
+          setRankings([]); // Set empty array on error to prevent crashes
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchRankings();
     // Refresh rankings every 30 seconds
-    const interval = setInterval(fetchRankings, 30000);
-    return () => clearInterval(interval);
+    const interval = setInterval(() => {
+      if (isMounted) {
+        fetchRankings();
+      }
+    }, 30000);
+    
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, [category]);
 
   if (loading) {
@@ -1111,7 +1131,7 @@ const CategoryRankings = ({ category, ethPrice }) => {
       </div>
       
       <div className="space-y-2">
-        {rankings && rankings.length > 0 ? rankings.map((project, index) => {
+        {rankings && Array.isArray(rankings) && rankings.length > 0 ? rankings.map((project, index) => {
           if (!project || !project.id) return null; // Guard against invalid projects
           
           const previousRank = project.previousRank;
@@ -1119,7 +1139,7 @@ const CategoryRankings = ({ category, ethPrice }) => {
           
           return (
             <div
-              key={project.id || index}
+              key={project.id || `project-${index}`}
               className="border border-white p-4 hover:bg-white/5 transition-all"
             >
               <div className="flex items-center gap-4">
@@ -1195,7 +1215,7 @@ const CategoryRankings = ({ category, ethPrice }) => {
 // ============================================
 // DAILY CLAIM
 // ============================================
-const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false }) => {
+const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false, featuredApp = null }) => {
   const [claimed, setClaimed] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [message, setMessage] = useState('');
@@ -1359,9 +1379,22 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
             <div className="text-4xl mb-2">✓</div>
             <div className="text-sm font-bold mb-2">CLAIMED</div>
             {expirationTime && getTimeUntilExpiration() && getTimeUntilExpiration() !== 'EXPIRED' && (
-              <div className="text-[10px] tracking-[0.2em] text-gray-500">
+              <div className="text-[10px] tracking-[0.2em] text-gray-500 mb-4">
                 EXPIRES IN {getTimeUntilExpiration()}
               </div>
+            )}
+            {featuredApp?.links?.miniapp && (
+              <button
+                onClick={() => {
+                  const miniappUrl = featuredApp.links.miniapp;
+                  const castText = encodeURIComponent(`I just claimed $SEEN for checking out today's featured miniapp ${miniappUrl}`);
+                  const farcastUrl = `https://warpcast.com/~/compose?text=${castText}`;
+                  window.open(farcastUrl, '_blank', 'noopener,noreferrer');
+                }}
+                className="w-full py-3 border border-white font-bold text-sm tracking-[0.2em] hover:bg-white hover:text-black transition-all mt-4"
+              >
+                SHARE ON FARCASTER
+              </button>
             )}
           </>
         ) : (
@@ -1797,6 +1830,7 @@ export default function Seen() {
                 isInFarcaster={isInFarcaster} 
                 userFid={userInfo?.fid || null}
                 isConnected={isConnected}
+                featuredApp={featuredApp}
               />
             </div>
           </div>
