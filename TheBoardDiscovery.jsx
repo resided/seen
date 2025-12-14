@@ -1764,7 +1764,8 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
             <button
               onClick={() => {
                 const miniappUrl = 'https://farcaster.xyz/miniapps/EvK2rV9tUv3h/seen';
-                const castText = encodeURIComponent(`I just claimed $SEEN for checking out today's featured miniapp ${miniappUrl}`);
+                // Put URL on new line for better embedding
+                const castText = encodeURIComponent(`I just claimed $SEEN for checking out today's featured miniapp\n\n${miniappUrl}`);
                 const farcastUrl = `https://warpcast.com/~/compose?text=${castText}`;
                 window.open(farcastUrl, '_blank', 'noopener,noreferrer');
               }}
