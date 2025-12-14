@@ -36,7 +36,7 @@ const formatNumber = (num) => {
 // ============================================
 const ActivityTicker = () => {
   const items = [
-    'NOW ACCEPTING SUBMISSIONS FOR TOMORROW',
+    'SHORTLY ACCEPTING SUBMISSIONS',
     'TIPS GO DIRECTLY TO BUILDERS',
     '23K+ INSTALLS TODAY',
     'BUILT FOR FARCASTER MINI APPS',
@@ -62,6 +62,7 @@ const ActivityTicker = () => {
 const FeaturedApp = ({ app, onTip }) => {
   const [countdown, setCountdown] = useState({ h: 8, m: 42, s: 17 });
   const [creatorProfileUrl, setCreatorProfileUrl] = useState(null);
+  const [builderData, setBuilderData] = useState(null);
   
   useEffect(() => {
     const timer = setInterval(() => {
@@ -77,38 +78,67 @@ const FeaturedApp = ({ app, onTip }) => {
     return () => clearInterval(timer);
   }, []);
 
-  // Auto-detect creator info from Mini App URL if not already provided
+  // Fetch builder profile data from Neynar
   useEffect(() => {
-    const fetchCreatorInfo = async () => {
-      // If we already have a profile URL or builderFid, use it
+    const fetchBuilderProfile = async () => {
+      // If we have a FID, fetch user data from Neynar
       if (app.builderFid) {
-        setCreatorProfileUrl(`https://farcaster.xyz/profiles/${app.builderFid}`);
-        return;
-      }
-
-      // If we have a Mini App URL, try to fetch creator info
-      const miniappUrl = app.links?.miniapp || app.miniappUrl;
-      if (miniappUrl) {
         try {
-          const response = await fetch('/api/miniapp-info', {
+          const response = await fetch('/api/user-profile', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url: miniappUrl }),
+            body: JSON.stringify({ fid: app.builderFid }),
           });
           
           if (response.ok) {
             const data = await response.json();
-            if (data.creator?.profileUrl) {
-              setCreatorProfileUrl(data.creator.profileUrl);
-            }
+            setBuilderData(data);
+            setCreatorProfileUrl(data.profileUrl);
           }
         } catch (error) {
-          console.error('Error fetching creator info:', error);
+          console.error('Error fetching builder profile:', error);
+          // Fallback to just creating profile URL
+          if (app.builderFid) {
+            setCreatorProfileUrl(`https://farcaster.xyz/profiles/${app.builderFid}`);
+          }
+        }
+      } else {
+        // If we have a Mini App URL, try to fetch creator info
+        const miniappUrl = app.links?.miniapp || app.miniappUrl;
+        if (miniappUrl) {
+          try {
+            const response = await fetch('/api/miniapp-info', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url: miniappUrl }),
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              if (data.creator?.profileUrl) {
+                setCreatorProfileUrl(data.creator.profileUrl);
+              }
+              // If we got a FID from the manifest, fetch full profile
+              if (data.creator?.fid) {
+                const profileResponse = await fetch('/api/user-profile', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ fid: data.creator.fid }),
+                });
+                if (profileResponse.ok) {
+                  const profileData = await profileResponse.json();
+                  setBuilderData(profileData);
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Error fetching creator info:', error);
+          }
         }
       }
     };
 
-    fetchCreatorInfo();
+    fetchBuilderProfile();
   }, [app]);
 
   return (
@@ -142,8 +172,30 @@ const FeaturedApp = ({ app, onTip }) => {
 
         {/* Builder */}
         <div className="flex items-center gap-3 mb-6 pb-6 border-b border-white/20">
-          <div className="w-10 h-10 bg-white text-black flex items-center justify-center font-black text-sm">
-            {app.builder.charAt(0)}
+          <div className="w-10 h-10 bg-white text-black flex items-center justify-center font-black text-sm relative overflow-hidden rounded-full border border-white shrink-0">
+            {builderData?.pfpUrl ? (
+              <>
+                <img
+                  src={builderData.pfpUrl}
+                  alt={builderData.displayName || app.builder}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    // Hide image on error, show fallback initial
+                    e.target.style.display = 'none';
+                    if (e.target.nextSibling) {
+                      e.target.nextSibling.style.display = 'flex';
+                    }
+                  }}
+                />
+                <div className="absolute inset-0 flex items-center justify-center hidden">
+                  {(builderData?.displayName || app.builder)?.charAt(0).toUpperCase()}
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center justify-center w-full h-full">
+                {(builderData?.displayName || app.builder)?.charAt(0).toUpperCase()}
+              </div>
+            )}
           </div>
           <div className="flex-1">
             {creatorProfileUrl || app.builderFid ? (
@@ -153,14 +205,16 @@ const FeaturedApp = ({ app, onTip }) => {
                 rel="noopener noreferrer"
                 className="text-sm font-bold hover:underline block"
               >
-                {app.builder}
+                {builderData?.displayName || app.builder}
               </a>
             ) : (
-              <div className="text-sm font-bold">{app.builder}</div>
+              <div className="text-sm font-bold">{builderData?.displayName || app.builder}</div>
             )}
-            {app.builderFid && (
-              <div className="text-[10px] tracking-[0.2em] text-gray-500">FID #{app.builderFid}</div>
-            )}
+            <div className="text-[10px] tracking-[0.2em] text-gray-500">
+              {builderData?.username ? `@${builderData.username}` : app.builder}
+              {builderData?.fid && ` • FID #${builderData.fid}`}
+              {!builderData?.fid && app.builderFid && ` • FID #${app.builderFid}`}
+            </div>
           </div>
           <button className="text-[10px] tracking-[0.2em] px-3 py-1.5 border border-white hover:bg-white hover:text-black transition-all">
             FOLLOW
