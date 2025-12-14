@@ -1861,6 +1861,7 @@ export default function Seen() {
   const [chatLoading, setChatLoading] = useState(true);
   const [isInFarcaster, setIsInFarcaster] = useState(false);
   const [isMiniappInstalled, setIsMiniappInstalled] = useState(false);
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [categoryRankings, setCategoryRankings] = useState([]);
   const [rankingsLoading, setRankingsLoading] = useState(false);
   const [hasClickedMiniapp, setHasClickedMiniapp] = useState(false);
@@ -1920,6 +1921,7 @@ export default function Seen() {
   }, []);
   
   // Detect if we're in Farcaster context and check miniapp installation
+  // Check every time the app opens
   useEffect(() => {
     const checkFarcasterContext = async () => {
       try {
@@ -1927,36 +1929,57 @@ export default function Seen() {
         const context = await sdk.context;
         if (context?.user || context) {
           setIsInFarcaster(true);
-          // Check if miniapp is installed
           // The miniapp is considered "installed" if we can access the context
           // In Farcaster, if you're viewing the miniapp, it's installed
           setIsMiniappInstalled(true);
+          setShowInstallPrompt(false); // Hide prompt if installed
         } else {
           // Also check user agent for Farcaster desktop
           const userAgent = navigator.userAgent.toLowerCase();
           if (userAgent.includes('farcaster') || userAgent.includes('warpcast')) {
             setIsInFarcaster(true);
-            setIsMiniappInstalled(true);
+            // If we're in Farcaster but can't access context, miniapp might not be installed
+            // Try to check more explicitly
+            try {
+              // Try to call ready() - if it works, miniapp is likely installed
+              await sdk.actions.ready();
+              setIsMiniappInstalled(true);
+              setShowInstallPrompt(false);
+            } catch (readyError) {
+              // If ready() fails, miniapp might not be installed
+              setIsMiniappInstalled(false);
+              setShowInstallPrompt(true); // Show prompt to add miniapp
+            }
           } else {
             setIsInFarcaster(false);
             setIsMiniappInstalled(false);
+            setShowInstallPrompt(false); // Don't show prompt outside Farcaster
           }
         }
       } catch (error) {
-        // If SDK throws error, we're likely not in Farcaster
+        // If SDK throws error, check user agent
         const userAgent = navigator.userAgent.toLowerCase();
         if (userAgent.includes('farcaster') || userAgent.includes('warpcast')) {
           setIsInFarcaster(true);
-          setIsMiniappInstalled(true);
+          // Try to check if miniapp is installed by attempting SDK actions
+          try {
+            await sdk.actions.ready();
+            setIsMiniappInstalled(true);
+            setShowInstallPrompt(false);
+          } catch (readyError) {
+            setIsMiniappInstalled(false);
+            setShowInstallPrompt(true); // Show prompt to add miniapp
+          }
         } else {
           setIsInFarcaster(false);
           setIsMiniappInstalled(false);
+          setShowInstallPrompt(false);
         }
       }
     };
     
     checkFarcasterContext();
-  }, []);
+  }, []); // Run on every mount (app open)
   
   // Fetch user info from Farcaster SDK
   useEffect(() => {
@@ -2312,6 +2335,72 @@ export default function Seen() {
           <CategoryRankings category={category} ethPrice={ethPrice} isInFarcaster={isInFarcaster} isConnected={isConnected} />
         )}
       </main>
+
+      {/* Install Miniapp Prompt Modal */}
+      {showInstallPrompt && isInFarcaster && !isMiniappInstalled && (
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
+          <div className="bg-black border-2 border-white max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-xl font-black tracking-tight">ADD THIS MINI APP</h3>
+                <p className="text-[9px] tracking-[0.2em] text-gray-500 mt-1">
+                  TO ACCESS ALL FEATURES
+                </p>
+              </div>
+              <button
+                onClick={() => setShowInstallPrompt(false)}
+                className="text-white hover:text-gray-400 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-sm text-gray-300 mb-4">
+                You need to add this miniapp to your Farcaster account to submit projects, claim tokens, and access all features.
+              </p>
+              <div className="border border-yellow-500/50 bg-yellow-500/10 p-4 mb-4">
+                <p className="text-xs text-yellow-400 mb-2 font-bold">
+                  HOW TO ADD:
+                </p>
+                <ol className="text-xs text-yellow-300 space-y-1 list-decimal list-inside">
+                  <li>Look for the "Add" or "Install" button in your Farcaster app</li>
+                  <li>Or tap the miniapp icon in the top right corner</li>
+                  <li>Confirm to add it to your account</li>
+                </ol>
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowInstallPrompt(false)}
+                className="flex-1 py-3 border border-white text-white font-bold text-sm tracking-[0.2em] hover:bg-white hover:text-black transition-all"
+              >
+                GOT IT
+              </button>
+              <button
+                onClick={async () => {
+                  // Try to open the miniapp URL to help with installation
+                  const miniappUrl = 'https://farcaster.xyz/miniapps/EvK2rV9tUv3h/seen';
+                  try {
+                    if (sdk.actions?.openUrl) {
+                      await sdk.actions.openUrl({ url: miniappUrl });
+                    } else {
+                      window.open(miniappUrl, '_blank', 'noopener,noreferrer');
+                    }
+                  } catch (error) {
+                    window.open(miniappUrl, '_blank', 'noopener,noreferrer');
+                  }
+                  setShowInstallPrompt(false);
+                }}
+                className="flex-1 py-3 bg-white text-black font-black text-sm tracking-[0.2em] hover:bg-gray-200 transition-all"
+              >
+                OPEN MINI APP
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Submit Form Modal */}
       {showSubmitForm && (
