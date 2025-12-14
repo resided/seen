@@ -1697,7 +1697,8 @@ export default function Seen() {
               ) : (
                 <LiveChat messages={messages} onSend={handleSendMessage} isInFarcaster={isInFarcaster} />
               )}
-              {hasClickedMiniapp && (
+              {/* Show claim section if in Farcaster (always visible) or if user clicked miniapp */}
+              {(isInFarcaster || hasClickedMiniapp) && (
                 <DailyClaim 
                   isInFarcaster={isInFarcaster} 
                   userFid={userInfo?.fid || null}
