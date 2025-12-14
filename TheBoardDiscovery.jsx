@@ -1779,7 +1779,7 @@ export default function Seen() {
       {/* Category nav */}
       <div className="border-b border-white">
         <div className="max-w-4xl mx-auto">
-          <div className="flex overflow-x-auto scrollbar-hide">
+          <div className="flex overflow-x-auto scrollbar-thin">
             {CATEGORIES.map(cat => {
               const IconComponent = cat.icon;
               return (
@@ -1928,13 +1928,23 @@ export default function Seen() {
           scrollbar-width: thin;
           scrollbar-color: #666 #000;
         }
-        /* Hide scrollbar for category nav but keep functionality */
-        .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
+        /* Thin scrollbar for category nav - visible for Windows users */
+        .scrollbar-thin {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
         }
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
+        .scrollbar-thin::-webkit-scrollbar {
+          height: 6px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.3);
+          border-radius: 3px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.5);
         }
       `}</style>
     </div>
