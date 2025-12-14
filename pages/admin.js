@@ -1779,26 +1779,39 @@ export default function Admin() {
                   )}
 
                   {submission.paymentAmount > 0 && submission.submitterWalletAddress && (
-                    <div className="mb-4 p-3 border border-yellow-500 bg-yellow-900/10">
-                      <div className="text-xs text-yellow-400 mb-1">
-                        PAYMENT INFO
+                    <div className="mb-4 p-3 border border-green-500/30 bg-green-500/5">
+                      <div className="text-[10px] tracking-[0.2em] text-green-400 mb-2">PAYMENT INFO</div>
+                      <div className="text-xs space-y-1">
+                        <div>Amount: {submission.paymentAmount} ETH</div>
+                        {submission.paymentTimestamp && (
+                          <div className="text-[10px] text-gray-400">
+                            Paid: {new Date(submission.paymentTimestamp).toLocaleString()}
+                          </div>
+                        )}
+                        {submission.paymentTxHash && (
+                          <div className="text-[10px] font-mono text-gray-400 mt-1 break-all">
+                            TX Hash: <a href={`https://basescan.org/tx/${submission.paymentTxHash}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">{submission.paymentTxHash}</a>
+                          </div>
+                        )}
+                        {submission.submitterWalletAddress && (
+                          <div className="text-[10px] font-mono text-gray-400 mt-1 break-all">
+                            From: <a href={`https://basescan.org/address/${submission.submitterWalletAddress}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">{submission.submitterWalletAddress}</a>
+                          </div>
+                        )}
+                        {submission.refunded && submission.refundTxHash && (
+                          <div className="text-[10px] text-red-400 mt-1">
+                            Refunded TX: <a href={`https://basescan.org/tx/${submission.refundTxHash}`} target="_blank" rel="noopener noreferrer" className="text-red-400 hover:underline">{submission.refundTxHash}</a>
+                          </div>
+                        )}
                       </div>
-                      <div className="text-[10px] text-gray-400">
-                        Amount: {submission.paymentAmount} ETH
+                    </div>
+                  )}
+                  {submission.plannedGoLiveDate && (
+                    <div className="mb-4 p-3 border border-blue-500/30 bg-blue-500/5">
+                      <div className="text-[10px] tracking-[0.2em] text-blue-400 mb-1">PLANNED GO LIVE</div>
+                      <div className="text-xs text-gray-300">
+                        {new Date(submission.plannedGoLiveDate).toLocaleDateString()}
                       </div>
-                      {submission.paymentTxHash && (
-                        <div className="text-[10px] text-gray-400">
-                          Payment TX: <span className="font-mono">{submission.paymentTxHash.slice(0, 20)}...</span>
-                        </div>
-                      )}
-                      <div className="text-[10px] text-gray-400">
-                        Wallet: <span className="font-mono">{submission.submitterWalletAddress.slice(0, 20)}...</span>
-                      </div>
-                      {submission.refunded && submission.refundTxHash && (
-                        <div className="text-[10px] text-red-400 mt-1">
-                          Refunded TX: <span className="font-mono">{submission.refundTxHash.slice(0, 20)}...</span>
-                        </div>
-                      )}
                     </div>
                   )}
 

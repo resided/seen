@@ -26,7 +26,7 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
   const { isConnected, address } = useAccount();
   const { sendTransaction, data: txData } = useSendTransaction();
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
-    hash: txData,
+    hash: paymentTxHash || txData,
   });
   
   // Featured submission pricing (configurable)
@@ -83,7 +83,8 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
 
   // Auto-submit after payment confirmation
   useEffect(() => {
-    if (formData.submissionType === 'featured' && paymentTxHash && isConfirmed && !submitting && !processingPayment) {
+    const txHash = paymentTxHash || txData;
+    if (formData.submissionType === 'featured' && txHash && isConfirmed && !submitting && !processingPayment) {
       // Payment confirmed, now submit the form
       const submitAfterPayment = async () => {
         setSubmitting(true);
@@ -100,7 +101,7 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
               ...formData,
               submissionType: formData.submissionType,
               paymentAmount: paymentAmount,
-              paymentTxHash: paymentTxHash,
+              paymentTxHash: txHash,
               paymentTimestamp: new Date().toISOString(),
               submitterWalletAddress: address,
               links: {
@@ -117,7 +118,7 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
           const data = await response.json();
 
           if (response.ok) {
-            setMessage(`SUBMITTED! PAYMENT RECEIVED. YOUR FEATURED SUBMISSION IS PENDING ADMIN APPROVAL. TX: ${paymentTxHash.slice(0, 10)}...`);
+            setMessage(`SUBMITTED! PAYMENT RECEIVED. YOUR FEATURED SUBMISSION IS PENDING ADMIN APPROVAL. TX: ${txHash.slice(0, 10)}...`);
             setTimeout(() => {
               onSubmit?.();
               onClose();
@@ -135,7 +136,7 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
       
       submitAfterPayment();
     }
-  }, [isConfirmed, paymentTxHash, formData.submissionType]);
+  }, [isConfirmed, paymentTxHash, txData, formData.submissionType, submitting, processingPayment, address, userFid]);
 
   const handleChange = (e) => {
     const newFormData = {
@@ -215,7 +216,11 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
           value: parseEther(paymentAmount.toFixed(6)),
         });
 
-        setPaymentTxHash(hash);
+        // The hash will be available in txData from useSendTransaction
+        // But we also set it in state for the useEffect
+        if (hash) {
+          setPaymentTxHash(hash);
+        }
         setMessage('PAYMENT SENT! WAITING FOR CONFIRMATION...');
         
         // Wait for transaction confirmation
