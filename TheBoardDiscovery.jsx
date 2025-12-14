@@ -84,7 +84,7 @@ const formatTipsUsd = (ethAmount, ethPrice) => {
 // ============================================
 const ActivityTicker = () => {
   const items = [
-    'SHORTLY ACCEPTING SUBMISSIONS',
+    'ACCEPTING SUBMISSIONS',
     'TIPS GO DIRECTLY TO THE MINIAPP CREATOR',
     '23K+ INSTALLS TODAY',
     'BUILT FOR FARCASTER MINI APPS',
@@ -320,9 +320,6 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
       <div className="border-b border-white p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="text-[10px] tracking-[0.3em] text-gray-500">TODAY'S FEATURED</div>
-          <div className="text-[10px] tracking-[0.2em] px-2 py-0.5 bg-white text-black font-bold">
-            {app.category.toUpperCase()}
-          </div>
         </div>
         <div className="text-right">
           <div className="font-mono text-sm">
@@ -1629,6 +1626,68 @@ const CategoryRankings = ({ category, ethPrice, isInFarcaster = false, isConnect
 };
 
 // ============================================
+// FAQ COMPONENT
+// ============================================
+const FAQ = () => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="border border-white">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full p-3 border-b border-white flex items-center justify-between hover:bg-white/5 transition-all"
+      >
+        <span className="text-[10px] tracking-[0.3em] font-bold">FAQ</span>
+        <span className="text-lg">{isOpen ? '−' : '+'}</span>
+      </button>
+      {isOpen && (
+        <div className="p-6 space-y-4 text-sm">
+          <div>
+            <h3 className="text-lg font-black mb-2 tracking-tight">ABOUT SEEN.</h3>
+            <p className="text-gray-400 leading-relaxed">
+              SEEN. is a discovery platform for Farcaster Mini Apps. We help builders get their projects seen by the Farcaster community. 
+              Featured projects are highlighted for 24 hours, and users can discover, interact with, and tip builders directly.
+            </p>
+          </div>
+          
+          <div>
+            <h3 className="text-lg font-black mb-2 tracking-tight">HOW IT WORKS</h3>
+            <ul className="text-gray-400 space-y-2 list-disc list-inside leading-relaxed">
+              <li>Browse featured Mini Apps and category rankings</li>
+              <li>Click "OPEN" to interact with Mini Apps</li>
+              <li>Tip builders directly (tips go to their verified Farcaster wallet)</li>
+              <li>Claim $SEEN tokens for checking out featured apps</li>
+              <li>Submit your own project for free or pay for a featured slot</li>
+            </ul>
+          </div>
+
+          <div className="p-4 border border-red-500/50 bg-red-500/10">
+            <h3 className="text-base font-black mb-2 text-red-400 tracking-tight">⚠ IMPORTANT DISCLAIMER</h3>
+            <p className="text-xs text-red-300 leading-relaxed mb-2">
+              <strong>USE AT YOUR OWN RISK:</strong> SEEN. is a discovery platform only. We do not endorse, verify, or guarantee any Mini Apps listed on this platform.
+            </p>
+            <p className="text-xs text-red-300 leading-relaxed mb-2">
+              <strong>DO YOUR OWN RESEARCH:</strong> Before interacting with any Mini App, you should:
+            </p>
+            <ul className="text-xs text-red-300 space-y-1 list-disc list-inside ml-2 mb-2">
+              <li>Research the project and its creators independently</li>
+              <li>Verify smart contract addresses and security audits</li>
+              <li>Understand the risks associated with blockchain interactions</li>
+              <li>Never share private keys or seed phrases</li>
+              <li>Be cautious with transactions and token approvals</li>
+            </ul>
+            <p className="text-xs text-red-300 leading-relaxed">
+              <strong>NO LIABILITY:</strong> SEEN. and its operators are not responsible for any losses, damages, or issues arising from your use of any Mini Apps discovered through this platform. 
+              You are solely responsible for your interactions with third-party Mini Apps. Always exercise due diligence and use caution when engaging with blockchain applications.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ============================================
 // DAILY CLAIM
 // ============================================
 const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false, featuredApp = null, hasClickedMiniapp = false }) => {
@@ -2403,6 +2462,9 @@ export default function Seen() {
                 featuredApp={featuredApp}
                 hasClickedMiniapp={hasClickedMiniapp}
               />
+              
+              {/* FAQ Section */}
+              <FAQ />
             </div>
           </div>
         ) : (
