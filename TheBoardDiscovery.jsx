@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAccount, useConnect } from 'wagmi';
+import { sdk } from '@farcaster/miniapp-sdk';
 import SubmitForm from './components/SubmitForm';
 
 // ============================================
@@ -262,6 +263,14 @@ const FeaturedApp = ({ app, onTip }) => {
 const LiveChat = ({ messages, onSend }) => {
   const [input, setInput] = useState('');
   const chatRef = useRef(null);
+  const messagesEndRef = useRef(null);
+  
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
   
   const handleSend = () => {
     if (input.trim()) {
@@ -290,18 +299,27 @@ const LiveChat = ({ messages, onSend }) => {
       
       {/* Messages */}
       <div ref={chatRef} className="flex-1 overflow-y-auto p-3 space-y-3">
-        {messages.map(msg => (
-          <div key={msg.id} className="group">
-            <div className="flex items-baseline gap-2">
-              <span className="text-[10px] tracking-wider text-gray-500 shrink-0">
-                {msg.user}
-                {msg.verified && <span className="ml-1">✓</span>}
-              </span>
-              <span className="text-[10px] text-gray-600">{msg.time}</span>
-            </div>
-            <p className="text-sm mt-0.5 leading-snug">{msg.msg}</p>
+        {messages.length === 0 ? (
+          <div className="text-center text-gray-500 text-sm py-8">
+            NO MESSAGES YET. BE THE FIRST TO SAY SOMETHING!
           </div>
-        ))}
+        ) : (
+          <>
+            {messages.map(msg => (
+              <div key={msg.id} className="group">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-[10px] tracking-wider text-gray-500 shrink-0">
+                    {msg.user}
+                    {msg.verified && <span className="ml-1">✓</span>}
+                  </span>
+                  <span className="text-[10px] text-gray-600">{msg.time}</span>
+                </div>
+                <p className="text-sm mt-0.5 leading-snug">{msg.msg}</p>
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </>
+        )}
       </div>
       
       {/* Input */}
@@ -403,16 +421,128 @@ const UpcomingQueue = ({ queue = [] }) => {
 // ============================================
 export default function Seen() {
   const [category, setCategory] = useState('main');
-  const [messages, setMessages] = useState(INITIAL_MESSAGES);
+  const [messages, setMessages] = useState([]);
   const [time, setTime] = useState(new Date());
   const [featuredApp, setFeaturedApp] = useState(null);
   const [queue, setQueue] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showSubmitForm, setShowSubmitForm] = useState(false);
+  const [userInfo, setUserInfo] = useState(null);
+  const [lastMessageTimestamp, setLastMessageTimestamp] = useState(null);
+  const [chatLoading, setChatLoading] = useState(true);
   
   // Wagmi wallet connection
   const { isConnected, address } = useAccount()
   const { connect, connectors } = useConnect()
+  
+  // Fetch user info from Farcaster SDK
+  useEffect(() => {
+    const fetchUserInfo = async () => {
+      try {
+        // Try to get user context from Farcaster SDK
+        const context = await sdk.context;
+        if (context?.user) {
+          const user = context.user;
+          // Fetch full profile from Neynar
+          if (user.fid) {
+            try {
+              const response = await fetch('/api/user-profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fid: user.fid }),
+              });
+              if (response.ok) {
+                const profileData = await response.json();
+                setUserInfo({
+                  fid: profileData.fid,
+                  username: profileData.username,
+                  displayName: profileData.displayName,
+                  verified: profileData.verified,
+                });
+              }
+            } catch (error) {
+              console.error('Error fetching user profile:', error);
+              // Fallback to SDK data
+              setUserInfo({
+                fid: user.fid,
+                username: user.username,
+                displayName: user.displayName || user.username,
+                verified: false,
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error getting Farcaster user context:', error);
+        // If no Farcaster context, use wallet address as fallback
+        if (address) {
+          setUserInfo({
+            fid: 0,
+            username: null,
+            displayName: `${address.slice(0, 6)}...${address.slice(-4)}`,
+            verified: false,
+          });
+        }
+      }
+    };
+    
+    fetchUserInfo();
+  }, [address]);
+  
+  // Fetch chat messages from API
+  useEffect(() => {
+    const fetchMessages = async () => {
+      try {
+        const response = await fetch('/api/chat');
+        if (response.ok) {
+          const data = await response.json();
+          setMessages(data.messages || []);
+          // Store timestamp of most recent message for polling
+          if (data.messages && data.messages.length > 0) {
+            setLastMessageTimestamp(data.messages[0].timestamp || new Date().toISOString());
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching chat messages:', error);
+        // Fallback to initial messages if API fails
+        setMessages(INITIAL_MESSAGES);
+      } finally {
+        setChatLoading(false);
+      }
+    };
+    
+    fetchMessages();
+  }, []);
+  
+  // Poll for new messages every 3 seconds
+  useEffect(() => {
+    if (!lastMessageTimestamp) return;
+    
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/chat?since=${encodeURIComponent(lastMessageTimestamp)}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.messages && data.messages.length > 0) {
+            // Add new messages to the beginning of the array
+            setMessages(prev => {
+              const existingIds = new Set(prev.map(m => m.id));
+              const newMessages = data.messages.filter(m => !existingIds.has(m.id));
+              if (newMessages.length > 0) {
+                setLastMessageTimestamp(newMessages[0].timestamp || lastMessageTimestamp);
+                return [...newMessages, ...prev];
+              }
+              return prev;
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error polling for new messages:', error);
+      }
+    }, 3000); // Poll every 3 seconds
+    
+    return () => clearInterval(pollInterval);
+  }, [lastMessageTimestamp]);
   
   // Fetch projects from API
   useEffect(() => {
@@ -437,15 +567,61 @@ export default function Seen() {
     return () => clearInterval(timer);
   }, []);
   
-  const handleSendMessage = (msg) => {
-    const newMsg = {
-      id: Date.now(),
-      user: 'YOU',
-      fid: 0,
-      msg,
-      time: 'NOW',
-    };
-    setMessages(prev => [newMsg, ...prev]);
+  const handleSendMessage = async (msg) => {
+    try {
+      // Prepare user info for the message
+      const messageUser = userInfo?.displayName || userInfo?.username || (address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'ANON');
+      const messageFid = userInfo?.fid || 0;
+      const messageVerified = userInfo?.verified || false;
+      
+      // Send message to API
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          msg,
+          user: messageUser,
+          fid: messageFid,
+          verified: messageVerified,
+        }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        // Add the new message to local state immediately
+        setMessages(prev => [data.message, ...prev]);
+        // Update last message timestamp for polling
+        if (data.message.timestamp) {
+          setLastMessageTimestamp(data.message.timestamp);
+        }
+      } else {
+        console.error('Failed to send message');
+        // Still show message locally even if API fails
+        const fallbackMsg = {
+          id: Date.now(),
+          user: messageUser,
+          fid: messageFid,
+          msg,
+          time: 'NOW',
+          verified: messageVerified,
+          timestamp: new Date().toISOString(),
+        };
+        setMessages(prev => [fallbackMsg, ...prev]);
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      // Fallback: show message locally
+      const fallbackMsg = {
+        id: Date.now(),
+        user: userInfo?.displayName || userInfo?.username || (address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'ANON'),
+        fid: userInfo?.fid || 0,
+        msg,
+        time: 'NOW',
+        verified: userInfo?.verified || false,
+        timestamp: new Date().toISOString(),
+      };
+      setMessages(prev => [fallbackMsg, ...prev]);
+    }
   };
 
   const handleTip = () => {
@@ -546,7 +722,13 @@ export default function Seen() {
             
             {/* Right: Chat + Queue */}
             <div className="space-y-6">
-              <LiveChat messages={messages} onSend={handleSendMessage} />
+              {chatLoading ? (
+                <div className="border border-white p-6 text-center">
+                  <div className="text-sm text-gray-500">LOADING CHAT...</div>
+                </div>
+              ) : (
+                <LiveChat messages={messages} onSend={handleSendMessage} />
+              )}
               <UpcomingQueue queue={queue} />
             </div>
           </div>
