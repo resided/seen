@@ -107,7 +107,7 @@ const ActivityTicker = () => {
 // ============================================
 // FEATURED APP CARD
 // ============================================
-const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, onMiniappClick }) => {
+const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, onMiniappClick, ethPrice = null, ethPriceLoading = false }) => {
   const [countdown, setCountdown] = useState({ h: 8, m: 42, s: 17 });
   const [creatorProfileUrl, setCreatorProfileUrl] = useState(null);
   const [builderData, setBuilderData] = useState(null);
@@ -122,35 +122,8 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
   
   // Minimum tip: $0.20 USD (20 cents)
   const MIN_TIP_USD = 0.20;
-  const [ethPrice, setEthPrice] = useState(null);
-  const [ethPriceLoading, setEthPriceLoading] = useState(true);
   
   const { sendTransaction } = useSendTransaction();
-
-  // Fetch live ETH price
-  useEffect(() => {
-    const fetchEthPrice = async () => {
-      try {
-        // Using CoinGecko API (free, no API key needed)
-        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd');
-        const data = await response.json();
-        if (data.ethereum?.usd) {
-          setEthPrice(data.ethereum.usd);
-        }
-      } catch (error) {
-        console.error('Error fetching ETH price:', error);
-        // Fallback to a default price if API fails
-        setEthPrice(2800); // Approximate fallback
-      } finally {
-        setEthPriceLoading(false);
-      }
-    };
-
-    fetchEthPrice();
-    // Refresh price every 30 seconds
-    const interval = setInterval(fetchEthPrice, 30000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Sync USD amount when ETH price loads or modal opens
   useEffect(() => {
@@ -1451,6 +1424,33 @@ export default function Seen() {
   const [categoryRankings, setCategoryRankings] = useState([]);
   const [rankingsLoading, setRankingsLoading] = useState(false);
   const [hasClickedMiniapp, setHasClickedMiniapp] = useState(false);
+  const [ethPrice, setEthPrice] = useState(null);
+  const [ethPriceLoading, setEthPriceLoading] = useState(true);
+  
+  // Fetch ETH price in main component so it's available everywhere
+  useEffect(() => {
+    const fetchEthPrice = async () => {
+      try {
+        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.ethereum?.usd) {
+            setEthPrice(data.ethereum.usd);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching ETH price:', error);
+        setEthPrice(2800); // Approximate fallback
+      } finally {
+        setEthPriceLoading(false);
+      }
+    };
+    
+    fetchEthPrice();
+    // Refresh price every 30 seconds
+    const interval = setInterval(fetchEthPrice, 30000);
+    return () => clearInterval(interval);
+  }, []);
   
   // Wagmi wallet connection
   const { isConnected, address } = useAccount()
@@ -1799,6 +1799,8 @@ export default function Seen() {
                   onTip={handleTip} 
                   isInFarcaster={isInFarcaster}
                   isConnected={isConnected}
+                  ethPrice={ethPrice}
+                  ethPriceLoading={ethPriceLoading}
                   onMiniappClick={() => {
                     setHasClickedMiniapp(true);
                     sessionStorage.setItem('hasClickedMiniapp', 'true');
