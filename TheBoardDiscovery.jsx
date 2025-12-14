@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAccount, useConnect } from 'wagmi';
+import { useAccount, useConnect, useSendTransaction } from 'wagmi';
+import { parseEther } from 'viem';
 import { sdk } from '@farcaster/miniapp-sdk';
 import SubmitForm from './components/SubmitForm';
 
@@ -60,12 +61,19 @@ const ActivityTicker = () => {
 // ============================================
 // FEATURED APP CARD
 // ============================================
-const FeaturedApp = ({ app, onTip, isInFarcaster = false }) => {
+const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false }) => {
   const [countdown, setCountdown] = useState({ h: 8, m: 42, s: 17 });
   const [creatorProfileUrl, setCreatorProfileUrl] = useState(null);
   const [builderData, setBuilderData] = useState(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [liveStats, setLiveStats] = useState({ views: 0, clicks: 0, tips: 0 });
+  const [tipAmount, setTipAmount] = useState('0.001'); // Default tip amount in ETH
+  const [tipping, setTipping] = useState(false);
+  const [tipMessage, setTipMessage] = useState('');
+  const [showTipModal, setShowTipModal] = useState(false);
+  const [customTipAmount, setCustomTipAmount] = useState('0.001');
+  
+  const { sendTransaction } = useSendTransaction();
   
   useEffect(() => {
     const timer = setInterval(() => {
@@ -332,6 +340,17 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false }) => {
           </div>
         </div>
 
+        {/* Tip message */}
+        {tipMessage && (
+          <div className={`mb-4 p-3 border text-center text-[10px] tracking-[0.2em] ${
+            tipMessage.includes('SENT') 
+              ? 'border-green-500 text-green-400 bg-green-500/10' 
+              : 'border-red-500 text-red-400 bg-red-500/10'
+          }`}>
+            {tipMessage}
+          </div>
+        )}
+
         {/* Actions */}
         <div className="grid grid-cols-2 gap-[1px] bg-white">
           <button 
@@ -373,10 +392,25 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false }) => {
             OPEN MINI APP
           </button>
           <button 
-            onClick={onTip}
-            disabled={!isInFarcaster}
+            onClick={() => {
+              if (!isInFarcaster || !isConnected) {
+                setTipMessage('CONNECT WALLET TO TIP');
+                setTimeout(() => setTipMessage(''), 3000);
+                return;
+              }
+
+              if (!builderData?.walletAddress) {
+                setTipMessage('BUILDER WALLET NOT FOUND');
+                setTimeout(() => setTipMessage(''), 3000);
+                return;
+              }
+
+              // Show tip modal
+              setShowTipModal(true);
+            }}
+            disabled={!isInFarcaster || !isConnected || !builderData?.walletAddress}
             className={`bg-black py-4 font-bold text-sm tracking-[0.2em] transition-all ${
-              isInFarcaster 
+              isInFarcaster && isConnected && builderData?.walletAddress
                 ? 'hover:bg-white hover:text-black' 
                 : 'opacity-50 cursor-not-allowed'
             }`}
@@ -385,6 +419,166 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false }) => {
           </button>
         </div>
       </div>
+
+      {/* Tip Modal */}
+      {showTipModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-black border-2 border-white max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-black tracking-tight">TIP BUILDER</h3>
+              <button
+                onClick={() => {
+                  setShowTipModal(false);
+                  setCustomTipAmount('0.001');
+                  setTipMessage('');
+                }}
+                className="text-white hover:text-gray-400 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+
+            {tipMessage && (
+              <div className={`mb-4 p-3 border text-center text-[10px] tracking-[0.2em] ${
+                tipMessage.includes('SENT') 
+                  ? 'border-green-500 text-green-400 bg-green-500/10' 
+                  : 'border-red-500 text-red-400 bg-red-500/10'
+              }`}>
+                {tipMessage}
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                  AMOUNT (ETH)
+                </label>
+                <input
+                  type="number"
+                  step="0.001"
+                  min="0.001"
+                  value={customTipAmount}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === '' || (!isNaN(value) && parseFloat(value) >= 0)) {
+                      setCustomTipAmount(value);
+                    }
+                  }}
+                  className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                  placeholder="0.001"
+                />
+                <p className="text-[10px] text-gray-600 mt-1">
+                  Minimum: 0.001 ETH
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                {['0.001', '0.01', '0.1', '1'].map((amount) => (
+                  <button
+                    key={amount}
+                    onClick={() => setCustomTipAmount(amount)}
+                    className="flex-1 px-3 py-2 border border-white text-[10px] tracking-[0.2em] hover:bg-white hover:text-black transition-all"
+                  >
+                    {amount} ETH
+                  </button>
+                ))}
+              </div>
+
+              <div className="pt-4 border-t border-white">
+                <div className="text-[10px] tracking-[0.2em] text-gray-500 mb-2">
+                  RECIPIENT
+                </div>
+                <div className="text-sm font-bold mb-1">
+                  {builderData?.displayName || app.builder}
+                </div>
+                <div className="text-[10px] font-mono text-gray-500 break-all">
+                  {builderData?.walletAddress}
+                </div>
+              </div>
+
+              <div className="flex gap-4 pt-4">
+                <button
+                  onClick={() => {
+                    setShowTipModal(false);
+                    setCustomTipAmount('0.001');
+                    setTipMessage('');
+                  }}
+                  className="flex-1 py-3 border border-white font-bold text-sm tracking-[0.2em] hover:bg-white hover:text-black transition-all"
+                >
+                  CANCEL
+                </button>
+                <button
+                  onClick={async () => {
+                    const amount = parseFloat(customTipAmount);
+                    
+                    if (!amount || amount < 0.001) {
+                      setTipMessage('MINIMUM TIP IS 0.001 ETH');
+                      setTimeout(() => setTipMessage(''), 3000);
+                      return;
+                    }
+
+                    const recipientAddress = builderData?.walletAddress;
+                    
+                    if (!recipientAddress) {
+                      setTipMessage('BUILDER WALLET NOT FOUND');
+                      setTimeout(() => setTipMessage(''), 3000);
+                      return;
+                    }
+
+                    setTipping(true);
+                    setTipMessage('');
+
+                    try {
+                      // Send transaction
+                      await sendTransaction({
+                        to: recipientAddress,
+                        value: parseEther(customTipAmount),
+                      });
+
+                      // Track tip in stats
+                      try {
+                        await fetch('/api/track-tip', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            projectId: app.id,
+                            amount: customTipAmount,
+                            recipientFid: builderData?.fid || app.builderFid,
+                          }),
+                        });
+                        
+                        // Update local stats
+                        setLiveStats(prev => ({
+                          ...prev,
+                          tips: (parseFloat(prev.tips) || 0) + parseFloat(customTipAmount),
+                        }));
+                      } catch (error) {
+                        console.error('Error tracking tip:', error);
+                      }
+
+                      setTipMessage(`TIP SENT! ${customTipAmount} ETH`);
+                      setTimeout(() => {
+                        setShowTipModal(false);
+                        setCustomTipAmount('0.001');
+                        setTipMessage('');
+                      }, 3000);
+                    } catch (error) {
+                      console.error('Error sending tip:', error);
+                      setTipMessage('TIP FAILED. PLEASE TRY AGAIN.');
+                    } finally {
+                      setTipping(false);
+                    }
+                  }}
+                  disabled={tipping || !customTipAmount || parseFloat(customTipAmount) < 0.001}
+                  className="flex-1 py-3 bg-white text-black font-black text-sm tracking-[0.2em] hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {tipping ? 'SENDING...' : `SEND ${customTipAmount} ETH`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -837,7 +1031,12 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
           </>
         ) : (
           <>
-            <div className="text-4xl mb-2">🎁</div>
+            <div className="mb-4 flex items-center justify-center">
+              <div className="w-16 h-16 border-2 border-white flex items-center justify-center relative">
+                <div className="absolute inset-0 border-2 border-white" style={{ transform: 'rotate(45deg)' }}></div>
+                <div className="text-2xl font-black relative z-10">$</div>
+              </div>
+            </div>
             <div className="text-sm font-bold mb-2">CLAIM YOUR DAILY TOKENS</div>
             <div className="text-[10px] tracking-[0.2em] text-gray-500 mb-4">
               CONNECT WALLET TO CLAIM
@@ -1198,7 +1397,12 @@ export default function Seen() {
                   <div className="text-sm text-gray-500">LOADING...</div>
                 </div>
               ) : featuredApp ? (
-                <FeaturedApp app={featuredApp} onTip={handleTip} isInFarcaster={isInFarcaster} />
+                <FeaturedApp 
+                  app={featuredApp} 
+                  onTip={handleTip} 
+                  isInFarcaster={isInFarcaster}
+                  isConnected={isConnected}
+                />
               ) : (
                 <div className="border border-white p-6 text-center">
                   <div className="text-sm text-gray-500">NO FEATURED PROJECT</div>

@@ -49,6 +49,10 @@ export default async function handler(req, res) {
       twitter = user.profile.twitter;
     }
 
+    // Get wallet addresses (prefer verified addresses)
+    const walletAddresses = user.verified_addresses?.eth_addresses || [];
+    const primaryWallet = walletAddresses.length > 0 ? walletAddresses[0] : null;
+    
     // Return formatted user data
     return res.status(200).json({
       fid: user.fid,
@@ -57,9 +61,11 @@ export default async function handler(req, res) {
       pfpUrl: user.pfp?.url || user.pfp_url,
       bio: user.profile?.bio?.text,
       profileUrl: user.username ? `https://farcaster.xyz/${user.username}` : `https://farcaster.xyz/profiles/${user.fid}`,
-      verified: user.verified_addresses?.eth_addresses?.length > 0,
+      verified: walletAddresses.length > 0,
       neynarUserScore: user.experimental?.neynar_user_score || null,
       twitter: twitter, // Add Twitter/X link
+      walletAddress: primaryWallet, // Primary wallet address for tips
+      walletAddresses: walletAddresses, // All wallet addresses
     });
   } catch (error) {
     console.error('Error fetching user profile:', error);
