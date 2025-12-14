@@ -1119,6 +1119,7 @@ export default function Admin() {
                       required
                       className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
                     >
+                      <option value="active">ACTIVE</option>
                       <option value="queued">QUEUED</option>
                       <option value="featured">FEATURED</option>
                       <option value="archived">ARCHIVED</option>
