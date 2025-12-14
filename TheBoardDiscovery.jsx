@@ -61,6 +61,7 @@ const ActivityTicker = () => {
 // ============================================
 const FeaturedApp = ({ app, onTip }) => {
   const [countdown, setCountdown] = useState({ h: 8, m: 42, s: 17 });
+  const [creatorProfileUrl, setCreatorProfileUrl] = useState(null);
   
   useEffect(() => {
     const timer = setInterval(() => {
@@ -75,6 +76,40 @@ const FeaturedApp = ({ app, onTip }) => {
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Auto-detect creator info from Mini App URL if not already provided
+  useEffect(() => {
+    const fetchCreatorInfo = async () => {
+      // If we already have a profile URL or builderFid, use it
+      if (app.builderFid) {
+        setCreatorProfileUrl(`https://farcaster.xyz/profiles/${app.builderFid}`);
+        return;
+      }
+
+      // If we have a Mini App URL, try to fetch creator info
+      const miniappUrl = app.links?.miniapp || app.miniappUrl;
+      if (miniappUrl) {
+        try {
+          const response = await fetch('/api/miniapp-info', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: miniappUrl }),
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.creator?.profileUrl) {
+              setCreatorProfileUrl(data.creator.profileUrl);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching creator info:', error);
+        }
+      }
+    };
+
+    fetchCreatorInfo();
+  }, [app]);
 
   return (
     <div className="border border-white">
@@ -110,11 +145,24 @@ const FeaturedApp = ({ app, onTip }) => {
           <div className="w-10 h-10 bg-white text-black flex items-center justify-center font-black text-sm">
             {app.builder.charAt(0)}
           </div>
-          <div>
-            <div className="text-sm font-bold">{app.builder}</div>
-            <div className="text-[10px] tracking-[0.2em] text-gray-500">FID #{app.builderFid}</div>
+          <div className="flex-1">
+            {creatorProfileUrl || app.builderFid ? (
+              <a
+                href={creatorProfileUrl || `https://farcaster.xyz/profiles/${app.builderFid}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm font-bold hover:underline block"
+              >
+                {app.builder}
+              </a>
+            ) : (
+              <div className="text-sm font-bold">{app.builder}</div>
+            )}
+            {app.builderFid && (
+              <div className="text-[10px] tracking-[0.2em] text-gray-500">FID #{app.builderFid}</div>
+            )}
           </div>
-          <button className="ml-auto text-[10px] tracking-[0.2em] px-3 py-1.5 border border-white hover:bg-white hover:text-black transition-all">
+          <button className="text-[10px] tracking-[0.2em] px-3 py-1.5 border border-white hover:bg-white hover:text-black transition-all">
             FOLLOW
           </button>
         </div>
