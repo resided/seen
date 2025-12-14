@@ -60,7 +60,7 @@ const ActivityTicker = () => {
 // ============================================
 // FEATURED APP CARD
 // ============================================
-const FeaturedApp = ({ app, onTip }) => {
+const FeaturedApp = ({ app, onTip, isInFarcaster = false }) => {
   const [countdown, setCountdown] = useState({ h: 8, m: 42, s: 17 });
   const [creatorProfileUrl, setCreatorProfileUrl] = useState(null);
   const [builderData, setBuilderData] = useState(null);
@@ -220,6 +220,8 @@ const FeaturedApp = ({ app, onTip }) => {
           </div>
           <button 
             onClick={async () => {
+              if (!isInFarcaster) return;
+              
               try {
                 const targetFid = builderData?.fid || app.builderFid;
                 const targetUsername = builderData?.username;
@@ -250,7 +252,12 @@ const FeaturedApp = ({ app, onTip }) => {
                 console.error('Error in follow handler:', error);
               }
             }}
-            className="text-[10px] tracking-[0.2em] px-3 py-1.5 border border-white hover:bg-white hover:text-black transition-all"
+            disabled={!isInFarcaster}
+            className={`text-[10px] tracking-[0.2em] px-3 py-1.5 border border-white transition-all ${
+              isInFarcaster 
+                ? 'hover:bg-white hover:text-black' 
+                : 'opacity-50 cursor-not-allowed'
+            }`}
           >
             FOLLOW
           </button>
@@ -275,13 +282,23 @@ const FeaturedApp = ({ app, onTip }) => {
         {/* Actions */}
         <div className="grid grid-cols-2 gap-[1px] bg-white">
           <button 
-            className="bg-black py-4 font-bold text-sm tracking-[0.2em] hover:bg-white hover:text-black transition-all"
+            disabled={!isInFarcaster}
+            className={`bg-black py-4 font-bold text-sm tracking-[0.2em] transition-all ${
+              isInFarcaster 
+                ? 'hover:bg-white hover:text-black' 
+                : 'opacity-50 cursor-not-allowed'
+            }`}
           >
             OPEN MINI APP
           </button>
           <button 
             onClick={onTip}
-            className="bg-black py-4 font-bold text-sm tracking-[0.2em] hover:bg-white hover:text-black transition-all"
+            disabled={!isInFarcaster}
+            className={`bg-black py-4 font-bold text-sm tracking-[0.2em] transition-all ${
+              isInFarcaster 
+                ? 'hover:bg-white hover:text-black' 
+                : 'opacity-50 cursor-not-allowed'
+            }`}
           >
             TIP BUILDER
           </button>
@@ -294,7 +311,7 @@ const FeaturedApp = ({ app, onTip }) => {
 // ============================================
 // LIVE CHAT
 // ============================================
-const LiveChat = ({ messages, onSend }) => {
+const LiveChat = ({ messages, onSend, isInFarcaster = false }) => {
   const [input, setInput] = useState('');
   const [error, setError] = useState('');
   const chatRef = useRef(null);
@@ -407,13 +424,21 @@ const LiveChat = ({ messages, onSend }) => {
             value={input}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            placeholder="SAY SOMETHING..."
-            className="flex-1 bg-transparent text-sm tracking-wider outline-none placeholder:text-gray-600 uppercase"
+            placeholder={isInFarcaster ? "SAY SOMETHING..." : "READ-ONLY MODE"}
+            disabled={!isInFarcaster}
+            className={`flex-1 bg-transparent text-sm tracking-wider outline-none placeholder:text-gray-600 uppercase ${
+              !isInFarcaster ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
             maxLength={100}
           />
           <button 
             onClick={handleSend}
-            className="text-[10px] tracking-[0.2em] px-4 py-2 bg-white text-black font-bold hover:bg-gray-200 transition-all"
+            disabled={!isInFarcaster}
+            className={`text-[10px] tracking-[0.2em] px-4 py-2 font-bold transition-all ${
+              isInFarcaster 
+                ? 'bg-white text-black hover:bg-gray-200' 
+                : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+            }`}
           >
             SEND
           </button>
@@ -426,7 +451,7 @@ const LiveChat = ({ messages, onSend }) => {
 // ============================================
 // SUBMIT CTA
 // ============================================
-const SubmitSection = ({ onSubmit }) => (
+const SubmitSection = ({ onSubmit, isInFarcaster = false }) => (
   <div className="border border-white p-6 text-center">
     <h3 className="text-xl font-black tracking-tight mb-2">GET YOUR PROJECT FEATURED</h3>
     <p className="text-sm text-gray-500 tracking-wider mb-4">
@@ -448,9 +473,14 @@ const SubmitSection = ({ onSubmit }) => (
     </div>
     <button 
       onClick={onSubmit}
-      className="w-full py-4 bg-white text-black font-black text-sm tracking-[0.3em] hover:bg-gray-200 transition-all"
+      disabled={!isInFarcaster}
+      className={`w-full py-4 font-black text-sm tracking-[0.3em] transition-all ${
+        isInFarcaster 
+          ? 'bg-white text-black hover:bg-gray-200' 
+          : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+      }`}
     >
-      SUBMIT YOUR PROJECT
+      {isInFarcaster ? 'SUBMIT YOUR PROJECT' : 'OPEN IN FARCASTER TO SUBMIT'}
     </button>
   </div>
 );
@@ -507,10 +537,42 @@ export default function Seen() {
   const [userInfo, setUserInfo] = useState(null);
   const [lastMessageTimestamp, setLastMessageTimestamp] = useState(null);
   const [chatLoading, setChatLoading] = useState(true);
+  const [isInFarcaster, setIsInFarcaster] = useState(false);
   
   // Wagmi wallet connection
   const { isConnected, address } = useAccount()
   const { connect, connectors } = useConnect()
+  
+  // Detect if we're in Farcaster context
+  useEffect(() => {
+    const checkFarcasterContext = async () => {
+      try {
+        // Check if SDK is available and has context
+        const context = await sdk.context;
+        if (context?.user || context) {
+          setIsInFarcaster(true);
+        } else {
+          // Also check user agent for Farcaster desktop
+          const userAgent = navigator.userAgent.toLowerCase();
+          if (userAgent.includes('farcaster') || userAgent.includes('warpcast')) {
+            setIsInFarcaster(true);
+          } else {
+            setIsInFarcaster(false);
+          }
+        }
+      } catch (error) {
+        // If SDK throws error, we're likely not in Farcaster
+        const userAgent = navigator.userAgent.toLowerCase();
+        if (userAgent.includes('farcaster') || userAgent.includes('warpcast')) {
+          setIsInFarcaster(true);
+        } else {
+          setIsInFarcaster(false);
+        }
+      }
+    };
+    
+    checkFarcasterContext();
+  }, []);
   
   // Fetch user info from Farcaster SDK
   useEffect(() => {
@@ -700,6 +762,17 @@ export default function Seen() {
 
   return (
     <div className="min-h-screen bg-black text-white">
+      {/* Read-only banner for web users */}
+      {!isInFarcaster && (
+        <div className="border-b border-yellow-500 bg-yellow-500/10 px-4 py-2">
+          <div className="max-w-4xl mx-auto text-center">
+            <p className="text-[10px] tracking-[0.2em] text-yellow-400">
+              READ-ONLY MODE • OPEN IN FARCASTER APP OR DESKTOP FOR FULL FUNCTIONALITY
+            </p>
+          </div>
+        </div>
+      )}
+      
       {/* Header */}
       <header className="border-b border-white">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -725,8 +798,13 @@ export default function Seen() {
               </div>
             ) : (
               <button 
-                onClick={() => connect({ connector: connectors[0] })}
-                className="text-[10px] tracking-[0.2em] px-4 py-2 border border-white hover:bg-white hover:text-black transition-all"
+                onClick={() => isInFarcaster && connect({ connector: connectors[0] })}
+                disabled={!isInFarcaster}
+                className={`text-[10px] tracking-[0.2em] px-4 py-2 border border-white transition-all ${
+                  isInFarcaster 
+                    ? 'hover:bg-white hover:text-black' 
+                    : 'opacity-50 cursor-not-allowed'
+                }`}
               >
                 CONNECT
               </button>
@@ -770,13 +848,13 @@ export default function Seen() {
                   <div className="text-sm text-gray-500">LOADING...</div>
                 </div>
               ) : featuredApp ? (
-                <FeaturedApp app={featuredApp} onTip={handleTip} />
+                <FeaturedApp app={featuredApp} onTip={handleTip} isInFarcaster={isInFarcaster} />
               ) : (
                 <div className="border border-white p-6 text-center">
                   <div className="text-sm text-gray-500">NO FEATURED PROJECT</div>
                 </div>
               )}
-              <SubmitSection onSubmit={() => setShowSubmitForm(true)} />
+              <SubmitSection onSubmit={() => setShowSubmitForm(true)} isInFarcaster={isInFarcaster} />
             </div>
             
             {/* Right: Chat + Queue */}
@@ -786,7 +864,7 @@ export default function Seen() {
                   <div className="text-sm text-gray-500">LOADING CHAT...</div>
                 </div>
               ) : (
-                <LiveChat messages={messages} onSend={handleSendMessage} />
+                <LiveChat messages={messages} onSend={handleSendMessage} isInFarcaster={isInFarcaster} />
               )}
               <UpcomingQueue queue={queue} />
             </div>
