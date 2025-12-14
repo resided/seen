@@ -1452,9 +1452,10 @@ export default function Seen() {
         if (response.ok) {
           const data = await response.json();
           setMessages(data.messages || []);
-          // Store timestamp of most recent message for polling
+          // Store timestamp of most recent message (last in array) for polling
           if (data.messages && data.messages.length > 0) {
-            setLastMessageTimestamp(data.messages[0].timestamp || new Date().toISOString());
+            const lastMessage = data.messages[data.messages.length - 1];
+            setLastMessageTimestamp(lastMessage.timestamp || new Date().toISOString());
           }
         }
       } catch (error) {
@@ -1479,13 +1480,15 @@ export default function Seen() {
         if (response.ok) {
           const data = await response.json();
           if (data.messages && data.messages.length > 0) {
-            // Add new messages to the beginning of the array
+            // Add new messages to the end of the array (newest at bottom)
             setMessages(prev => {
               const existingIds = new Set(prev.map(m => m.id));
               const newMessages = data.messages.filter(m => !existingIds.has(m.id));
               if (newMessages.length > 0) {
-                setLastMessageTimestamp(newMessages[0].timestamp || lastMessageTimestamp);
-                return [...newMessages, ...prev];
+                // Update timestamp to the newest message (last in array)
+                const newestMessage = newMessages[newMessages.length - 1];
+                setLastMessageTimestamp(newestMessage.timestamp || lastMessageTimestamp);
+                return [...prev, ...newMessages];
               }
               return prev;
             });
@@ -1545,8 +1548,8 @@ export default function Seen() {
       
       if (response.ok) {
         const data = await response.json();
-        // Add the new message to local state immediately
-        setMessages(prev => [data.message, ...prev]);
+        // Add the new message to the end of the array (newest at bottom)
+        setMessages(prev => [...prev, data.message]);
         // Update last message timestamp for polling
         if (data.message.timestamp) {
           setLastMessageTimestamp(data.message.timestamp);
