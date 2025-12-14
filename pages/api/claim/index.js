@@ -167,6 +167,17 @@ export default async function handler(req, res) {
       await redis.setEx(claimKey, ttl, '1');
       await redis.setEx(`claim:tx:${featuredProjectId}:${featuredAtTimestamp}:${fid}`, ttl, hash);
 
+      // Track a click when user successfully claims (they opened the miniapp to claim)
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const clickKey = `clicks:project:${featuredProjectId}:${today}`;
+        await redis.incr(clickKey);
+        await redis.expire(clickKey, 2 * 24 * 60 * 60);
+      } catch (clickError) {
+        console.error('Error tracking click for claim:', clickError);
+        // Don't fail the claim if click tracking fails
+      }
+
       return res.status(200).json({
         success: true,
         message: 'Tokens sent successfully',
