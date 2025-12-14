@@ -1,10 +1,13 @@
 // API route to claim tokens (tied to featured project rotation)
 import { getRedisClient } from '../../../lib/redis';
 import { getFeaturedProject } from '../../../lib/projects';
+import { fetchUserByFid } from '../../../lib/neynar';
 import { createWalletClient, http, parseUnits } from 'viem';
 import { base } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 import { erc20Abi } from 'viem';
+
+const MIN_NEYNAR_SCORE = 0.62; // Minimum Neynar user score required to claim
 
 // Token configuration from environment variables
 // To change claim amount, update CLAIM_TOKEN_AMOUNT in your environment variables
@@ -28,6 +31,35 @@ export default async function handler(req, res) {
 
     if (!walletAddress && !txHash) {
       return res.status(400).json({ error: 'Wallet address is required for claiming' });
+    }
+
+    // Check Neynar user score
+    const apiKey = process.env.NEYNAR_API_KEY;
+    if (apiKey) {
+      try {
+        const user = await fetchUserByFid(parseInt(fid), apiKey);
+        if (user) {
+          const userScore = user.experimental?.neynar_user_score;
+          
+          // If score exists and is below threshold, reject claim
+          if (userScore !== null && userScore !== undefined) {
+            if (userScore < MIN_NEYNAR_SCORE) {
+              return res.status(403).json({ 
+                error: `Your Neynar user score (${userScore.toFixed(2)}) is below the required threshold of ${MIN_NEYNAR_SCORE}. Only users with a score of ${MIN_NEYNAR_SCORE} or higher can claim tokens.`,
+                userScore: userScore,
+                minScore: MIN_NEYNAR_SCORE
+              });
+            }
+          } else {
+            // If score is not available, allow claim but log it
+            console.warn(`User ${fid} has no Neynar score available - allowing claim`);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking Neynar user score:', error);
+        // If we can't check the score, we'll allow claim but log the error
+        // You might want to change this to reject if score checking is critical
+      }
     }
 
     const redis = await getRedisClient();

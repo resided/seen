@@ -1778,7 +1778,8 @@ const FAQ = () => {
 // ============================================
 // DAILY CLAIM
 // ============================================
-const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false, featuredApp = null, hasClickedMiniapp = false }) => {
+const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false, featuredApp = null, hasClickedMiniapp = false, neynarUserScore = null }) => {
+  const MIN_NEYNAR_SCORE = 0.62; // Minimum Neynar user score required to claim
   const [claimed, setClaimed] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [message, setMessage] = useState('');
@@ -1954,7 +1955,24 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
           </div>
         )}
         
-        {expired ? (
+        {/* Check Neynar score - show message if too low */}
+        {neynarUserScore !== null && neynarUserScore < MIN_NEYNAR_SCORE ? (
+          <>
+            <div className="mb-4 flex items-center justify-center">
+              <div className="w-16 h-16 border-2 border-white flex items-center justify-center relative">
+                <div className="absolute inset-0 border-2 border-white" style={{ transform: 'rotate(45deg)' }}></div>
+                <div className="text-2xl font-black relative z-10">✗</div>
+              </div>
+            </div>
+            <div className="text-sm font-bold mb-2 text-red-400">NEYNAR SCORE TOO LOW</div>
+            <div className="text-[10px] tracking-[0.2em] text-gray-500 mb-4">
+              Your Neynar user score ({neynarUserScore.toFixed(2)}) is below the required threshold of {MIN_NEYNAR_SCORE}.
+            </div>
+            <div className="text-[10px] tracking-[0.2em] text-gray-400">
+              Only users with a score of {MIN_NEYNAR_SCORE} or higher can claim tokens.
+            </div>
+          </>
+        ) : expired ? (
           <>
             <div className="text-4xl mb-2 text-red-400">✗</div>
             <div className="text-sm font-bold mb-2 text-red-400">CLAIM EXPIRED</div>
@@ -2549,6 +2567,7 @@ export default function Seen() {
                 isConnected={isConnected}
                 featuredApp={featuredApp}
                 hasClickedMiniapp={hasClickedMiniapp}
+                neynarUserScore={userInfo?.neynarUserScore || null}
               />
               
               {/* FAQ Section */}
