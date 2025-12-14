@@ -1,5 +1,6 @@
 // API route for chat messages
 import { getChatMessages, getChatMessagesSince, addChatMessage } from '../../lib/chat'
+import { validateMessage } from '../../lib/content-filter'
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {
@@ -37,6 +38,14 @@ export default async function handler(req, res) {
       // Validate message length
       if (msg.length > 100) {
         return res.status(400).json({ error: 'Message too long (max 100 characters)' });
+      }
+      
+      // Content moderation - check for profanity and links
+      const validation = validateMessage(msg);
+      if (!validation.valid) {
+        return res.status(400).json({ 
+          error: validation.reason || 'Message contains blocked content' 
+        });
       }
       
       const newMessage = await addChatMessage({

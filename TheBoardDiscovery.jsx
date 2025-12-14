@@ -64,6 +64,7 @@ const FeaturedApp = ({ app, onTip }) => {
   const [countdown, setCountdown] = useState({ h: 8, m: 42, s: 17 });
   const [creatorProfileUrl, setCreatorProfileUrl] = useState(null);
   const [builderData, setBuilderData] = useState(null);
+  const [isFollowing, setIsFollowing] = useState(false);
   
   useEffect(() => {
     const timer = setInterval(() => {
@@ -217,7 +218,40 @@ const FeaturedApp = ({ app, onTip }) => {
               {!builderData?.fid && app.builderFid && ` • FID #${app.builderFid}`}
             </div>
           </div>
-          <button className="text-[10px] tracking-[0.2em] px-3 py-1.5 border border-white hover:bg-white hover:text-black transition-all">
+          <button 
+            onClick={async () => {
+              try {
+                const targetFid = builderData?.fid || app.builderFid;
+                const targetUsername = builderData?.username;
+                
+                if (!targetFid) {
+                  console.error('No FID available to follow');
+                  return;
+                }
+
+                // Build profile URL
+                const profileUrl = creatorProfileUrl || 
+                  (targetUsername ? `https://farcaster.xyz/${targetUsername}` : `https://farcaster.xyz/profiles/${targetFid}`);
+
+                // Try to use Farcaster SDK to open profile (where user can follow)
+                try {
+                  if (sdk.actions?.openUrl) {
+                    await sdk.actions.openUrl({ url: profileUrl });
+                  } else {
+                    // Fallback: open profile in new tab
+                    window.open(profileUrl, '_blank', 'noopener,noreferrer');
+                  }
+                } catch (error) {
+                  console.error('Error opening profile:', error);
+                  // Fallback: open profile page
+                  window.open(profileUrl, '_blank', 'noopener,noreferrer');
+                }
+              } catch (error) {
+                console.error('Error in follow handler:', error);
+              }
+            }}
+            className="text-[10px] tracking-[0.2em] px-3 py-1.5 border border-white hover:bg-white hover:text-black transition-all"
+          >
             FOLLOW
           </button>
         </div>
@@ -262,6 +296,7 @@ const FeaturedApp = ({ app, onTip }) => {
 // ============================================
 const LiveChat = ({ messages, onSend }) => {
   const [input, setInput] = useState('');
+  const [error, setError] = useState('');
   const chatRef = useRef(null);
   const messagesEndRef = useRef(null);
   
@@ -272,10 +307,38 @@ const LiveChat = ({ messages, onSend }) => {
     }
   }, [messages]);
   
-  const handleSend = () => {
-    if (input.trim()) {
-      onSend(input.trim().toUpperCase());
+  // Simple client-side validation (basic check, server does full validation)
+  const validateInput = (text) => {
+    // Check for URLs (basic pattern)
+    const urlPattern = /(https?:\/\/|www\.|[a-zA-Z0-9-]+\.[a-zA-Z]{2,})/gi;
+    if (urlPattern.test(text)) {
+      return 'Links are not allowed in chat';
+    }
+    return null;
+  };
+  
+  const handleSend = async () => {
+    const trimmed = input.trim();
+    if (!trimmed) return;
+    
+    // Clear any previous errors
+    setError('');
+    
+    // Basic client-side validation
+    const validationError = validateInput(trimmed);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+    
+    // Call onSend which will handle API call and show server-side errors
+    try {
+      await onSend(trimmed.toUpperCase());
       setInput('');
+      setError('');
+    } catch (err) {
+      // Show error message from API (e.g., blocked content)
+      setError(err.message || 'Failed to send message. Please try again.');
     }
   };
 
@@ -283,6 +346,15 @@ const LiveChat = ({ messages, onSend }) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    }
+  };
+  
+  const handleInputChange = (e) => {
+    const value = e.target.value.toUpperCase();
+    setInput(value);
+    // Clear error when user starts typing
+    if (error) {
+      setError('');
     }
   };
 
@@ -324,11 +396,16 @@ const LiveChat = ({ messages, onSend }) => {
       
       {/* Input */}
       <div className="border-t border-white p-3 shrink-0">
+        {error && (
+          <div className="mb-2 text-[10px] text-red-400 tracking-wider">
+            {error}
+          </div>
+        )}
         <div className="flex gap-2">
           <input
             type="text"
             value={input}
-            onChange={(e) => setInput(e.target.value.toUpperCase())}
+            onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             placeholder="SAY SOMETHING..."
             className="flex-1 bg-transparent text-sm tracking-wider outline-none placeholder:text-gray-600 uppercase"
@@ -595,32 +672,14 @@ export default function Seen() {
           setLastMessageTimestamp(data.message.timestamp);
         }
       } else {
-        console.error('Failed to send message');
-        // Still show message locally even if API fails
-        const fallbackMsg = {
-          id: Date.now(),
-          user: messageUser,
-          fid: messageFid,
-          msg,
-          time: 'NOW',
-          verified: messageVerified,
-          timestamp: new Date().toISOString(),
-        };
-        setMessages(prev => [fallbackMsg, ...prev]);
+        // Handle API errors (like blocked content)
+        const errorData = await response.json().catch(() => ({ error: 'Failed to send message' }));
+        throw new Error(errorData.error || 'Failed to send message');
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      // Fallback: show message locally
-      const fallbackMsg = {
-        id: Date.now(),
-        user: userInfo?.displayName || userInfo?.username || (address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'ANON'),
-        fid: userInfo?.fid || 0,
-        msg,
-        time: 'NOW',
-        verified: userInfo?.verified || false,
-        timestamp: new Date().toISOString(),
-      };
-      setMessages(prev => [fallbackMsg, ...prev]);
+      // Re-throw error so LiveChat component can display it
+      throw error;
     }
   };
 
