@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useAccount, useConnect } from 'wagmi';
 import SubmitForm from './components/SubmitForm';
 
 // ============================================
@@ -307,6 +308,10 @@ export default function Seen() {
   const [loading, setLoading] = useState(true);
   const [showSubmitForm, setShowSubmitForm] = useState(false);
   
+  // Wagmi wallet connection
+  const { isConnected, address } = useAccount()
+  const { connect, connectors } = useConnect()
+  
   // Fetch projects from API
   useEffect(() => {
     const fetchProjects = async () => {
@@ -374,9 +379,21 @@ export default function Seen() {
                 {time.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase()}
               </div>
             </div>
-            <button className="text-[10px] tracking-[0.2em] px-4 py-2 border border-white hover:bg-white hover:text-black transition-all">
-              CONNECT
-            </button>
+            {isConnected ? (
+              <div className="text-right">
+                <div className="text-[10px] tracking-[0.2em] text-gray-500">CONNECTED</div>
+                <div className="text-[9px] font-mono text-gray-400 truncate max-w-[120px]">
+                  {address?.slice(0, 6)}...{address?.slice(-4)}
+                </div>
+              </div>
+            ) : (
+              <button 
+                onClick={() => connect({ connector: connectors[0] })}
+                className="text-[10px] tracking-[0.2em] px-4 py-2 border border-white hover:bg-white hover:text-black transition-all"
+              >
+                CONNECT
+              </button>
+            )}
           </div>
         </div>
       </header>
