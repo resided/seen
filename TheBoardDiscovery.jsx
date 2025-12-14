@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAccount, useConnect, useSendTransaction } from 'wagmi';
-import { parseEther } from 'viem';
+import { parseEther, parseUnits, erc20Abi, encodeFunctionData } from 'viem';
 import { sdk } from '@farcaster/miniapp-sdk';
 import SubmitForm from './components/SubmitForm';
 
@@ -1104,6 +1104,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
   const [claiming, setClaiming] = useState(false);
   const [message, setMessage] = useState('');
   const [nextClaimTime, setNextClaimTime] = useState(null);
+  const { address } = useAccount();
 
   useEffect(() => {
     // Check if user has claimed today
@@ -1127,7 +1128,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
   }, [userFid]);
 
   const handleClaim = async () => {
-    if (!isInFarcaster || !isConnected || !userFid) {
+    if (!isInFarcaster || !isConnected || !userFid || !address) {
       setMessage('CONNECT WALLET TO CLAIM');
       return;
     }
@@ -1141,17 +1142,25 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
     setMessage('');
 
     try {
+      // Claim tokens - server will send tokens from treasury wallet
       const response = await fetch('/api/claim', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fid: userFid }),
+        body: JSON.stringify({ 
+          fid: userFid,
+          walletAddress: address 
+        }),
       });
 
       const data = await response.json();
       
       if (response.ok) {
         setClaimed(true);
-        setMessage('CLAIMED! TOKENS SENT TO YOUR WALLET');
+        if (data.txHash) {
+          setMessage(`CLAIMED! TOKENS SENT. TX: ${data.txHash.slice(0, 10)}...`);
+        } else {
+          setMessage(data.message || 'CLAIMED! TOKENS SENT TO YOUR WALLET');
+        }
         if (data.nextClaimTime) {
           setNextClaimTime(new Date(data.nextClaimTime));
         }
@@ -1159,6 +1168,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
         setMessage(data.error || 'CLAIM FAILED');
       }
     } catch (error) {
+      console.error('Error claiming tokens:', error);
       setMessage('ERROR CLAIMING TOKENS');
     } finally {
       setClaiming(false);
