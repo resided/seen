@@ -1718,7 +1718,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
             {featuredApp?.links?.miniapp && (
               <button
                 onClick={() => {
-                  const miniappUrl = featuredApp.links.miniapp;
+                  const miniappUrl = 'https://farcaster.xyz/miniapps/EvK2rV9tUv3h/seen';
                   const castText = encodeURIComponent(`I just claimed $SEEN for checking out today's featured miniapp ${miniappUrl}`);
                   const farcastUrl = `https://warpcast.com/~/compose?text=${castText}`;
                   window.open(farcastUrl, '_blank', 'noopener,noreferrer');
