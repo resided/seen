@@ -1,4 +1,4 @@
-// API route to get all live projects (featured + queued) for admin panel
+// API route to get all archived projects for admin panel
 import { getAllProjects } from '../../../lib/projects';
 import { parse } from 'cookie';
 
@@ -34,22 +34,20 @@ export default async function handler(req, res) {
   try {
     const projects = await getAllProjects();
     
-    // Filter to only show live projects (featured or queued, excluding archived)
-    const liveProjects = projects.filter(p => 
-      (p.status === 'featured' || p.status === 'queued') && p.status !== 'archived'
+    // Filter to only show archived projects
+    const archivedProjects = projects.filter(p => 
+      p.status === 'archived'
     ).sort((a, b) => {
-      // Featured first, then by submitted date
-      if (a.status === 'featured' && b.status !== 'featured') return -1;
-      if (a.status !== 'featured' && b.status === 'featured') return 1;
+      // Sort by most recently archived first
       return new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0);
     });
 
     return res.status(200).json({
       success: true,
-      projects: liveProjects,
+      projects: archivedProjects,
     });
   } catch (error) {
-    console.error('Error fetching live projects:', error);
-    return res.status(500).json({ error: 'Failed to fetch live projects' });
+    console.error('Error fetching archived projects:', error);
+    return res.status(500).json({ error: 'Failed to fetch archived projects' });
   }
 }

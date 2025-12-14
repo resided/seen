@@ -18,6 +18,9 @@ export default function Admin() {
   const [creating, setCreating] = useState(false);
   const [liveProjects, setLiveProjects] = useState([]);
   const [liveProjectsLoading, setLiveProjectsLoading] = useState(false);
+  const [archivedProjects, setArchivedProjects] = useState([]);
+  const [archivedProjectsLoading, setArchivedProjectsLoading] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [updating, setUpdating] = useState(false);
   const [editFormData, setEditFormData] = useState({
@@ -202,22 +205,92 @@ export default function Admin() {
     }
   };
 
-  const handleEdit = (project) => {
-    setEditingProject(project);
-    setEditFormData({
-      name: project.name || '',
-      tagline: project.tagline || '',
-      description: project.description || '',
-      builder: project.builder || '',
-      builderFid: project.builderFid || '',
-      category: project.category || 'main',
-      status: project.status || 'queued',
-      miniapp: project.links?.miniapp || '',
-      website: project.links?.website || '',
-      github: project.links?.github || '',
-      twitter: project.links?.twitter || '',
-      stats: project.stats || { views: 0, clicks: 0, tips: 0 },
-    });
+  const fetchArchivedProjects = async () => {
+    setArchivedProjectsLoading(true);
+    try {
+      const response = await fetch('/api/admin/archived-projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fid: userFid || null }),
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setArchivedProjects(data.projects || []);
+      }
+    } catch (error) {
+      console.error('Error fetching archived projects:', error);
+    } finally {
+      setArchivedProjectsLoading(false);
+    }
+  };
+
+  const handleEdit = async (project) => {
+    // Fetch fresh project data by ID to ensure we have the latest
+    try {
+      const response = await fetch('/api/admin/get-project', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId: project.id, fid: userFid || null }),
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const freshProject = data.project || project;
+        setEditingProject(freshProject);
+        setEditFormData({
+          name: freshProject.name || '',
+          tagline: freshProject.tagline || '',
+          description: freshProject.description || '',
+          builder: freshProject.builder || '',
+          builderFid: freshProject.builderFid || '',
+          category: freshProject.category || 'main',
+          status: freshProject.status || 'queued',
+          miniapp: freshProject.links?.miniapp || '',
+          website: freshProject.links?.website || '',
+          github: freshProject.links?.github || '',
+          twitter: freshProject.links?.twitter || '',
+          stats: freshProject.stats || { views: 0, clicks: 0, tips: 0 },
+        });
+      } else {
+        // Fallback to using the project passed in
+        setEditingProject(project);
+        setEditFormData({
+          name: project.name || '',
+          tagline: project.tagline || '',
+          description: project.description || '',
+          builder: project.builder || '',
+          builderFid: project.builderFid || '',
+          category: project.category || 'main',
+          status: project.status || 'queued',
+          miniapp: project.links?.miniapp || '',
+          website: project.links?.website || '',
+          github: project.links?.github || '',
+          twitter: project.links?.twitter || '',
+          stats: project.stats || { views: 0, clicks: 0, tips: 0 },
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching project for edit:', error);
+      // Fallback to using the project passed in
+      setEditingProject(project);
+      setEditFormData({
+        name: project.name || '',
+        tagline: project.tagline || '',
+        description: project.description || '',
+        builder: project.builder || '',
+        builderFid: project.builderFid || '',
+        category: project.category || 'main',
+        status: project.status || 'queued',
+        miniapp: project.links?.miniapp || '',
+        website: project.links?.website || '',
+        github: project.links?.github || '',
+        twitter: project.links?.twitter || '',
+        stats: project.stats || { views: 0, clicks: 0, tips: 0 },
+      });
+    }
   };
 
   const handleUpdateProject = async (e) => {
@@ -242,6 +315,7 @@ export default function Admin() {
         setMessage(data.message || 'Project updated successfully!');
         setEditingProject(null);
         fetchLiveProjects(); // Refresh live projects
+        fetchArchivedProjects(); // Refresh archived projects
         fetchSubmissions(); // Refresh submissions in case status changed
       } else {
         setMessage(data.error || 'Failed to update project');
@@ -342,6 +416,41 @@ export default function Admin() {
       }
     } catch (error) {
       setMessage('Error rejecting project');
+    }
+  };
+
+  const handleArchive = async (projectId, archive = true) => {
+    const action = archive ? 'archive' : 'unarchive';
+    const confirmMsg = archive 
+      ? 'Are you sure you want to archive this project? It will be hidden from the queue but can be restored later.'
+      : 'Are you sure you want to restore this project?';
+    
+    if (!confirm(confirmMsg)) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/admin/update-project', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          projectId, 
+          status: archive ? 'archived' : 'queued',
+          fid: userFid || null 
+        }),
+        credentials: 'include',
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setMessage(`Project ${projectId} ${archive ? 'archived' : 'restored'}!`);
+        fetchLiveProjects(); // Refresh live projects
+        fetchArchivedProjects(); // Refresh archived projects
+      } else {
+        setMessage(data.error || `Failed to ${action} project`);
+      }
+    } catch (error) {
+      setMessage(`Error ${action}ing project`);
     }
   };
 
@@ -525,7 +634,10 @@ export default function Admin() {
           {editingProject && (
             <div className="mb-8 border border-white p-6 bg-black">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-black">EDIT PROJECT: {editingProject.name}</h2>
+                <div>
+                  <h2 className="text-2xl font-black">EDIT PROJECT: {editingProject.name}</h2>
+                  <p className="text-xs text-gray-500 mt-1">Project ID: {editingProject.id} | Builder: {editingProject.builder}</p>
+                </div>
                 <button
                   onClick={() => setEditingProject(null)}
                   className="text-white hover:text-gray-400 text-2xl"
@@ -643,6 +755,7 @@ export default function Admin() {
                     >
                       <option value="queued">QUEUED</option>
                       <option value="featured">FEATURED</option>
+                      <option value="archived">ARCHIVED</option>
                     </select>
                   </div>
                 </div>
@@ -770,12 +883,25 @@ export default function Admin() {
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-black">LIVE PROJECTS</h2>
-              <button
-                onClick={fetchLiveProjects}
-                className="px-4 py-2 border border-white text-sm hover:bg-white hover:text-black transition-all"
-              >
-                REFRESH
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setShowArchived(!showArchived);
+                    if (!showArchived) {
+                      fetchArchivedProjects();
+                    }
+                  }}
+                  className="px-4 py-2 border border-white text-sm hover:bg-white hover:text-black transition-all"
+                >
+                  {showArchived ? 'HIDE ARCHIVED' : 'SHOW ARCHIVED'}
+                </button>
+                <button
+                  onClick={fetchLiveProjects}
+                  className="px-4 py-2 border border-white text-sm hover:bg-white hover:text-black transition-all"
+                >
+                  REFRESH
+                </button>
+              </div>
             </div>
             {liveProjectsLoading ? (
               <div className="text-center py-8 border border-white">
@@ -815,18 +941,94 @@ export default function Admin() {
                           )}
                         </div>
                       </div>
-                      <button
-                        onClick={() => handleEdit(project)}
-                        className="px-4 py-2 bg-blue-500 text-white font-bold hover:bg-blue-400 transition-all ml-4"
-                      >
-                        EDIT
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEdit(project)}
+                          className="px-4 py-2 bg-blue-500 text-white font-bold hover:bg-blue-400 transition-all"
+                        >
+                          EDIT
+                        </button>
+                        <button
+                          onClick={() => handleArchive(project.id, true)}
+                          className="px-4 py-2 bg-gray-600 text-white font-bold hover:bg-gray-500 transition-all"
+                        >
+                          ARCHIVE
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
+
+          {/* Archived Projects Section */}
+          {showArchived && (
+            <div className="mb-8 border-t border-white pt-8">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-black">ARCHIVED PROJECTS</h2>
+                <button
+                  onClick={fetchArchivedProjects}
+                  className="px-4 py-2 border border-white text-sm hover:bg-white hover:text-black transition-all"
+                >
+                  REFRESH
+                </button>
+              </div>
+              {archivedProjectsLoading ? (
+                <div className="text-center py-8 border border-white">
+                  <div className="text-gray-500">Loading archived projects...</div>
+                </div>
+              ) : archivedProjects.length === 0 ? (
+                <div className="text-center py-8 border border-white">
+                  <div className="text-gray-500">NO ARCHIVED PROJECTS</div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {archivedProjects.map((project) => (
+                    <div key={project.id} className="border border-gray-600 p-4 opacity-75">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="text-xl font-black">{project.name}</h3>
+                            <span className="text-[10px] tracking-[0.2em] px-2 py-1 border border-gray-500 text-gray-500">
+                              ARCHIVED
+                            </span>
+                            <span className="text-[10px] tracking-[0.2em] px-2 py-1 bg-gray-600 text-white">
+                              {project.category === 'main' ? 'FEATURED' : (project.category?.toUpperCase() || 'FEATURED')}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-400 mb-1">{project.tagline}</p>
+                          <p className="text-xs text-gray-500 mb-2">{project.description?.substring(0, 100)}...</p>
+                          <div className="text-xs text-gray-600">
+                            <span>Builder: {project.builder}</span>
+                            {project.stats && (
+                              <span className="ml-4">
+                                Views: {project.stats.views || 0} | Clicks: {project.stats.clicks || 0} | Tips: {project.stats.tips || 0}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEdit(project)}
+                            className="px-4 py-2 bg-blue-500 text-white font-bold hover:bg-blue-400 transition-all"
+                          >
+                            EDIT
+                          </button>
+                          <button
+                            onClick={() => handleArchive(project.id, false)}
+                            className="px-4 py-2 bg-green-600 text-white font-bold hover:bg-green-500 transition-all"
+                          >
+                            RESTORE
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="mb-8 border-t border-white pt-8">
             <h2 className="text-2xl font-black mb-4">PENDING SUBMISSIONS</h2>

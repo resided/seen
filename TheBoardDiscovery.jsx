@@ -154,6 +154,9 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
   // Fetch builder profile data from Neynar
   useEffect(() => {
     const fetchBuilderProfile = async () => {
+      // Reset builder data when app changes
+      setBuilderData(null);
+      
       // If we have a FID, fetch user data from Neynar
       if (app.builderFid) {
         try {
@@ -167,6 +170,16 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
             const data = await response.json();
             setBuilderData(data);
             setCreatorProfileUrl(data.profileUrl);
+            // Debug: log wallet info
+            if (!data.walletAddress || !data.verified) {
+              console.log('Builder wallet info:', {
+                fid: data.fid,
+                username: data.username,
+                hasWallet: !!data.walletAddress,
+                verified: data.verified,
+                walletAddress: data.walletAddress
+              });
+            }
           }
         } catch (error) {
           console.error('Error fetching builder profile:', error);
@@ -449,7 +462,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
 
               // Ensure builder has a verified primary Farcaster wallet
               if (!builderData?.walletAddress || !builderData?.verified) {
-                setTipMessage('PRIMARY VERIFIED FARCASTER WALLET NOT FOUND');
+                setTipMessage('BUILDER NEEDS VERIFIED FARCASTER WALLET TO RECEIVE TIPS');
                 setTimeout(() => setTipMessage(''), 3000);
                 return;
               }
@@ -462,6 +475,13 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
               }
             }}
             disabled={!isInFarcaster || !isConnected || !builderData?.walletAddress || !builderData?.verified}
+            title={
+              !isInFarcaster ? 'Open in Farcaster to tip' :
+              !isConnected ? 'Connect wallet to tip' :
+              !builderData ? 'Loading builder info...' :
+              !builderData?.walletAddress || !builderData?.verified ? 'Builder needs verified Farcaster wallet' :
+              'Tip the builder'
+            }
             className={`bg-black py-4 font-bold text-sm tracking-[0.2em] transition-all ${
               isInFarcaster && isConnected && builderData?.walletAddress && builderData?.verified
                 ? 'hover:bg-white hover:text-black' 
