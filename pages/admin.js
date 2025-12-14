@@ -488,6 +488,7 @@ export default function Admin() {
     }
 
     try {
+      setMessage('Resetting claims...');
       const response = await fetch('/api/admin/reset-claims', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -498,24 +499,54 @@ export default function Admin() {
         credentials: 'include',
       });
 
-      const data = await response.json();
+      // Check if response is OK before trying to parse JSON
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        console.error('Failed to parse response as JSON:', jsonError);
+        const text = await response.text();
+        setMessage(`Error: Server returned ${response.status} ${response.statusText}. Response: ${text || 'No response body'}`);
+        return;
+      }
+
       if (response.ok) {
         setMessage(data.message || 'Claims reset successfully!');
       } else {
         console.error('Reset claims error:', {
           status: response.status,
           statusText: response.statusText,
-          data: data
+          statusCode: response.status,
+          data: data,
+          fullResponse: response
         });
+        
+        // Build detailed error message
+        let errorMsg = 'Failed to reset claims. ';
         if (response.status === 403) {
-          setMessage(data.details || data.error || 'Authentication failed. Please log in via the admin login form.');
+          errorMsg = 'Authentication failed. ';
+          errorMsg += data.details || data.error || 'Please log in via the admin login form.';
+        } else if (response.status === 400) {
+          errorMsg = 'Bad request. ';
+          errorMsg += data.error || data.details || 'Invalid request.';
+        } else if (response.status === 500) {
+          errorMsg = 'Server error. ';
+          errorMsg += data.error || data.details || 'Internal server error occurred.';
         } else {
-          setMessage(data.error || data.details || 'Failed to reset claims. Check console for details.');
+          errorMsg += `Status: ${response.status}. `;
+          errorMsg += data.error || data.details || 'Unknown error occurred.';
         }
+        
+        setMessage(errorMsg);
       }
     } catch (error) {
-      console.error('Reset claims exception:', error);
-      setMessage('Error resetting claims: ' + error.message);
+      console.error('Reset claims exception:', {
+        error: error,
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      setMessage(`Network error: ${error.message || 'Failed to connect to server. Check your connection and try again.'}`);
     }
   };
 
@@ -751,11 +782,24 @@ export default function Admin() {
           </div>
 
           {message && (
-            <div className="mb-4 p-4 border border-white bg-white text-black">
-              {message}
+            <div className={`mb-4 p-4 border ${
+              message.includes('error') || message.includes('Error') || message.includes('failed') || message.includes('Failed')
+                ? 'border-red-500 bg-red-900/20 text-red-400'
+                : message.includes('success') || message.includes('Success')
+                ? 'border-green-500 bg-green-900/20 text-green-400'
+                : 'border-white bg-white text-black'
+            }`}>
+              <div className="font-bold mb-1">
+                {message.includes('error') || message.includes('Error') || message.includes('failed') || message.includes('Failed')
+                  ? 'ERROR:'
+                  : message.includes('success') || message.includes('Success')
+                  ? 'SUCCESS:'
+                  : 'INFO:'}
+              </div>
+              <div>{message}</div>
               <button
                 onClick={() => setMessage('')}
-                className="ml-4 text-sm underline"
+                className="mt-2 text-sm underline opacity-70 hover:opacity-100"
               >
                 Dismiss
               </button>
