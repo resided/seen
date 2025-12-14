@@ -291,13 +291,22 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
                 rel="noopener noreferrer"
                 className="text-sm font-bold hover:underline block"
               >
-                {builderData?.displayName || app.builder}
+                {/* Main name: displayName (.eth) > builder name (if .eth) > builder name > username */}
+                {builderData?.displayName || 
+                 (app.builder && app.builder.toUpperCase().endsWith('.ETH') ? app.builder.toUpperCase() : app.builder) ||
+                 (builderData?.username ? `@${builderData.username}` : 'Unknown')}
               </a>
             ) : (
-              <div className="text-sm font-bold">{builderData?.displayName || app.builder}</div>
+              <div className="text-sm font-bold">
+                {builderData?.displayName || 
+                 (app.builder && app.builder.toUpperCase().endsWith('.ETH') ? app.builder.toUpperCase() : app.builder) ||
+                 (builderData?.username ? `@${builderData.username}` : 'Unknown')}
+              </div>
             )}
             <div className="text-[10px] tracking-[0.2em] text-gray-500">
-              {builderData?.username ? `@${builderData.username}` : app.builder}
+              {/* Secondary: Always show Farcaster username if available, otherwise builder name */}
+              {builderData?.username ? `@${builderData.username}` : 
+               (app.builder && app.builder.toUpperCase().endsWith('.ETH') ? app.builder.toUpperCase() : app.builder) || 'Unknown'}
               {builderData?.followerCount !== undefined && builderData.followerCount > 0 && (
                 ` • ${formatNumber(builderData.followerCount)} followers`
               )}

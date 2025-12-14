@@ -63,11 +63,29 @@ export default async function handler(req, res) {
       console.warn(`No verified wallet address found for FID ${user.fid}`);
     }
     
+    // Determine the best display name: prefer .eth name from display_name, otherwise use username
+    // display_name often contains .eth names like "jacob.eth" or "protardio.eth"
+    // If display_name doesn't have .eth, it might just be a display name, so check if it ends with .eth
+    let bestDisplayName = user.display_name;
+    const hasEthInDisplayName = bestDisplayName && bestDisplayName.toLowerCase().endsWith('.eth');
+    
+    // If display_name has .eth, use it (uppercase for consistency)
+    // Otherwise, if username exists, prefer that (it's the actual Farcaster username)
+    // Fallback to display_name if no username
+    if (!hasEthInDisplayName && user.username) {
+      // If display_name doesn't have .eth, username is more reliable for Farcaster accounts
+      // But still use display_name as the primary if it's set
+      bestDisplayName = bestDisplayName || user.username;
+    } else if (hasEthInDisplayName) {
+      // If it has .eth, uppercase it for consistency
+      bestDisplayName = bestDisplayName.toUpperCase();
+    }
+    
     // Return formatted user data
     return res.status(200).json({
       fid: user.fid,
-      username: user.username,
-      displayName: user.display_name,
+      username: user.username, // Always return the actual Farcaster username
+      displayName: bestDisplayName, // Best display name (.eth if available, otherwise display_name or username)
       pfpUrl: user.pfp?.url || user.pfp_url,
       bio: user.profile?.bio?.text,
       profileUrl: user.username ? `https://farcaster.xyz/${user.username}` : `https://farcaster.xyz/profiles/${user.fid}`,
