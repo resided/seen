@@ -2095,7 +2095,17 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
                   : 'bg-gray-600 text-gray-400 cursor-not-allowed'
               }`}
             >
-              {claiming ? 'CLAIMING...' : expired ? 'EXPIRED' : claimed ? 'CLAIMED' : !hasClickedMiniapp ? 'OPEN MINI APP FIRST' : 'CLAIM NOW'}
+              {claiming || isClaimTxConfirming 
+                ? (isClaimTxConfirming ? 'WAITING FOR CONFIRMATION...' : 'PREPARING TRANSACTION...')
+                : expired 
+                ? 'EXPIRED' 
+                : claimed 
+                ? 'CLAIMED' 
+                : !hasClickedMiniapp 
+                ? 'OPEN MINI APP FIRST' 
+                : !treasuryAddress
+                ? 'LOADING...'
+                : 'CLAIM NOW'}
             </button>
           </>
         )}

@@ -107,20 +107,8 @@ export default async function handler(req, res) {
     }
 
     // If txHash is provided, verify the transaction and then send tokens
-    if (txHash) {
-      // TODO: Verify transaction on-chain (optional - for extra security)
-      // For now, we trust the client provided txHash and proceed with token transfer
-      
-      // Calculate TTL: time until expiration
-      const ttl = Math.max(0, Math.floor((expirationTime - now) / 1000));
-      const featuredAtTimestamp = Math.floor(featuredAt.getTime() / 1000);
-      
-      // Record the claim transaction hash
-      await redis.setEx(`claim:tx:${featuredProjectId}:${featuredAtTimestamp}:${fid}`, ttl, txHash);
-      
-      // Now proceed to send tokens from treasury (same flow as before)
-      // This ensures user gets credit for their transaction AND receives tokens
-    }
+    // Note: We continue to the token transfer flow below to send tokens from treasury
+    // The txHash is stored when we record the claim after successful token transfer
 
     // If no token contract configured, return token details for client-side transaction
     if (!TOKEN_CONTRACT || !TREASURY_PRIVATE_KEY) {
