@@ -34,13 +34,15 @@ export default async function handler(req, res) {
   try {
     const projects = await getAllProjects();
     
-    // Filter to only show live projects (featured or queued, excluding archived)
+    // Filter to only show live projects (featured, active, or queued, excluding archived)
     const liveProjects = projects.filter(p => 
-      (p.status === 'featured' || p.status === 'queued') && p.status !== 'archived'
+      (p.status === 'featured' || p.status === 'active' || p.status === 'queued') && p.status !== 'archived'
     ).sort((a, b) => {
-      // Featured first, then by submitted date
-      if (a.status === 'featured' && b.status !== 'featured') return -1;
-      if (a.status !== 'featured' && b.status === 'featured') return 1;
+      // Featured first, then active, then queued, then by submitted date
+      const statusOrder = { featured: 1, active: 2, queued: 3 };
+      const aOrder = statusOrder[a.status] || 99;
+      const bOrder = statusOrder[b.status] || 99;
+      if (aOrder !== bOrder) return aOrder - bOrder;
       return new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0);
     });
 
