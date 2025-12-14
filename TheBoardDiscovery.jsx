@@ -726,15 +726,28 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
                     <div className="text-[10px] font-mono text-gray-500 break-all mb-1">
                       {builderData.walletAddress}
                     </div>
-                    {builderData.verified && (
+                    {builderData.verified ? (
                       <div className="text-[9px] tracking-[0.2em] text-green-400">
                         ✓ VERIFIED FARCASTER WALLET
                       </div>
+                    ) : (
+                      <div className="text-[9px] tracking-[0.2em] text-yellow-400">
+                        ⚠ WALLET NOT VERIFIED
+                      </div>
                     )}
                   </>
-                ) : (
+                ) : builderData ? (
                   <div className="text-[10px] text-red-400">
-                    NO VERIFIED WALLET FOUND
+                    ⚠ PRIMARY FARCASTER WALLET NOT FOUND
+                    {app.builderFid && (
+                      <div className="text-[9px] text-gray-500 mt-1">
+                        FID: {app.builderFid}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-[10px] text-gray-500">
+                    Loading wallet info...
                   </div>
                 )}
               </div>
