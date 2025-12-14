@@ -119,15 +119,34 @@ export default async function handler(req, res) {
     }
 
     // If stats were updated, also sync Redis daily counters for real-time display
+    // This sets the base value so future increments continue from the manually set number
     if (stats !== undefined && stats.clicks !== undefined) {
       try {
         const redis = await getRedisClient();
         if (redis) {
           const today = new Date().toISOString().split('T')[0];
           const clicksKey = `clicks:project:${projectId}:${today}`;
-          // Set the daily counter to match the manual override
-          await redis.set(clicksKey, stats.clicks.toString());
+          
+          // Get the project BEFORE updating to see current stored stats
+          const { getProjectById } = await import('../../../lib/projects');
+          const currentProject = await getProjectById(parseInt(projectId));
+          const currentStoredTotal = currentProject?.stats?.clicks || 0;
+          const newTotal = stats.clicks;
+          
+          // Get current today's counter (if any)
+          const currentTodayCount = parseInt(await redis.get(clicksKey) || '0');
+          
+          // Calculate how much the total changed
+          const totalDifference = newTotal - currentStoredTotal;
+          
+          // Adjust today's counter by the difference so future increments continue from new base
+          // Example: If stored total was 50, user sets to 100 (diff=50), and today had 5 clicks,
+          // we set today's counter to 55. Next click makes it 56, which matches total of 101.
+          const newTodayCount = Math.max(0, currentTodayCount + totalDifference);
+          await redis.set(clicksKey, newTodayCount.toString());
           await redis.expire(clicksKey, 2 * 24 * 60 * 60);
+          
+          console.log(`Updated clicks: stored=${currentStoredTotal}→${newTotal}, today's counter=${currentTodayCount}→${newTodayCount}`);
         }
       } catch (redisError) {
         console.error('Error syncing Redis daily counter:', redisError);
@@ -141,9 +160,25 @@ export default async function handler(req, res) {
         if (redis) {
           const today = new Date().toISOString().split('T')[0];
           const viewsKey = `views:project:${projectId}:${today}`;
-          // Set the daily counter to match the manual override
-          await redis.set(viewsKey, stats.views.toString());
+          
+          // Get the project BEFORE updating to see current stored stats
+          const { getProjectById } = await import('../../../lib/projects');
+          const currentProject = await getProjectById(parseInt(projectId));
+          const currentStoredTotal = currentProject?.stats?.views || 0;
+          const newTotal = stats.views;
+          
+          // Get current today's counter (if any)
+          const currentTodayCount = parseInt(await redis.get(viewsKey) || '0');
+          
+          // Calculate how much the total changed
+          const totalDifference = newTotal - currentStoredTotal;
+          
+          // Adjust today's counter by the difference so future increments continue from new base
+          const newTodayCount = Math.max(0, currentTodayCount + totalDifference);
+          await redis.set(viewsKey, newTodayCount.toString());
           await redis.expire(viewsKey, 2 * 24 * 60 * 60);
+          
+          console.log(`Updated views: stored=${currentStoredTotal}→${newTotal}, today's counter=${currentTodayCount}→${newTodayCount}`);
         }
       } catch (redisError) {
         console.error('Error syncing Redis daily counter:', redisError);
