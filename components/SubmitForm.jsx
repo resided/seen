@@ -521,7 +521,7 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                WEBSITE
+                WEBSITE (OPTIONAL)
               </label>
               <input
                 type="url"
@@ -534,7 +534,7 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
             </div>
             <div>
               <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                GITHUB
+                GITHUB (OPTIONAL)
               </label>
               <input
                 type="url"
