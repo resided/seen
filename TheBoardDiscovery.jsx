@@ -1253,6 +1253,42 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
               </button>
             )}
             <button
+              onClick={async () => {
+                if (!isInFarcaster) {
+                  setTipMessage('OPEN IN FARCASTER TO SHARE');
+                  setTimeout(() => setTipMessage(''), 3000);
+                  return;
+                }
+                
+                const miniappUrl = 'https://farcaster.xyz/miniapps/EvK2rV9tUv3h/seen';
+                const castText = `I just discovered ${project.name} using Seen\n\n${miniappUrl}`;
+                
+                try {
+                  if (typeof window !== 'undefined' && sdk?.actions?.composeCast) {
+                    await sdk.actions.composeCast({
+                      text: castText,
+                      embeds: [miniappUrl]
+                    });
+                  } else {
+                    // Fallback to warpcast URL if SDK not available
+                    const encodedText = encodeURIComponent(castText);
+                    const farcastUrl = `https://warpcast.com/~/compose?text=${encodedText}`;
+                    window.open(farcastUrl, '_blank', 'noopener,noreferrer');
+                  }
+                } catch (error) {
+                  console.error('Error opening compose:', error);
+                  // Fallback to warpcast URL
+                  const encodedText = encodeURIComponent(castText);
+                  const farcastUrl = `https://warpcast.com/~/compose?text=${encodedText}`;
+                  window.open(farcastUrl, '_blank', 'noopener,noreferrer');
+                }
+              }}
+              className="flex-1 md:flex-none px-6 py-3 md:px-3 md:py-2 border border-white text-sm md:text-[9px] tracking-[0.2em] hover:bg-white hover:text-black transition-all font-bold"
+              title="Share this project on Farcaster"
+            >
+              SHARE
+            </button>
+            <button
               onClick={() => {
                 if (!isInFarcaster) {
                   setTipMessage('OPEN IN FARCASTER TO TIP');
