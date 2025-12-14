@@ -7,7 +7,7 @@ const SubmitForm = ({ onClose, onSubmit, userFid }) => {
     description: '',
     builder: '',
     builderFid: '',
-    category: 'main',
+    category: 'featured',
     miniapp: '',
     website: '',
     github: '',
@@ -58,18 +58,14 @@ const SubmitForm = ({ onClose, onSubmit, userFid }) => {
 
       if (response.ok) {
         if (formData.submissionType === 'featured') {
-          setMessage(`SUBMITTED! PAYMENT REQUIRED: ${FEATURED_PRICE} ETH. YOU WILL BE REDIRECTED TO PAY.`);
-          // TODO: Handle payment flow here
-          // - Connect wallet
-          // - Send transaction
-          // - Verify payment
+          setMessage(`SUBMITTED! YOUR FEATURED SUBMISSION IS PENDING ADMIN APPROVAL. YOU WILL BE CONTACTED FOR PAYMENT IF APPROVED.`);
         } else {
-          setMessage('SUBMITTED! YOUR PROJECT WILL BE ADDED TO THE QUEUE.');
+          setMessage('SUBMITTED! YOUR PROJECT IS PENDING ADMIN APPROVAL AND WILL BE ADDED TO THE QUEUE IF APPROVED.');
         }
         setTimeout(() => {
           onSubmit?.();
           onClose();
-        }, 3000);
+        }, 4000);
       } else {
         setMessage(data.error || 'SUBMISSION FAILED');
       }
@@ -222,6 +218,7 @@ const SubmitForm = ({ onClose, onSubmit, userFid }) => {
               required
               className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
             >
+              <option value="featured">FEATURED</option>
               <option value="main">MAIN</option>
               <option value="defi">DEFI</option>
               <option value="social">SOCIAL</option>
