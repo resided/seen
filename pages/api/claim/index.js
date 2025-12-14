@@ -106,21 +106,20 @@ export default async function handler(req, res) {
       });
     }
 
-    // If txHash is provided, just record the claim
+    // If txHash is provided, verify the transaction and then send tokens
     if (txHash) {
+      // TODO: Verify transaction on-chain (optional - for extra security)
+      // For now, we trust the client provided txHash and proceed with token transfer
+      
       // Calculate TTL: time until expiration
       const ttl = Math.max(0, Math.floor((expirationTime - now) / 1000));
       const featuredAtTimestamp = Math.floor(featuredAt.getTime() / 1000);
-      await redis.setEx(claimKey, ttl, '1');
+      
+      // Record the claim transaction hash
       await redis.setEx(`claim:tx:${featuredProjectId}:${featuredAtTimestamp}:${fid}`, ttl, txHash);
       
-      return res.status(200).json({
-        success: true,
-        message: 'Claim recorded successfully',
-        expirationTime: expirationTime.toISOString(),
-        featuredProjectId,
-        txHash,
-      });
+      // Now proceed to send tokens from treasury (same flow as before)
+      // This ensures user gets credit for their transaction AND receives tokens
     }
 
     // If no token contract configured, return token details for client-side transaction
@@ -197,7 +196,9 @@ export default async function handler(req, res) {
       
       // Record the claim with transaction hash (expires when featured project changes)
       await redis.setEx(claimKey, ttl, '1');
-      await redis.setEx(`claim:tx:${featuredProjectId}:${featuredAtTimestamp}:${fid}`, ttl, hash);
+      // If txHash was provided (user transaction), use that, otherwise use treasury tx hash
+      const userTxHash = txHash || hash;
+      await redis.setEx(`claim:tx:${featuredProjectId}:${featuredAtTimestamp}:${fid}`, ttl, userTxHash);
 
       // Track a click when user successfully claims (they opened the miniapp to claim)
       try {
@@ -215,7 +216,8 @@ export default async function handler(req, res) {
         message: 'Tokens sent successfully',
         expirationTime: expirationTime.toISOString(),
         featuredProjectId,
-        txHash: hash,
+        txHash: txHash || hash, // Return user's txHash if provided, otherwise treasury tx hash
+        treasuryTxHash: hash, // Also return treasury transaction hash
         amount: TOKEN_AMOUNT,
       });
     } catch (txError) {

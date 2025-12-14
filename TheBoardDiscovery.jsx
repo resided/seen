@@ -1787,7 +1787,24 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
   const [message, setMessage] = useState('');
   const [expirationTime, setExpirationTime] = useState(null);
   const [expired, setExpired] = useState(false);
+  const [treasuryAddress, setTreasuryAddress] = useState(null);
   const { address } = useAccount();
+  const { sendTransaction, data: claimTxData } = useSendTransaction();
+  const { isLoading: isClaimTxConfirming, isSuccess: isClaimTxConfirmed } = useWaitForTransactionReceipt({
+    hash: claimTxData,
+  });
+
+  // Fetch treasury address
+  useEffect(() => {
+    fetch('/api/payment/treasury-address')
+      .then(res => res.json())
+      .then(data => {
+        if (data.treasuryAddress) {
+          setTreasuryAddress(data.treasuryAddress);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     // Check claim status (tied to featured project)
@@ -1836,6 +1853,49 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
     }
   }, [userFid]);
 
+  // When claim transaction is confirmed, send txHash to API
+  useEffect(() => {
+    if (isClaimTxConfirmed && claimTxData && userFid && address) {
+      // Transaction confirmed, now send to API to process claim
+      fetch('/api/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          fid: userFid,
+          walletAddress: address,
+          txHash: claimTxData
+        }),
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (res.ok) {
+            setClaimed(true);
+            if (data.txHash) {
+              setMessage(`CLAIMED! YOUR TX: ${data.txHash.slice(0, 10)}... TOKENS SENT.`);
+            } else {
+              setMessage(data.message || 'CLAIMED! TOKENS SENT TO YOUR WALLET');
+            }
+            if (data.expirationTime) {
+              setExpirationTime(new Date(data.expirationTime));
+            }
+          } else {
+            if (data.expired) {
+              setExpired(true);
+              setMessage('CLAIM WINDOW EXPIRED. WAIT FOR NEXT FEATURED PROJECT.');
+            } else {
+              setMessage(data.error || 'CLAIM FAILED');
+            }
+          }
+          setClaiming(false);
+        })
+        .catch(error => {
+          console.error('Error processing claim:', error);
+          setMessage('ERROR PROCESSING CLAIM');
+          setClaiming(false);
+        });
+    }
+  }, [isClaimTxConfirmed, claimTxData, userFid, address]);
+
   const handleClaim = async () => {
     if (!isInFarcaster) {
       setMessage('OPEN IN FARCASTER TO CLAIM');
@@ -1858,6 +1918,11 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
       return;
     }
 
+    if (!treasuryAddress) {
+      setMessage('LOADING TREASURY ADDRESS...');
+      return;
+    }
+
     if (claimed) {
       setMessage('ALREADY CLAIMED FOR THIS FEATURED PROJECT');
       return;
@@ -1869,44 +1934,20 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
     }
 
     setClaiming(true);
-    setMessage('');
+    setMessage('PREPARING TRANSACTION...');
 
     try {
-      // Claim tokens - server will send tokens from treasury wallet
-      console.log('Claiming tokens:', { fid: userFid, walletAddress: address });
-      const response = await fetch('/api/claim', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          fid: userFid,
-          walletAddress: address 
-        }),
+      // User signs a transaction to claim (0 ETH transfer with "claim" data)
+      // This creates a user transaction for Farcaster rankings
+      sendTransaction({
+        to: treasuryAddress,
+        value: parseEther('0'),
+        data: stringToHex('claim'),
       });
-
-      const data = await response.json();
-      
-      if (response.ok) {
-        setClaimed(true);
-        if (data.txHash) {
-          setMessage(`CLAIMED! TOKENS SENT. TX: ${data.txHash.slice(0, 10)}...`);
-        } else {
-          setMessage(data.message || 'CLAIMED! TOKENS SENT TO YOUR WALLET');
-        }
-        if (data.expirationTime) {
-          setExpirationTime(new Date(data.expirationTime));
-        }
-      } else {
-        if (data.expired) {
-          setExpired(true);
-          setMessage('CLAIM WINDOW EXPIRED. WAIT FOR NEXT FEATURED PROJECT.');
-        } else {
-          setMessage(data.error || 'CLAIM FAILED');
-        }
-      }
+      setMessage('WAITING FOR TRANSACTION CONFIRMATION...');
     } catch (error) {
-      console.error('Error claiming tokens:', error);
-      setMessage('ERROR CLAIMING TOKENS');
-    } finally {
+      console.error('Error initiating claim transaction:', error);
+      setMessage('ERROR INITIATING CLAIM. PLEASE TRY AGAIN.');
       setClaiming(false);
     }
   };
