@@ -399,8 +399,9 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false })
                 return;
               }
 
-              if (!builderData?.walletAddress) {
-                setTipMessage('BUILDER WALLET NOT FOUND');
+              // Ensure builder has a verified primary Farcaster wallet
+              if (!builderData?.walletAddress || !builderData?.verified) {
+                setTipMessage('PRIMARY VERIFIED FARCASTER WALLET NOT FOUND');
                 setTimeout(() => setTipMessage(''), 3000);
                 return;
               }
@@ -408,9 +409,9 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false })
               // Show tip modal
               setShowTipModal(true);
             }}
-            disabled={!isInFarcaster || !isConnected || !builderData?.walletAddress}
+            disabled={!isInFarcaster || !isConnected || !builderData?.walletAddress || !builderData?.verified}
             className={`bg-black py-4 font-bold text-sm tracking-[0.2em] transition-all ${
-              isInFarcaster && isConnected && builderData?.walletAddress
+              isInFarcaster && isConnected && builderData?.walletAddress && builderData?.verified
                 ? 'hover:bg-white hover:text-black' 
                 : 'opacity-50 cursor-not-allowed'
             }`}
@@ -425,7 +426,12 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false })
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-black border-2 border-white max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-black tracking-tight">TIP BUILDER</h3>
+              <div>
+                <h3 className="text-xl font-black tracking-tight">TIP BUILDER</h3>
+                <p className="text-[9px] tracking-[0.2em] text-gray-500 mt-1">
+                  SENT ONLY TO PRIMARY FARCASTER WALLET
+                </p>
+              </div>
               <button
                 onClick={() => {
                   setShowTipModal(false);
@@ -486,14 +492,27 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false })
 
               <div className="pt-4 border-t border-white">
                 <div className="text-[10px] tracking-[0.2em] text-gray-500 mb-2">
-                  RECIPIENT
+                  RECIPIENT (PRIMARY FARCASTER WALLET)
                 </div>
                 <div className="text-sm font-bold mb-1">
                   {builderData?.displayName || app.builder}
                 </div>
-                <div className="text-[10px] font-mono text-gray-500 break-all">
-                  {builderData?.walletAddress}
-                </div>
+                {builderData?.walletAddress ? (
+                  <>
+                    <div className="text-[10px] font-mono text-gray-500 break-all mb-1">
+                      {builderData.walletAddress}
+                    </div>
+                    {builderData.verified && (
+                      <div className="text-[9px] tracking-[0.2em] text-green-400">
+                        ✓ VERIFIED FARCASTER WALLET
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-[10px] text-red-400">
+                    NO VERIFIED WALLET FOUND
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-4 pt-4">
@@ -519,8 +538,16 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false })
 
                     const recipientAddress = builderData?.walletAddress;
                     
+                    // Ensure we only send to verified primary Farcaster wallet
                     if (!recipientAddress) {
-                      setTipMessage('BUILDER WALLET NOT FOUND');
+                      setTipMessage('PRIMARY FARCASTER WALLET NOT FOUND');
+                      setTimeout(() => setTipMessage(''), 3000);
+                      return;
+                    }
+
+                    // Double-check it's a verified wallet
+                    if (!builderData?.verified) {
+                      setTipMessage('WALLET NOT VERIFIED. TIPS ONLY SENT TO VERIFIED FARCASTER WALLETS.');
                       setTimeout(() => setTipMessage(''), 3000);
                       return;
                     }

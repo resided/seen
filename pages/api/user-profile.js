@@ -49,9 +49,19 @@ export default async function handler(req, res) {
       twitter = user.profile.twitter;
     }
 
-    // Get wallet addresses (prefer verified addresses)
-    const walletAddresses = user.verified_addresses?.eth_addresses || [];
-    const primaryWallet = walletAddresses.length > 0 ? walletAddresses[0] : null;
+    // Get PRIMARY verified Farcaster wallet address from Neynar
+    // Neynar returns verified_addresses.eth_addresses as an array
+    // The first address is typically the primary Farcaster wallet
+    const verifiedAddresses = user.verified_addresses?.eth_addresses || [];
+    
+    // Use only verified addresses (not custody addresses or other wallets)
+    // The first verified address is the primary Farcaster wallet
+    const primaryWallet = verifiedAddresses.length > 0 ? verifiedAddresses[0] : null;
+    
+    // Log for debugging if no verified wallet found
+    if (!primaryWallet) {
+      console.warn(`No verified wallet address found for FID ${user.fid}`);
+    }
     
     // Return formatted user data
     return res.status(200).json({
@@ -61,11 +71,12 @@ export default async function handler(req, res) {
       pfpUrl: user.pfp?.url || user.pfp_url,
       bio: user.profile?.bio?.text,
       profileUrl: user.username ? `https://farcaster.xyz/${user.username}` : `https://farcaster.xyz/profiles/${user.fid}`,
-      verified: walletAddresses.length > 0,
+      verified: verifiedAddresses.length > 0,
       neynarUserScore: user.experimental?.neynar_user_score || null,
       twitter: twitter, // Add Twitter/X link
-      walletAddress: primaryWallet, // Primary wallet address for tips
-      walletAddresses: walletAddresses, // All wallet addresses
+      walletAddress: primaryWallet, // PRIMARY verified Farcaster wallet address (from Neynar)
+      walletAddresses: verifiedAddresses, // All verified wallet addresses
+      isPrimaryWallet: true, // Flag to indicate this is the primary wallet
     });
   } catch (error) {
     console.error('Error fetching user profile:', error);
