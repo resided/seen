@@ -1,5 +1,6 @@
 // API route to update an existing project (admin only)
 import { updateProject } from '../../../lib/projects';
+import { fetchUserByFid } from '../../../lib/neynar';
 import { parse } from 'cookie';
 import { checkRateLimit, getClientIP } from '../../../lib/rate-limit';
 
@@ -72,11 +73,33 @@ export default async function handler(req, res) {
     if (name !== undefined) updateData.name = name;
     if (tagline !== undefined) updateData.tagline = tagline;
     if (description !== undefined) updateData.description = description;
-    if (builder !== undefined) updateData.builder = builder;
-    if (builderFid !== undefined) updateData.builderFid = builderFid;
     if (category !== undefined) updateData.category = category;
     if (status !== undefined) updateData.status = status;
     if (stats !== undefined) updateData.stats = stats;
+    
+    // Handle builder and builderFid - auto-populate from FID if FID provided but builder not
+    let finalBuilder = builder;
+    let finalBuilderFid = builderFid !== undefined ? (builderFid ? parseInt(builderFid) : 0) : undefined;
+    
+    if (finalBuilderFid !== undefined && finalBuilderFid > 0 && (!finalBuilder || finalBuilder.trim() === '')) {
+      const apiKey = process.env.NEYNAR_API_KEY;
+      if (apiKey) {
+        try {
+          const user = await fetchUserByFid(finalBuilderFid, apiKey);
+          if (user) {
+            // Use display_name (.eth name) if available, otherwise username
+            finalBuilder = user.display_name || user.username || '';
+            finalBuilderFid = user.fid || finalBuilderFid;
+          }
+        } catch (error) {
+          console.error('Error fetching user data from FID:', error);
+          // Continue without auto-population if fetch fails
+        }
+      }
+    }
+    
+    if (builder !== undefined) updateData.builder = finalBuilder || builder;
+    if (builderFid !== undefined) updateData.builderFid = finalBuilderFid !== undefined ? finalBuilderFid : (builderFid ? parseInt(builderFid) : 0);
 
     // Update links if any are provided
     if (miniapp !== undefined || website !== undefined || github !== undefined || twitter !== undefined) {

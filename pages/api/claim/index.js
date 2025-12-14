@@ -6,8 +6,9 @@ import { privateKeyToAccount } from 'viem/accounts';
 import { erc20Abi } from 'viem';
 
 // Token configuration from environment variables
+// To change claim amount, update CLAIM_TOKEN_AMOUNT in your environment variables
 const TOKEN_CONTRACT = process.env.CLAIM_TOKEN_CONTRACT; // ERC20 token contract address
-const TOKEN_AMOUNT = process.env.CLAIM_TOKEN_AMOUNT || '1000'; // Amount to send (in token units, not wei)
+const TOKEN_AMOUNT = process.env.CLAIM_TOKEN_AMOUNT || '80000'; // Amount to send (in token units, not wei) - Default: 80,000
 const TOKEN_DECIMALS = parseInt(process.env.CLAIM_TOKEN_DECIMALS || '18'); // Token decimals
 const TREASURY_PRIVATE_KEY = process.env.TREASURY_PRIVATE_KEY; // Private key of wallet holding tokens
 

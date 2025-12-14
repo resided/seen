@@ -1,5 +1,6 @@
 // API route to create a project directly (admin only)
 import { createProjectDirectly } from '../../../lib/projects';
+import { fetchUserByFid } from '../../../lib/neynar';
 import { parse } from 'cookie';
 import { checkRateLimit, getClientIP } from '../../../lib/rate-limit';
 
@@ -62,8 +63,34 @@ export default async function handler(req, res) {
     } = req.body;
 
     // Validate required fields
-    if (!name || !tagline || !description || !builder || !category) {
-      return res.status(400).json({ error: 'Missing required fields: name, tagline, description, builder, category' });
+    if (!name || !tagline || !description || !category) {
+      return res.status(400).json({ error: 'Missing required fields: name, tagline, description, category' });
+    }
+
+    // Auto-populate builder info from FID if FID is provided but builder name is not
+    let finalBuilder = builder;
+    let finalBuilderFid = builderFid ? parseInt(builderFid) : 0;
+    
+    if (finalBuilderFid > 0 && (!finalBuilder || finalBuilder.trim() === '')) {
+      const apiKey = process.env.NEYNAR_API_KEY;
+      if (apiKey) {
+        try {
+          const user = await fetchUserByFid(finalBuilderFid, apiKey);
+          if (user) {
+            // Use display_name (.eth name) if available, otherwise username
+            finalBuilder = user.display_name || user.username || '';
+            finalBuilderFid = user.fid || finalBuilderFid;
+          }
+        } catch (error) {
+          console.error('Error fetching user data from FID:', error);
+          // Continue without auto-population if fetch fails
+        }
+      }
+    }
+
+    // Builder is required - if still empty after FID lookup, return error
+    if (!finalBuilder || finalBuilder.trim() === '') {
+      return res.status(400).json({ error: 'Builder name is required. Provide builder name or builderFid to auto-populate.' });
     }
 
     // Create project directly
@@ -72,8 +99,8 @@ export default async function handler(req, res) {
         name,
         tagline,
         description,
-        builder,
-        builderFid: builderFid || 0,
+        builder: finalBuilder,
+        builderFid: finalBuilderFid,
         category,
         links: {
           miniapp: miniapp || '',

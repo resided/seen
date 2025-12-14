@@ -327,7 +327,7 @@ export default function Admin() {
     }
   };
 
-  const handleEditFormChange = (e) => {
+  const handleEditFormChange = async (e) => {
     const { name, value, type, checked } = e.target;
     if (name.startsWith('stats.')) {
       const statName = name.split('.')[1];
@@ -339,10 +339,35 @@ export default function Admin() {
         },
       });
     } else {
-      setEditFormData({
+      const newFormData = {
         ...editFormData,
         [name]: type === 'checkbox' ? checked : value,
-      });
+      };
+      
+      // Auto-populate builder info from FID when FID is entered
+      if (name === 'builderFid' && value && parseInt(value) > 0) {
+        try {
+          const response = await fetch('/api/user-profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fid: parseInt(value) }),
+          });
+          
+          if (response.ok) {
+            const userData = await response.json();
+            // Auto-populate builder name if not already set or if it's empty
+            if (!newFormData.builder || newFormData.builder.trim() === '') {
+              newFormData.builder = userData.displayName || userData.username || '';
+            }
+            // Update FID
+            newFormData.builderFid = userData.fid || value;
+          }
+        } catch (error) {
+          console.error('Error fetching user data from FID:', error);
+        }
+      }
+      
+      setEditFormData(newFormData);
     }
   };
 
@@ -509,7 +534,7 @@ export default function Admin() {
     }
   };
 
-  const handleCreateFormChange = (e) => {
+  const handleCreateFormChange = async (e) => {
     const { name, value, type, checked } = e.target;
     if (name.startsWith('stats.')) {
       const statName = name.split('.')[1];
@@ -521,10 +546,35 @@ export default function Admin() {
         },
       });
     } else {
-      setCreateFormData({
+      const newFormData = {
         ...createFormData,
         [name]: type === 'checkbox' ? checked : value,
-      });
+      };
+      
+      // Auto-populate builder info from FID when FID is entered
+      if (name === 'builderFid' && value && parseInt(value) > 0) {
+        try {
+          const response = await fetch('/api/user-profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fid: parseInt(value) }),
+          });
+          
+          if (response.ok) {
+            const userData = await response.json();
+            // Auto-populate builder name if not already set
+            if (!newFormData.builder || newFormData.builder.trim() === '') {
+              newFormData.builder = userData.displayName || userData.username || '';
+            }
+            // Update FID if it changed
+            newFormData.builderFid = userData.fid || value;
+          }
+        } catch (error) {
+          console.error('Error fetching user data from FID:', error);
+        }
+      }
+      
+      setCreateFormData(newFormData);
     }
   };
 
