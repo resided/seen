@@ -1,14 +1,19 @@
 // API route to get pending submissions (admin only)
 import { getPendingSubmissions } from '../../../lib/projects'
 
+const ADMIN_FID = 342433; // Admin FID
+
 export default function handler(req, res) {
-  if (req.method !== 'GET') {
+  if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  // TODO: Add admin authentication here
-  // For now, this is open - you should add auth before going live
-  // Example: Check for admin API key or session
+  // Check admin authentication
+  const { fid } = req.body;
+  
+  if (!fid || parseInt(fid) !== ADMIN_FID) {
+    return res.status(403).json({ error: 'Unauthorized. Admin access required.' })
+  }
 
   try {
     const submissions = getPendingSubmissions()

@@ -1,16 +1,21 @@
 // API route to approve or reject submissions (admin only)
 import { approveProject, rejectProject } from '../../../lib/projects'
 
+const ADMIN_FID = 342433; // Admin FID
+
 export default function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  // TODO: Add admin authentication here
-  // For now, this is open - you should add auth before going live
+  // Check admin authentication
+  const { fid, projectId, action } = req.body;
+  
+  if (!fid || parseInt(fid) !== ADMIN_FID) {
+    return res.status(403).json({ error: 'Unauthorized. Admin access required.' })
+  }
 
   try {
-    const { projectId, action } = req.body // action: 'approve' or 'reject'
 
     if (!projectId || !action) {
       return res.status(400).json({ error: 'Missing projectId or action' })

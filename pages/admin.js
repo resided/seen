@@ -1,18 +1,62 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
+import { sdk } from '@farcaster/miniapp-sdk';
+
+const ADMIN_FID = 342433; // Admin FID
 
 export default function Admin() {
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const [userFid, setUserFid] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [unauthorized, setUnauthorized] = useState(false);
+
+  // Get user FID from Farcaster SDK
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const context = await sdk.context;
+        if (context?.user?.fid) {
+          setUserFid(context.user.fid);
+          if (context.user.fid !== ADMIN_FID) {
+            setUnauthorized(true);
+          }
+        } else {
+          setUnauthorized(true);
+        }
+      } catch (error) {
+        console.error('Error getting user context:', error);
+        setUnauthorized(true);
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+    
+    checkAuth();
+  }, []);
 
   useEffect(() => {
-    fetchSubmissions();
-  }, []);
+    if (userFid === ADMIN_FID) {
+      fetchSubmissions();
+    }
+  }, [userFid]);
 
   const fetchSubmissions = async () => {
     try {
-      const response = await fetch('/api/admin/submissions');
+      const response = await fetch('/api/admin/submissions', {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ fid: userFid }),
+        method: 'POST',
+      });
+      
+      if (response.status === 403) {
+        setUnauthorized(true);
+        return;
+      }
+      
       if (response.ok) {
         const data = await response.json();
         setSubmissions(data.submissions || []);
@@ -29,7 +73,7 @@ export default function Admin() {
       const response = await fetch('/api/admin/approve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, action: 'approve' }),
+        body: JSON.stringify({ projectId, action: 'approve', fid: userFid }),
       });
 
       const data = await response.json();
@@ -53,7 +97,7 @@ export default function Admin() {
       const response = await fetch('/api/admin/approve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, action: 'reject' }),
+        body: JSON.stringify({ projectId, action: 'reject', fid: userFid }),
       });
 
       const data = await response.json();
@@ -73,6 +117,30 @@ export default function Admin() {
     return new Date(dateString).toLocaleString();
   };
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-gray-500">Checking authorization...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (unauthorized || userFid !== ADMIN_FID) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-2xl font-black mb-4">UNAUTHORIZED</div>
+          <div className="text-gray-500">You do not have permission to access this page.</div>
+          {userFid && (
+            <div className="text-sm text-gray-600 mt-2">Your FID: {userFid}</div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <Head>
@@ -83,6 +151,7 @@ export default function Admin() {
           <div className="mb-8">
             <h1 className="text-3xl font-black mb-2">ADMIN PANEL</h1>
             <p className="text-sm text-gray-500">Manage Project Submissions</p>
+            <p className="text-xs text-gray-600 mt-1">Authenticated as FID: {userFid}</p>
           </div>
 
           {message && (
@@ -222,10 +291,6 @@ export default function Admin() {
             </div>
           )}
 
-          <div className="mt-8 pt-8 border-t border-white text-sm text-gray-500">
-            <p>⚠️ WARNING: This admin panel is currently unauthenticated. Add authentication before going live!</p>
-            <p className="mt-2">Access at: <code className="bg-white/10 px-2 py-1">/admin</code></p>
-          </div>
         </div>
       </div>
     </>

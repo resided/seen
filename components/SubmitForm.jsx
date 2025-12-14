@@ -17,7 +17,8 @@ const SubmitForm = ({ onClose, onSubmit, userFid }) => {
   const [message, setMessage] = useState('');
   
   // Featured submission pricing (configurable)
-  const FEATURED_PRICE = 0.01; // ETH or tokens - adjust as needed
+  const FEATURED_PRICE = 0.016; // ETH amount
+  const FEATURED_PRICE_DISPLAY = '$45'; // USD display price
 
   const handleChange = (e) => {
     setFormData({
@@ -201,7 +202,7 @@ const SubmitForm = ({ onClose, onSubmit, userFid }) => {
                 />
                 <div className="flex-1">
                   <div className="text-sm font-bold">FEATURED SLOT</div>
-                  <div className="text-[10px] text-gray-500">{FEATURED_PRICE} ETH - Priority placement</div>
+                  <div className="text-[10px] text-gray-500">{FEATURED_PRICE_DISPLAY} - Priority placement</div>
                 </div>
               </label>
             </div>
