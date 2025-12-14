@@ -986,7 +986,7 @@ const SubmitSection = ({ onSubmit, isInFarcaster = false, isMiniappInstalled = f
         <div className="text-[9px] tracking-[0.2em] text-gray-500">FEATURED SLOT</div>
       </div>
       <div>
-        <div className="text-2xl font-black">10K+</div>
+        <div className="text-[9px] tracking-[0.2em] text-gray-500 mb-1">VIEWS</div>
         <div className="text-[9px] tracking-[0.2em] text-gray-500">CALCULATING</div>
       </div>
       <div>
