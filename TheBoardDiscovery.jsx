@@ -199,9 +199,24 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
       // Fetch immediately
       fetchStats();
       
-      // Poll every 5 seconds for real-time updates
-      const interval = setInterval(fetchStats, 5000);
-      return () => clearInterval(interval);
+      // Poll every 5 seconds for real-time updates (only when tab is visible)
+      let interval;
+      const handleVisibilityChange = () => {
+        if (document.hidden) {
+          if (interval) clearInterval(interval);
+        } else {
+          fetchStats(); // Fetch immediately when tab becomes visible
+          interval = setInterval(fetchStats, 5000);
+        }
+      };
+      
+      interval = setInterval(fetchStats, 5000);
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      
+      return () => {
+        clearInterval(interval);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      };
     }
   }, [app?.id]);
 
@@ -1461,16 +1476,32 @@ const CategoryRankings = ({ category, ethPrice, isInFarcaster = false, isConnect
     };
 
     fetchRankings();
-    // Refresh rankings every 30 seconds
-    const interval = setInterval(() => {
+    // Refresh rankings every 30 seconds (only when tab is visible)
+    let interval;
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        if (interval) clearInterval(interval);
+      } else {
+        if (isMounted) fetchRankings(); // Fetch immediately when tab becomes visible
+        interval = setInterval(() => {
+          if (isMounted) {
+            fetchRankings();
+          }
+        }, 30000);
+      }
+    };
+    
+    interval = setInterval(() => {
       if (isMounted) {
         fetchRankings();
       }
     }, 30000);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     
     return () => {
       isMounted = false;
       clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [category]);
 
@@ -1571,9 +1602,24 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
       };
       
       checkStatus();
-      // Check every 30 seconds to catch expiration
-      const interval = setInterval(checkStatus, 30000);
-      return () => clearInterval(interval);
+      // Check every 30 seconds to catch expiration (only when tab is visible)
+      let interval;
+      const handleVisibilityChange = () => {
+        if (document.hidden) {
+          if (interval) clearInterval(interval);
+        } else {
+          checkStatus(); // Check immediately when tab becomes visible
+          interval = setInterval(checkStatus, 30000);
+        }
+      };
+      
+      interval = setInterval(checkStatus, 30000);
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      
+      return () => {
+        clearInterval(interval);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      };
     }
   }, [userFid]);
 
@@ -1810,9 +1856,24 @@ export default function Seen() {
     };
     
     fetchEthPrice();
-    // Refresh price every 30 seconds
-    const interval = setInterval(fetchEthPrice, 30000);
-    return () => clearInterval(interval);
+    // Refresh price every 30 seconds (only when tab is visible)
+    let interval;
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        if (interval) clearInterval(interval);
+      } else {
+        fetchEthPrice(); // Fetch immediately when tab becomes visible
+        interval = setInterval(fetchEthPrice, 30000);
+      }
+    };
+    
+    interval = setInterval(fetchEthPrice, 30000);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
   
   // Wagmi wallet connection
@@ -1947,11 +2008,11 @@ export default function Seen() {
     fetchMessages();
   }, []);
   
-  // Poll for new messages every 3 seconds
+  // Poll for new messages every 3 seconds (only when tab is visible)
   useEffect(() => {
     if (!lastMessageTimestamp) return;
     
-    const pollInterval = setInterval(async () => {
+    const pollMessages = async () => {
       try {
         const response = await fetch(`/api/chat?since=${encodeURIComponent(lastMessageTimestamp)}`);
         if (response.ok) {
@@ -1974,9 +2035,25 @@ export default function Seen() {
       } catch (error) {
         console.error('Error polling for new messages:', error);
       }
-    }, 3000); // Poll every 3 seconds
+    };
     
-    return () => clearInterval(pollInterval);
+    let pollInterval;
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        if (pollInterval) clearInterval(pollInterval);
+      } else {
+        pollMessages(); // Poll immediately when tab becomes visible
+        pollInterval = setInterval(pollMessages, 3000);
+      }
+    };
+    
+    pollInterval = setInterval(pollMessages, 3000);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      clearInterval(pollInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [lastMessageTimestamp]);
   
   // Fetch projects from API
