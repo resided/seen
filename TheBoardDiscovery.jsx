@@ -1105,7 +1105,7 @@ const CategoryRankings = ({ category }) => {
               className="border border-white p-4 hover:bg-white/5 transition-all"
             >
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 min-w-[80px]">
+                <div className="flex items-center gap-2 min-w-[80px] shrink-0">
                   <div className="text-2xl font-black w-8 text-center">
                     #{project.rank}
                   </div>
@@ -1121,15 +1121,15 @@ const CategoryRankings = ({ category }) => {
                   )}
                 </div>
                 
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-1">
-                    <h3 className="text-lg font-black">{project.name}</h3>
-                    <span className="text-[9px] tracking-[0.2em] px-2 py-0.5 bg-white text-black font-bold">
+                    <h3 className="text-lg font-black truncate">{project.name}</h3>
+                    <span className="text-[9px] tracking-[0.2em] px-2 py-0.5 bg-white text-black font-bold shrink-0">
                       {project.category?.toUpperCase()}
                     </span>
                   </div>
-                  <p className="text-[10px] text-gray-500 mb-2">{project.tagline}</p>
-                  <div className="flex items-center gap-4 text-[9px] tracking-[0.2em] text-gray-600">
+                  <p className="text-[10px] text-gray-500 mb-2 line-clamp-1">{project.tagline}</p>
+                  <div className="flex items-center gap-4 text-[9px] tracking-[0.2em] text-gray-600 flex-wrap">
                     <span className="flex items-center gap-1">
                       <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
@@ -1156,7 +1156,7 @@ const CategoryRankings = ({ category }) => {
                 {project.links?.miniapp && (
                   <button
                     onClick={() => window.open(project.links.miniapp, '_blank', 'noopener,noreferrer')}
-                    className="px-4 py-2 border border-white text-[10px] tracking-[0.2em] hover:bg-white hover:text-black transition-all"
+                    className="px-4 py-2 border border-white text-[10px] tracking-[0.2em] hover:bg-white hover:text-black transition-all shrink-0 whitespace-nowrap"
                   >
                     OPEN
                   </button>
