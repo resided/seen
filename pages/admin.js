@@ -502,8 +502,16 @@ export default function Admin() {
       if (response.ok) {
         setMessage(data.message || 'Claims reset successfully!');
       } else {
-        console.error('Reset claims error:', data);
-        setMessage(data.error || data.details || 'Failed to reset claims. Check console for details.');
+        console.error('Reset claims error:', {
+          status: response.status,
+          statusText: response.statusText,
+          data: data
+        });
+        if (response.status === 403) {
+          setMessage(data.details || data.error || 'Authentication failed. Please log in via the admin login form.');
+        } else {
+          setMessage(data.error || data.details || 'Failed to reset claims. Check console for details.');
+        }
       }
     } catch (error) {
       console.error('Reset claims exception:', error);
