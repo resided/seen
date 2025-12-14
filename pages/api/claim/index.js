@@ -93,6 +93,12 @@ export default async function handler(req, res) {
 
     // If no token contract configured, return token details for client-side transaction
     if (!TOKEN_CONTRACT || !TREASURY_PRIVATE_KEY) {
+      console.error('Token configuration missing:', {
+        hasTokenContract: !!TOKEN_CONTRACT,
+        hasTreasuryKey: !!TREASURY_PRIVATE_KEY,
+        tokenContract: TOKEN_CONTRACT || 'NOT SET',
+        treasuryKeyPrefix: TREASURY_PRIVATE_KEY ? `${TREASURY_PRIVATE_KEY.slice(0, 10)}...` : 'NOT SET',
+      });
       return res.status(200).json({
         success: true,
         tokenContract: TOKEN_CONTRACT || null,
