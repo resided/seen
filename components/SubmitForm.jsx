@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAccount, useSendTransaction } from 'wagmi';
 import { parseEther } from 'viem';
 
@@ -28,7 +28,24 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
   // Featured submission pricing (configurable)
   const FEATURED_PRICE = 0.016; // ETH amount
   const FEATURED_PRICE_DISPLAY = '$45'; // USD display price
-  const TREASURY_ADDRESS = '0xEa73a775fa9935E686E003ae378996972386639F'; // Treasury wallet to receive payments
+  // Treasury address should be fetched from API or environment
+  const [treasuryAddress, setTreasuryAddress] = useState(null);
+
+  // Fetch treasury address from API
+  useEffect(() => {
+    if (formData.submissionType === 'featured') {
+      fetch('/api/payment/treasury-address')
+        .then(res => res.json())
+        .then(data => {
+          if (data.treasuryAddress) {
+            setTreasuryAddress(data.treasuryAddress);
+          }
+        })
+        .catch(() => {
+          // Fallback - will show error if payment attempted
+        });
+    }
+  }, [formData.submissionType]);
 
   const handleChange = (e) => {
     const newFormData = {
@@ -83,13 +100,19 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
         return;
       }
 
+      if (!treasuryAddress) {
+        setMessage('ERROR: TREASURY ADDRESS NOT CONFIGURED. PLEASE CONTACT ADMIN.');
+        setSubmitting(false);
+        return;
+      }
+
       try {
         setProcessingPayment(true);
         setMessage('PROCESSING PAYMENT...');
 
         // Send payment transaction
         const hash = await sendTransaction({
-          to: TREASURY_ADDRESS,
+          to: treasuryAddress,
           value: parseEther(paymentAmount.toString()),
         });
 

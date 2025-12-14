@@ -8,7 +8,7 @@ import { parse } from 'cookie';
 
 const ADMIN_FID = 342433; // Admin FID
 const TREASURY_PRIVATE_KEY = process.env.TREASURY_PRIVATE_KEY;
-const TREASURY_ADDRESS = process.env.TREASURY_ADDRESS || '0xEa73a775fa9935E686E003ae378996972386639F';
+const TREASURY_ADDRESS = process.env.TREASURY_ADDRESS; // REQUIRED - must be set in environment variables
 
 function isAuthenticated(req) {
   const { fid } = req.body || {};

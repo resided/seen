@@ -12,7 +12,7 @@ const TOKEN_CONTRACT = process.env.CLAIM_TOKEN_CONTRACT; // ERC20 token contract
 const TOKEN_AMOUNT = process.env.CLAIM_TOKEN_AMOUNT || '80000'; // Amount to send (in token units, not wei) - Default: 80,000
 const TOKEN_DECIMALS = parseInt(process.env.CLAIM_TOKEN_DECIMALS || '18'); // Token decimals
 const TREASURY_PRIVATE_KEY = process.env.TREASURY_PRIVATE_KEY; // Private key of wallet holding tokens (0x prefix)
-const TREASURY_ADDRESS = process.env.TREASURY_ADDRESS || '0xEa73a775fa9935E686E003ae378996972386639F'; // Treasury wallet address (for verification)
+const TREASURY_ADDRESS = process.env.TREASURY_ADDRESS; // Treasury wallet address (for verification) - REQUIRED
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
