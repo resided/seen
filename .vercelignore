@@ -1,0 +1,27 @@
+# Exclude unnecessary files from Vercel builds
+node_modules
+.git
+.next
+.vercel
+*.log
+*.md
+!README.md
+.env.local
+.env*.local
+.DS_Store
+coverage
+.nyc_output
+*.test.js
+*.test.jsx
+*.spec.js
+*.spec.jsx
+__tests__
+test
+tests
+e2e
+cypress
+.vscode
+.idea
+*.swp
+*.swo
+*~
