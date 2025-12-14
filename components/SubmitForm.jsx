@@ -8,7 +8,7 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
     description: '',
     builder: '',
     builderFid: '',
-    category: 'defi',
+    category: 'defi', // Default to defi for free queue (no main/featured category)
     miniapp: '',
     website: '',
     github: '',
@@ -28,9 +28,19 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
       [e.target.name]: e.target.value
     };
     
-    // If switching to queue and category is "featured", reset to first available category
-    if (e.target.name === 'submissionType' && e.target.value === 'queue' && formData.category === 'featured') {
-      newFormData.category = 'defi'; // Default to first non-featured category
+    // If switching submission types, reset category appropriately
+    if (e.target.name === 'submissionType') {
+      if (e.target.value === 'queue') {
+        // Switching to queue - reset to defi (no featured/main category allowed)
+        if (formData.category === 'featured' || formData.category === 'main') {
+          newFormData.category = 'defi';
+        }
+      } else if (e.target.value === 'featured') {
+        // Switching to featured - set to featured category
+        if (formData.category === 'main' || !['featured', 'defi', 'social', 'games', 'tools', 'nft'].includes(formData.category)) {
+          newFormData.category = 'featured';
+        }
+      }
     }
     
     setFormData(newFormData);
@@ -256,7 +266,6 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
               {formData.submissionType === 'featured' && (
                 <option value="featured">FEATURED</option>
               )}
-              <option value="main">FEATURED</option>
               <option value="defi">DEFI</option>
               <option value="social">SOCIAL</option>
               <option value="games">GAMES</option>
