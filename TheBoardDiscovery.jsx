@@ -455,7 +455,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
           </div>
           <div className="min-w-0">
             <div className="text-3xl font-black truncate">{formatTipsUsd(liveStats.tips || app.stats?.tips || 0, ethPrice)}</div>
-            <div className="text-[8px] tracking-[0.2em] text-gray-500 mt-1 leading-tight">TIPPED</div>
+            <div className="text-[8px] tracking-[0.2em] text-gray-500 mt-1 leading-tight">TIPPED • GOES TO CREATOR</div>
           </div>
         </div>
 
@@ -1048,16 +1048,24 @@ const CategoryRankings = ({ category, ethPrice }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!category) return; // Guard against invalid category
+    
     const fetchRankings = async () => {
       setLoading(true);
       try {
         const response = await fetch(`/api/projects/rankings?category=${category}&limit=10`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch rankings: ${response.status}`);
+        }
         const data = await response.json();
-        if (data.rankings) {
-          setRankings(data.rankings);
+        if (data && data.rankings) {
+          setRankings(Array.isArray(data.rankings) ? data.rankings : []);
+        } else {
+          setRankings([]);
         }
       } catch (error) {
         console.error('Error fetching rankings:', error);
+        setRankings([]); // Set empty array on error to prevent crashes
       } finally {
         setLoading(false);
       }
@@ -1103,13 +1111,15 @@ const CategoryRankings = ({ category, ethPrice }) => {
       </div>
       
       <div className="space-y-2">
-        {rankings.map((project, index) => {
+        {rankings && rankings.length > 0 ? rankings.map((project, index) => {
+          if (!project || !project.id) return null; // Guard against invalid projects
+          
           const previousRank = project.previousRank;
           const rankChange = previousRank ? previousRank - project.rank : null;
           
           return (
             <div
-              key={project.id}
+              key={project.id || index}
               className="border border-white p-4 hover:bg-white/5 transition-all"
             >
               <div className="flex items-center gap-4">
@@ -1172,7 +1182,11 @@ const CategoryRankings = ({ category, ethPrice }) => {
               </div>
             </div>
           );
-        })}
+        }).filter(Boolean) : (
+          <div className="border border-white p-6 text-center">
+            <div className="text-sm text-gray-500">NO PROJECTS FOUND</div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1713,7 +1727,14 @@ export default function Seen() {
               return (
                 <button
                   key={cat.id}
-                  onClick={() => setCategory(cat.id)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    try {
+                      setCategory(cat.id);
+                    } catch (error) {
+                      console.error('Error switching category:', error);
+                    }
+                  }}
                   className={`px-6 py-3 text-xs font-bold tracking-[0.2em] transition-all border-r border-white last:border-r-0 whitespace-nowrap flex items-center gap-2 ${
                     category === cat.id 
                       ? 'bg-white text-black' 
