@@ -23,6 +23,8 @@ export default function Admin() {
   const [showArchived, setShowArchived] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [updating, setUpdating] = useState(false);
+  const [ethPrice, setEthPrice] = useState(null);
+  const [tipsUsdDisplay, setTipsUsdDisplay] = useState({ edit: '', create: '' }); // Store USD values for display
   const [editFormData, setEditFormData] = useState({
     name: '',
     tagline: '',
@@ -59,6 +61,29 @@ export default function Admin() {
       tips: 0,
     },
   });
+
+  // Fetch ETH price for USD conversion
+  useEffect(() => {
+    const fetchEthPrice = async () => {
+      try {
+        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.ethereum?.usd) {
+            setEthPrice(data.ethereum.usd);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching ETH price:', error);
+        setEthPrice(2800); // Approximate fallback
+      }
+    };
+    
+    fetchEthPrice();
+    // Refresh price every 60 seconds
+    const interval = setInterval(fetchEthPrice, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Check authentication (FID or session cookie)
   useEffect(() => {
@@ -252,7 +277,11 @@ export default function Admin() {
           website: freshProject.links?.website || '',
           github: freshProject.links?.github || '',
           twitter: freshProject.links?.twitter || '',
-          stats: freshProject.stats || { views: 0, clicks: 0, tips: 0 },
+          stats: {
+            ...(freshProject.stats || { views: 0, clicks: 0, tips: 0 }),
+            // Convert tips from ETH to USD for display (will convert back when saving)
+            tips: ethPrice ? ((freshProject.stats?.tips || 0) * ethPrice : 0) : (freshProject.stats?.tips || 0),
+          },
         });
       } else {
         // Fallback to using the project passed in
@@ -269,7 +298,11 @@ export default function Admin() {
           website: project.links?.website || '',
           github: project.links?.github || '',
           twitter: project.links?.twitter || '',
-          stats: project.stats || { views: 0, clicks: 0, tips: 0 },
+          stats: {
+            ...(project.stats || { views: 0, clicks: 0, tips: 0 }),
+            // Convert tips from ETH to USD for display (will convert back when saving)
+            tips: ethPrice ? ((project.stats?.tips || 0) * ethPrice) : (project.stats?.tips || 0),
+          },
         });
       }
     } catch (error) {
@@ -299,12 +332,22 @@ export default function Admin() {
     setMessage('');
 
     try {
+      // Convert tips from USD back to ETH before saving
+      const updateData = { ...editFormData };
+      if (ethPrice && tipsUsdDisplay.edit) {
+        const tipsUsd = parseFloat(tipsUsdDisplay.edit) || 0;
+        updateData.stats = {
+          ...updateData.stats,
+          tips: tipsUsd / ethPrice, // Convert USD to ETH
+        };
+      }
+
       const response = await fetch('/api/admin/update-project', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId: editingProject.id,
-          ...editFormData,
+          ...updateData,
           fid: userFid || null,
         }),
         credentials: 'include',
@@ -335,13 +378,21 @@ export default function Admin() {
     const { name, value, type, checked } = e.target;
     if (name.startsWith('stats.')) {
       const statName = name.split('.')[1];
-      setEditFormData({
-        ...editFormData,
-        stats: {
-          ...editFormData.stats,
-          [statName]: parseFloat(value) || 0,
-        },
-      });
+      if (statName === 'tips') {
+        // Store USD value for tips
+        setTipsUsdDisplay(prev => ({
+          ...prev,
+          edit: value
+        }));
+      } else {
+        setEditFormData({
+          ...editFormData,
+          stats: {
+            ...editFormData.stats,
+            [statName]: parseFloat(value) || 0,
+          },
+        });
+      }
     } else {
       const newFormData = {
         ...editFormData,
@@ -786,11 +837,21 @@ export default function Admin() {
     setMessage('');
 
     try {
+      // Convert tips from USD back to ETH before saving
+      const createData = { ...createFormData };
+      if (ethPrice && tipsUsdDisplay.create) {
+        const tipsUsd = parseFloat(tipsUsdDisplay.create) || 0;
+        createData.stats = {
+          ...createData.stats,
+          tips: tipsUsd / ethPrice, // Convert USD to ETH
+        };
+      }
+
       const response = await fetch('/api/admin/create-project', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...createFormData,
+          ...createData,
           fid: userFid || null,
         }),
         credentials: 'include',
@@ -834,13 +895,21 @@ export default function Admin() {
     const { name, value, type, checked } = e.target;
     if (name.startsWith('stats.')) {
       const statName = name.split('.')[1];
-      setCreateFormData({
-        ...createFormData,
-        stats: {
-          ...createFormData.stats,
-          [statName]: parseFloat(value) || 0,
-        },
-      });
+      if (statName === 'tips') {
+        // Store USD value for tips
+        setTipsUsdDisplay(prev => ({
+          ...prev,
+          create: value
+        }));
+      } else {
+        setCreateFormData({
+          ...createFormData,
+          stats: {
+            ...createFormData.stats,
+            [statName]: parseFloat(value) || 0,
+          },
+        });
+      }
     } else {
       const newFormData = {
         ...createFormData,
@@ -1212,17 +1281,22 @@ export default function Admin() {
                   </div>
                   <div>
                     <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      TIPS (ETH)
+                      TIPS ($)
                     </label>
                     <input
                       type="number"
-                      step="0.1"
+                      step="0.01"
                       name="stats.tips"
-                      value={editFormData.stats.tips}
+                      value={tipsUsdDisplay.edit !== '' ? tipsUsdDisplay.edit : (ethPrice ? (editFormData.stats.tips * ethPrice).toFixed(2) : editFormData.stats.tips)}
                       onChange={handleEditFormChange}
                       className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
                       placeholder="0"
                     />
+                    {ethPrice && (
+                      <p className="text-[10px] text-gray-600 mt-1">
+                        ≈ {(parseFloat(tipsUsdDisplay.edit || 0) / ethPrice).toFixed(6)} ETH
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -1616,17 +1690,22 @@ export default function Admin() {
                   </div>
                   <div>
                     <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      TIPS (ETH)
+                      TIPS ($)
                     </label>
                     <input
                       type="number"
-                      step="0.1"
+                      step="0.01"
                       name="stats.tips"
-                      value={createFormData.stats.tips}
+                      value={tipsUsdDisplay.create !== '' ? tipsUsdDisplay.create : (ethPrice ? (createFormData.stats.tips * ethPrice).toFixed(2) : createFormData.stats.tips)}
                       onChange={handleCreateFormChange}
                       className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
                       placeholder="0"
                     />
+                    {ethPrice && (
+                      <p className="text-[10px] text-gray-600 mt-1">
+                        ≈ {(parseFloat(tipsUsdDisplay.create || 0) / ethPrice).toFixed(6)} ETH
+                      </p>
+                    )}
                   </div>
                 </div>
 

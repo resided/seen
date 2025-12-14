@@ -848,10 +848,11 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
                     setTipMessage('WAITING FOR TRANSACTION...');
 
                     try {
-                      // Send transaction
+                      // Send transaction with "tip" in data field
                       const hash = await sendTransaction({
                         to: recipientAddress,
                         value: parseEther(customTipAmount),
+                        data: stringToHex('tip'), // Add "tip" as transaction data
                       });
 
                       // Wait for transaction confirmation before tracking
@@ -1542,10 +1543,11 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
                     setTipMessage('WAITING FOR TRANSACTION...');
 
                     try {
-                      const { parseEther } = await import('viem');
+                      const { parseEther, stringToHex } = await import('viem');
                       await sendTransaction({
                         to: builderData.walletAddress,
                         value: parseEther(customTipAmount),
+                        data: stringToHex('tip'), // Add "tip" as transaction data
                       });
 
                       // Wait for transaction confirmation before tracking
