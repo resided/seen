@@ -277,11 +277,7 @@ export default function Admin() {
           website: freshProject.links?.website || '',
           github: freshProject.links?.github || '',
           twitter: freshProject.links?.twitter || '',
-          stats: {
-            ...(freshProject.stats || { views: 0, clicks: 0, tips: 0 }),
-            // Convert tips from ETH to USD for display (will convert back when saving)
-            tips: ethPrice ? ((freshProject.stats?.tips || 0) * ethPrice : 0) : (freshProject.stats?.tips || 0),
-          },
+          stats: freshProject.stats || { views: 0, clicks: 0, tips: 0 },
         });
       } else {
         // Fallback to using the project passed in
@@ -298,11 +294,7 @@ export default function Admin() {
           website: project.links?.website || '',
           github: project.links?.github || '',
           twitter: project.links?.twitter || '',
-          stats: {
-            ...(project.stats || { views: 0, clicks: 0, tips: 0 }),
-            // Convert tips from ETH to USD for display (will convert back when saving)
-            tips: ethPrice ? ((project.stats?.tips || 0) * ethPrice) : (project.stats?.tips || 0),
-          },
+          stats: project.stats || { views: 0, clicks: 0, tips: 0 },
         });
       }
     } catch (error) {
