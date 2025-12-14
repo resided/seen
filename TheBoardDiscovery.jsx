@@ -532,7 +532,13 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
           </button>
           <button 
             onClick={() => {
-              if (!isInFarcaster || !isConnected) {
+              if (!isInFarcaster) {
+                setTipMessage('OPEN IN FARCASTER TO TIP');
+                setTimeout(() => setTipMessage(''), 3000);
+                return;
+              }
+
+              if (!isConnected) {
                 setTipMessage('CONNECT WALLET TO TIP');
                 setTimeout(() => setTipMessage(''), 3000);
                 return;
@@ -552,7 +558,6 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
                 setCustomTipAmountUsd(initialUsd);
               }
             }}
-            disabled={!isInFarcaster || !isConnected || !builderData?.walletAddress || !builderData?.verified}
             title={
               !isInFarcaster ? 'Open in Farcaster to tip' :
               !isConnected ? 'Connect wallet to tip' :
@@ -560,11 +565,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
               !builderData?.walletAddress || !builderData?.verified ? 'Builder needs verified Farcaster wallet' :
               'Tip the builder'
             }
-            className={`bg-black py-4 font-bold text-sm tracking-[0.2em] transition-all ${
-              isInFarcaster && isConnected && builderData?.walletAddress && builderData?.verified
-                ? 'hover:bg-white hover:text-black' 
-                : 'opacity-50 cursor-not-allowed'
-            }`}
+            className="bg-black py-4 font-bold text-sm tracking-[0.2em] transition-all hover:bg-white hover:text-black"
           >
             TIP BUILDER
           </button>
@@ -1229,15 +1230,30 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
                 OPEN
               </button>
             )}
-            {isInFarcaster && isConnected && (
-              <button
-                onClick={() => setShowTipModal(true)}
-                className="flex-1 md:flex-none px-6 py-3 md:px-3 md:py-2 border border-white text-sm md:text-[9px] tracking-[0.2em] hover:bg-white hover:text-black transition-all font-bold"
-                title="Tip builder"
-              >
-                TIP
-              </button>
-            )}
+            <button
+              onClick={() => {
+                if (!isInFarcaster) {
+                  setTipMessage('OPEN IN FARCASTER TO TIP');
+                  setTimeout(() => setTipMessage(''), 3000);
+                  return;
+                }
+                if (!isConnected) {
+                  setTipMessage('CONNECT WALLET TO TIP');
+                  setTimeout(() => setTipMessage(''), 3000);
+                  return;
+                }
+                // Check builder wallet when modal opens
+                setShowTipModal(true);
+              }}
+              className="flex-1 md:flex-none px-6 py-3 md:px-3 md:py-2 border border-white text-sm md:text-[9px] tracking-[0.2em] hover:bg-white hover:text-black transition-all font-bold"
+              title={
+                !isInFarcaster ? 'Open in Farcaster to tip' :
+                !isConnected ? 'Connect wallet to tip' :
+                'Tip builder'
+              }
+            >
+              TIP
+            </button>
           </div>
         </div>
       </div>
@@ -1265,6 +1281,16 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
                 ×
               </button>
             </div>
+
+            {tipMessage && (
+              <div className={`mb-4 p-3 border text-center text-[10px] tracking-[0.2em] ${
+                tipMessage.includes('SENT') 
+                  ? 'border-green-500 text-green-400 bg-green-500/10' 
+                  : 'border-red-500 text-red-400 bg-red-500/10'
+              }`}>
+                {tipMessage}
+              </div>
+            )}
 
             <div className="space-y-4">
               <div>
