@@ -31,6 +31,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# package manager lock files (using yarn)
+package-lock.json
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
