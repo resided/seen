@@ -474,11 +474,16 @@ export default function Admin() {
   };
 
   const handleResetClaims = async () => {
-    if (!confirm('Are you sure you want to reset ALL claims for today? This will allow everyone to claim again today.')) {
+    if (!confirm('Are you sure you want to reset ALL claims for the current featured project? This will allow everyone to claim again.')) {
       return;
     }
 
-    if (!confirm('This action cannot be undone. Type RESET to confirm.')) {
+    // Require typing "RESET" to confirm
+    const confirmation = prompt('This action cannot be undone. Type RESET to confirm:');
+    if (confirmation !== 'RESET') {
+      if (confirmation !== null) { // User didn't cancel, they typed something wrong
+        setMessage('Confirmation failed. You must type "RESET" exactly to confirm.');
+      }
       return;
     }
 
