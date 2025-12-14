@@ -11,24 +11,56 @@ export default function Admin() {
   const [userFid, setUserFid] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [unauthorized, setUnauthorized] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
+  const [loginData, setLoginData] = useState({ username: '', password: '' });
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Get user FID from Farcaster SDK
+  // Check authentication (FID or session cookie)
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const context = await sdk.context;
-        if (context?.user?.fid) {
-          setUserFid(context.user.fid);
-          if (context.user.fid !== ADMIN_FID) {
-            setUnauthorized(true);
+        // Try Farcaster SDK first
+        try {
+          const context = await sdk.context;
+          if (context?.user?.fid) {
+            const fid = context.user.fid;
+            setUserFid(fid);
+            if (fid === ADMIN_FID) {
+              setIsAuthenticated(true);
+              setAuthLoading(false);
+              return;
+            }
           }
-        } else {
-          setUnauthorized(true);
+        } catch (error) {
+          // Not in Farcaster, check for session cookie
         }
+
+        // Check for session cookie (web access)
+        const checkSession = async () => {
+          try {
+            const response = await fetch('/api/admin/submissions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ checkSession: true }),
+              credentials: 'include',
+            });
+            
+            if (response.ok) {
+              setIsAuthenticated(true);
+            } else {
+              setShowLogin(true);
+            }
+          } catch (error) {
+            setShowLogin(true);
+          } finally {
+            setAuthLoading(false);
+          }
+        };
+
+        checkSession();
       } catch (error) {
-        console.error('Error getting user context:', error);
-        setUnauthorized(true);
-      } finally {
+        console.error('Error checking auth:', error);
+        setShowLogin(true);
         setAuthLoading(false);
       }
     };
@@ -37,23 +69,61 @@ export default function Admin() {
   }, []);
 
   useEffect(() => {
-    if (userFid === ADMIN_FID) {
+    if (isAuthenticated) {
       fetchSubmissions();
     }
-  }, [userFid]);
+  }, [isAuthenticated]);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(loginData),
+        credentials: 'include',
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setIsAuthenticated(true);
+        setShowLogin(false);
+        setMessage('Login successful!');
+      } else {
+        setMessage(data.error || 'Login failed');
+      }
+    } catch (error) {
+      setMessage('Error logging in');
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/admin/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      setIsAuthenticated(false);
+      setShowLogin(true);
+      setSubmissions([]);
+      setMessage('Logged out successfully');
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
+  };
 
   const fetchSubmissions = async () => {
     try {
       const response = await fetch('/api/admin/submissions', {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ fid: userFid }),
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fid: userFid || null }),
+        credentials: 'include',
       });
       
       if (response.status === 403) {
-        setUnauthorized(true);
+        setIsAuthenticated(false);
+        setShowLogin(true);
         return;
       }
       
@@ -73,7 +143,8 @@ export default function Admin() {
       const response = await fetch('/api/admin/approve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, action: 'approve', fid: userFid }),
+        body: JSON.stringify({ projectId, action: 'approve', fid: userFid || null }),
+        credentials: 'include',
       });
 
       const data = await response.json();
@@ -97,7 +168,8 @@ export default function Admin() {
       const response = await fetch('/api/admin/approve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, action: 'reject', fid: userFid }),
+        body: JSON.stringify({ projectId, action: 'reject', fid: userFid || null }),
+        credentials: 'include',
       });
 
       const data = await response.json();
@@ -127,15 +199,50 @@ export default function Admin() {
     );
   }
 
-  if (unauthorized || userFid !== ADMIN_FID) {
+  if (showLogin || !isAuthenticated) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-2xl font-black mb-4">UNAUTHORIZED</div>
-          <div className="text-gray-500">You do not have permission to access this page.</div>
-          {userFid && (
-            <div className="text-sm text-gray-600 mt-2">Your FID: {userFid}</div>
+      <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
+        <div className="border border-white p-8 max-w-md w-full">
+          <h1 className="text-2xl font-black mb-6">ADMIN LOGIN</h1>
+          {message && (
+            <div className={`mb-4 p-3 border ${message.includes('success') ? 'border-white bg-white text-black' : 'border-red-500 text-red-500'}`}>
+              {message}
+            </div>
           )}
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                USERNAME
+              </label>
+              <input
+                type="text"
+                value={loginData.username}
+                onChange={(e) => setLoginData({ ...loginData, username: e.target.value })}
+                required
+                className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                placeholder="Enter username"
+              />
+            </div>
+            <div>
+              <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                PASSWORD
+              </label>
+              <input
+                type="password"
+                value={loginData.password}
+                onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+                required
+                className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                placeholder="Enter password"
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-full py-3 bg-white text-black font-black text-sm tracking-[0.2em] hover:bg-gray-200 transition-all"
+            >
+              LOGIN
+            </button>
+          </form>
         </div>
       </div>
     );
@@ -148,10 +255,20 @@ export default function Admin() {
       </Head>
       <div className="min-h-screen bg-black text-white p-8">
         <div className="max-w-6xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-black mb-2">ADMIN PANEL</h1>
-            <p className="text-sm text-gray-500">Manage Project Submissions</p>
-            <p className="text-xs text-gray-600 mt-1">Authenticated as FID: {userFid}</p>
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-black mb-2">ADMIN PANEL</h1>
+              <p className="text-sm text-gray-500">Manage Project Submissions</p>
+              {userFid && (
+                <p className="text-xs text-gray-600 mt-1">Authenticated as FID: {userFid}</p>
+              )}
+            </div>
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 border border-white text-sm hover:bg-white hover:text-black transition-all"
+            >
+              LOGOUT
+            </button>
           </div>
 
           {message && (
