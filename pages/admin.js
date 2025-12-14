@@ -493,6 +493,97 @@ export default function Admin() {
     }
   };
 
+  const FeaturedTimer = ({ project, onUpdate, userFid }) => {
+    const [timeRemaining, setTimeRemaining] = useState({ h: 0, m: 0, s: 0 });
+    const [updating, setUpdating] = useState(false);
+
+    useEffect(() => {
+      const calculateTimeRemaining = () => {
+        if (!project.featuredAt) return { h: 0, m: 0, s: 0 };
+        const featuredAt = new Date(project.featuredAt);
+        const expiresAt = new Date(featuredAt.getTime() + 24 * 60 * 60 * 1000); // 24 hours from featuredAt
+        const now = new Date();
+        const diff = expiresAt - now;
+        
+        if (diff <= 0) return { h: 0, m: 0, s: 0 };
+        
+        const h = Math.floor(diff / (1000 * 60 * 60));
+        const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const s = Math.floor((diff % (1000 * 60)) / 1000);
+        return { h, m, s };
+      };
+
+      setTimeRemaining(calculateTimeRemaining());
+      const timer = setInterval(() => {
+        setTimeRemaining(calculateTimeRemaining());
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }, [project.featuredAt]);
+
+    const handleSetTimer = async (hours) => {
+      if (!confirm(`Set timer to ${hours} hour${hours !== 1 ? 's' : ''} from now?`)) return;
+      
+      setUpdating(true);
+      try {
+        const newFeaturedAt = new Date(Date.now() - (24 - hours) * 60 * 60 * 1000).toISOString();
+        
+        const response = await fetch('/api/admin/update-project', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            projectId: String(project.id),
+            featuredAt: newFeaturedAt,
+            fid: userFid || null,
+          }),
+          credentials: 'include',
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+          setMessage(`Timer set to ${hours} hour${hours !== 1 ? 's' : ''}! Refreshing...`);
+          setTimeout(() => {
+            onUpdate();
+            setMessage('');
+          }, 500);
+        } else {
+          setMessage(data.error || 'Failed to update timer');
+        }
+      } catch (error) {
+        console.error('Error updating timer:', error);
+        setMessage('Error updating timer: ' + error.message);
+      } finally {
+        setUpdating(false);
+      }
+    };
+
+    return (
+      <div className="mt-3 p-3 border border-yellow-500/30 bg-yellow-500/5">
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <div className="text-[10px] tracking-[0.2em] text-yellow-400 mb-1">FEATURED TIMER</div>
+            <div className="text-lg font-mono font-bold">
+              {String(timeRemaining.h).padStart(2, '0')}:{String(timeRemaining.m).padStart(2, '0')}:{String(timeRemaining.s).padStart(2, '0')}
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {[1, 6, 12, 24].map(hours => (
+              <button
+                key={hours}
+                onClick={() => handleSetTimer(hours)}
+                disabled={updating}
+                className="px-2 py-1 text-[9px] tracking-[0.1em] border border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/20 transition-all disabled:opacity-50"
+                title={`Set to ${hours} hour${hours !== 1 ? 's' : ''}`}
+              >
+                {hours}H
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const handleQuickStatsUpdate = async (projectId, statType, value) => {
     if (!projectId || !statType || value === null || value === undefined) {
       setMessage('ERROR: Invalid stats update');
@@ -1215,6 +1306,9 @@ export default function Admin() {
                             </span>
                           )}
                         </div>
+                        {project.status === 'featured' && project.featuredAt && (
+                          <FeaturedTimer project={project} onUpdate={fetchLiveProjects} userFid={userFid} />
+                        )}
                       </div>
                       <div className="flex gap-2">
                         <button

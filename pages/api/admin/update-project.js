@@ -62,6 +62,7 @@ export default async function handler(req, res) {
       github,
       twitter,
       stats,
+      featuredAt,
     } = req.body;
 
     if (!projectId) {
@@ -77,6 +78,7 @@ export default async function handler(req, res) {
     if (category !== undefined) updateData.category = category;
     if (status !== undefined) updateData.status = status;
     if (stats !== undefined) updateData.stats = stats;
+    if (featuredAt !== undefined) updateData.featuredAt = featuredAt;
     
     // Handle builder and builderFid - auto-populate from FID if FID provided but builder not
     let finalBuilder = builder;
