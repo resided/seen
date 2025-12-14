@@ -1009,22 +1009,22 @@ const LiveChat = ({ messages, onSend, isInFarcaster = false }) => {
 // ============================================
 const SubmitSection = ({ onSubmit, isInFarcaster = false, isMiniappInstalled = false }) => (
   <div className="border border-white p-6 text-center">
-    <h3 className="text-xl font-black tracking-tight mb-2">GET YOUR PROJECT FEATURED</h3>
+    <h3 className="text-xl font-black tracking-tight mb-2">Get a paid feature</h3>
     <p className="text-sm text-gray-500 tracking-wider mb-4">
       STRUGGLING TO GET SEEN? SUBMIT YOUR PROJECT FOR TOMORROW'S SPOTLIGHT.
     </p>
     <div className="grid grid-cols-3 gap-4 mb-6 text-left">
       <div>
-        <div className="text-2xl font-black">24H</div>
+        <div className="text-2xl font-black">MAX</div>
+        <div className="text-[9px] tracking-[0.2em] text-gray-500">EXPOSURE</div>
+      </div>
+      <div>
+        <div className="text-2xl font-black">24HR</div>
         <div className="text-[9px] tracking-[0.2em] text-gray-500">FEATURED SLOT</div>
       </div>
       <div>
-        <div className="text-[9px] tracking-[0.2em] text-gray-500 mb-1">VIEWS</div>
-        <div className="text-[9px] tracking-[0.2em] text-gray-500">CALCULATING</div>
-      </div>
-      <div>
-        <div className="text-2xl font-black">FREE</div>
-        <div className="text-[9px] tracking-[0.2em] text-gray-500">TO SUBMIT</div>
+        <div className="text-2xl font-black">TOP</div>
+        <div className="text-[9px] tracking-[0.2em] text-gray-500">VISIBILITY</div>
       </div>
     </div>
     {!isMiniappInstalled && isInFarcaster && (
