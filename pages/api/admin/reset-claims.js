@@ -29,7 +29,28 @@ export default async function handler(req, res) {
 
   // Check admin authentication
   if (!isAuthenticated(req)) {
-    return res.status(403).json({ error: 'Unauthorized. Admin access required.' });
+    const cookies = parse(req.headers.cookie || '');
+    const hasSessionCookie = !!cookies.admin_session;
+    const hasFid = !!req.body?.fid;
+    const fidMatches = req.body?.fid && parseInt(req.body.fid) === ADMIN_FID;
+    
+    console.error('Reset claims auth failed:', {
+      hasFid,
+      fid: req.body?.fid,
+      fidMatches,
+      hasCookie: !!req.headers.cookie,
+      hasSessionCookie,
+      adminFid: ADMIN_FID
+    });
+    
+    return res.status(403).json({ 
+      error: 'Unauthorized. Admin access required.',
+      details: hasSessionCookie 
+        ? 'Session cookie found but invalid. Please log in again via the admin login form.'
+        : hasFid && !fidMatches
+        ? `FID ${req.body.fid} does not match admin FID ${ADMIN_FID}. Please use the correct admin account or log in via web login.`
+        : 'No authentication found. Please log in via Farcaster (admin FID) or use the web login form.'
+    });
   }
 
   try {
@@ -37,7 +58,7 @@ export default async function handler(req, res) {
     
     if (confirm !== 'RESET') {
       return res.status(400).json({ 
-        error: 'Must confirm with confirm: "RESET" to reset all claims for today' 
+        error: 'Must confirm with confirm: "RESET" to reset claims for the current featured project rotation' 
       });
     }
 

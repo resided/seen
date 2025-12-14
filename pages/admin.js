@@ -468,10 +468,12 @@ export default function Admin() {
       if (response.ok) {
         setMessage(data.message || 'Claims reset successfully!');
       } else {
-        setMessage(data.error || 'Failed to reset claims');
+        console.error('Reset claims error:', data);
+        setMessage(data.error || data.details || 'Failed to reset claims. Check console for details.');
       }
     } catch (error) {
-      setMessage('Error resetting claims');
+      console.error('Reset claims exception:', error);
+      setMessage('Error resetting claims: ' + error.message);
     }
   };
 
