@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 
-const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false }) => {
+const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, neynarUserScore = null }) => {
+  const MIN_NEYNAR_SCORE = 0.62; // Minimum Neynar user score required to submit
   const [formData, setFormData] = useState({
     name: '',
     tagline: '',
@@ -107,6 +108,16 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false }) 
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {neynarUserScore !== null && neynarUserScore < MIN_NEYNAR_SCORE && (
+            <div className="p-4 border border-red-500 bg-red-900/20 text-red-400">
+              <div className="text-sm font-bold mb-1">NEYNAR SCORE TOO LOW</div>
+              <div className="text-xs">
+                Your Neynar user score ({neynarUserScore.toFixed(2)}) is below the required threshold of {MIN_NEYNAR_SCORE}.
+                Only users with a score of {MIN_NEYNAR_SCORE} or higher can submit projects.
+              </div>
+            </div>
+          )}
+
           {message && (
             <div className={`p-4 border border-white ${message.includes('SUBMITTED') ? 'bg-white text-black' : 'bg-red-900 text-white'}`}>
               {message}
@@ -315,10 +326,10 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false }) 
             </button>
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || (neynarUserScore !== null && neynarUserScore < MIN_NEYNAR_SCORE)}
               className="py-3 bg-white text-black font-black text-sm tracking-[0.2em] hover:bg-gray-200 transition-all disabled:opacity-50"
             >
-              {submitting ? 'SUBMITTING...' : 'SUBMIT'}
+              {submitting ? 'SUBMITTING...' : (neynarUserScore !== null && neynarUserScore < MIN_NEYNAR_SCORE) ? 'SCORE TOO LOW' : 'SUBMIT'}
             </button>
           </div>
         </form>

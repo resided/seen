@@ -1276,6 +1276,7 @@ export default function Seen() {
                   username: profileData.username,
                   displayName: profileData.displayName,
                   verified: profileData.verified,
+                  neynarUserScore: profileData.neynarUserScore || null,
                 });
               }
             } catch (error) {
@@ -1575,6 +1576,7 @@ export default function Seen() {
           onSubmit={handleSubmitSuccess}
           userFid={userInfo?.fid || null}
           isMiniappInstalled={isMiniappInstalled}
+          neynarUserScore={userInfo?.neynarUserScore || null}
         />
       )}
       
