@@ -3,6 +3,7 @@ import { updateProject } from '../../../lib/projects';
 import { fetchUserByFid } from '../../../lib/neynar';
 import { parse } from 'cookie';
 import { checkRateLimit, getClientIP } from '../../../lib/rate-limit';
+import { getRedisClient } from '../../../lib/redis';
 
 const ADMIN_FID = 342433; // Admin FID
 const RATE_LIMIT_REQUESTS = 20; // Max 20 update actions
@@ -115,6 +116,39 @@ export default async function handler(req, res) {
 
     if (!updatedProject) {
       return res.status(404).json({ error: 'Project not found' });
+    }
+
+    // If stats were updated, also sync Redis daily counters for real-time display
+    if (stats !== undefined && stats.clicks !== undefined) {
+      try {
+        const redis = await getRedisClient();
+        if (redis) {
+          const today = new Date().toISOString().split('T')[0];
+          const clicksKey = `clicks:project:${projectId}:${today}`;
+          // Set the daily counter to match the manual override
+          await redis.set(clicksKey, stats.clicks.toString());
+          await redis.expire(clicksKey, 2 * 24 * 60 * 60);
+        }
+      } catch (redisError) {
+        console.error('Error syncing Redis daily counter:', redisError);
+        // Don't fail the update if Redis sync fails
+      }
+    }
+
+    if (stats !== undefined && stats.views !== undefined) {
+      try {
+        const redis = await getRedisClient();
+        if (redis) {
+          const today = new Date().toISOString().split('T')[0];
+          const viewsKey = `views:project:${projectId}:${today}`;
+          // Set the daily counter to match the manual override
+          await redis.set(viewsKey, stats.views.toString());
+          await redis.expire(viewsKey, 2 * 24 * 60 * 60);
+        }
+      } catch (redisError) {
+        console.error('Error syncing Redis daily counter:', redisError);
+        // Don't fail the update if Redis sync fails
+      }
     }
 
     return res.status(200).json({
