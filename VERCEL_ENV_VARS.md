@@ -20,9 +20,10 @@ NEYNAR_API_KEY=your_neynar_api_key
 
 ### Claim Token Configuration (Required for daily claims)
 ```
-CLAIM_TOKEN_CONTRACT=0x...your_token_contract_address
+CLAIM_TOKEN_CONTRACT=0x82a56d595cCDFa3A1dc6eEf28d5F0A870f162B07
 ```
 - Your ERC20 token contract address on Base network
+- $SEEN token address: `0x82a56d595cCDFa3A1dc6eEf28d5F0A870f162B07`
 
 ```
 TREASURY_PRIVATE_KEY=0xe96171d0ed1b5d9474a2e36b9c338bbf0bc0a842d15107464bb9b9942453fc53
