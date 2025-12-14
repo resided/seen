@@ -137,6 +137,24 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
       setCustomTipAmountUsd(usdValue);
     }
   }, [showTipModal, ethPrice, customTipAmount, customTipAmountUsd]);
+
+  // Fetch builder data when modal opens if not already loaded
+  useEffect(() => {
+    if (showTipModal && !builderData && app.builderFid) {
+      fetch('/api/user-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fid: app.builderFid }),
+      })
+        .then(res => res.json())
+        .then(data => {
+          setBuilderData(data);
+        })
+        .catch(error => {
+          console.error('Error fetching builder profile in modal:', error);
+        });
+    }
+  }, [showTipModal, builderData, app.builderFid]);
   
   // Calculate countdown from featuredAt timestamp (24 hours from featuredAt)
   useEffect(() => {
@@ -544,14 +562,8 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
                 return;
               }
 
-              // Ensure builder has a verified primary Farcaster wallet
-              if (!builderData?.walletAddress || !builderData?.verified) {
-                setTipMessage('BUILDER NEEDS VERIFIED FARCASTER WALLET TO RECEIVE TIPS');
-                setTimeout(() => setTipMessage(''), 3000);
-                return;
-              }
-
-              // Show tip modal and initialize USD amount
+              // Always show modal - validation happens inside modal
+              // If builder data is still loading, try to fetch it when modal opens
               setShowTipModal(true);
               if (ethPrice) {
                 const initialUsd = (parseFloat(customTipAmount) * ethPrice).toFixed(2);
