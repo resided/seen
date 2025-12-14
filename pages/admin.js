@@ -372,11 +372,17 @@ export default function Admin() {
   };
 
   const handleApprove = async (projectId) => {
+    if (!projectId) {
+      setMessage('ERROR: Invalid project ID');
+      return;
+    }
+    
     try {
+      console.log('Approving project:', projectId);
       const response = await fetch('/api/admin/approve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, action: 'approve', fid: userFid || null }),
+        body: JSON.stringify({ projectId: String(projectId), action: 'approve', fid: userFid || null }),
         credentials: 'include',
       });
 
@@ -387,22 +393,30 @@ export default function Admin() {
         fetchLiveProjects(); // Refresh live projects
       } else {
         setMessage(data.error || 'Failed to approve');
+        console.error('Approve error:', data);
       }
     } catch (error) {
-      setMessage('Error approving project');
+      console.error('Error approving project:', error);
+      setMessage('Error approving project: ' + error.message);
     }
   };
 
   const handleFeature = async (projectId) => {
+    if (!projectId) {
+      setMessage('ERROR: Invalid project ID');
+      return;
+    }
+    
     if (!confirm('Feature this project immediately? This will replace the current featured project.')) {
       return;
     }
 
     try {
+      console.log('Featuring project:', projectId);
       const response = await fetch('/api/admin/approve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, action: 'feature', fid: userFid || null }),
+        body: JSON.stringify({ projectId: String(projectId), action: 'feature', fid: userFid || null }),
         credentials: 'include',
       });
 
@@ -413,23 +427,32 @@ export default function Admin() {
         fetchLiveProjects(); // Refresh live projects
       } else {
         setMessage(data.error || 'Failed to feature project');
+        console.error('Feature error:', data);
       }
     } catch (error) {
-      setMessage('Error featuring project');
+      console.error('Error featuring project:', error);
+      setMessage('Error featuring project: ' + error.message);
     }
   };
 
   const handleRefund = async (projectId) => {
-    if (!confirm(`Are you sure you want to refund ${submissions.find(s => s.id === projectId)?.paymentAmount || 0} ETH?`)) {
+    if (!projectId) {
+      setMessage('ERROR: Invalid project ID');
+      return;
+    }
+    
+    const submission = submissions.find(s => s.id === projectId);
+    if (!confirm(`Are you sure you want to refund ${submission?.paymentAmount || 0} ETH?`)) {
       return;
     }
 
     try {
+      console.log('Refunding project:', projectId);
       const response = await fetch('/api/admin/refund', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          projectId,
+          projectId: String(projectId),
           fid: userFid || null 
         }),
         credentials: 'include',
@@ -442,22 +465,30 @@ export default function Admin() {
         fetchSubmissions();
       } else {
         setMessage(data.error || 'Failed to refund');
+        console.error('Refund error:', data);
       }
     } catch (error) {
-      setMessage('Error processing refund');
+      console.error('Error processing refund:', error);
+      setMessage('Error processing refund: ' + error.message);
     }
   };
 
   const handleReject = async (projectId) => {
+    if (!projectId) {
+      setMessage('ERROR: Invalid project ID');
+      return;
+    }
+    
     if (!confirm('Are you sure you want to reject this submission?')) {
       return;
     }
 
     try {
+      console.log('Rejecting project:', projectId);
       const response = await fetch('/api/admin/approve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, action: 'reject', fid: userFid || null }),
+        body: JSON.stringify({ projectId: String(projectId), action: 'reject', fid: userFid || null }),
         credentials: 'include',
       });
 
@@ -467,9 +498,11 @@ export default function Admin() {
         fetchSubmissions(); // Refresh list
       } else {
         setMessage(data.error || 'Failed to reject');
+        console.error('Reject error:', data);
       }
     } catch (error) {
-      setMessage('Error rejecting project');
+      console.error('Error rejecting project:', error);
+      setMessage('Error rejecting project: ' + error.message);
     }
   };
 
@@ -1586,28 +1619,64 @@ export default function Admin() {
 
                   <div className="flex gap-4 pt-4 border-t border-white">
                     <button
-                      onClick={() => handleApprove(submission.id)}
-                      className="px-6 py-2 bg-white text-black font-bold hover:bg-gray-200 transition-all"
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (submission?.id) {
+                          handleApprove(submission.id);
+                        } else {
+                          setMessage('ERROR: Missing submission ID');
+                        }
+                      }}
+                      className="px-6 py-2 bg-white text-black font-bold hover:bg-gray-200 transition-all cursor-pointer"
                     >
                       APPROVE
                     </button>
                     <button
-                      onClick={() => handleFeature(submission.id)}
-                      className="px-6 py-2 bg-yellow-500 text-black font-bold hover:bg-yellow-400 transition-all"
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (submission?.id) {
+                          handleFeature(submission.id);
+                        } else {
+                          setMessage('ERROR: Missing submission ID');
+                        }
+                      }}
+                      className="px-6 py-2 bg-yellow-500 text-black font-bold hover:bg-yellow-400 transition-all cursor-pointer"
                     >
                       FEATURE NOW
                     </button>
                     {submission.paymentAmount > 0 && !submission.refunded && submission.submitterWalletAddress && (
                       <button
-                        onClick={() => handleRefund(submission.id)}
-                        className="px-6 py-2 bg-red-600 text-white font-bold hover:bg-red-500 transition-all"
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (submission?.id) {
+                            handleRefund(submission.id);
+                          } else {
+                            setMessage('ERROR: Missing submission ID');
+                          }
+                        }}
+                        className="px-6 py-2 bg-red-600 text-white font-bold hover:bg-red-500 transition-all cursor-pointer"
                       >
                         REFUND
                       </button>
                     )}
                     <button
-                      onClick={() => handleReject(submission.id)}
-                      className="px-6 py-2 border border-white font-bold hover:bg-white hover:text-black transition-all"
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (submission?.id) {
+                          handleReject(submission.id);
+                        } else {
+                          setMessage('ERROR: Missing submission ID');
+                        }
+                      }}
+                      className="px-6 py-2 border border-white font-bold hover:bg-white hover:text-black transition-all cursor-pointer"
                     >
                       REJECT
                     </button>
