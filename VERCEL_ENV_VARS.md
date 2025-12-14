@@ -26,10 +26,11 @@ CLAIM_TOKEN_CONTRACT=0x82a56d595cCDFa3A1dc6eEf28d5F0A870f162B07
 - $SEEN token address: `0x82a56d595cCDFa3A1dc6eEf28d5F0A870f162B07`
 
 ```
-TREASURY_PRIVATE_KEY=0xe96171d0ed1b5d9474a2e36b9c338bbf0bc0a842d15107464bb9b9942453fc53
+TREASURY_PRIVATE_KEY=your_treasury_private_key_here
 ```
 - Private key of treasury wallet (starts with 0x)
 - **SECURITY:** Never commit this to git, only set in Vercel environment variables
+- **CRITICAL:** If this key was ever committed to git, consider it compromised and generate a new wallet
 
 ```
 CLAIM_TOKEN_AMOUNT=80000
