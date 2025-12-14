@@ -1041,9 +1041,381 @@ const SubmitSection = ({ onSubmit, isInFarcaster = false, isMiniappInstalled = f
 );
 
 // ============================================
+// PROJECT CARD (for category rankings)
+// ============================================
+const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isConnected = false }) => {
+  const [showDescription, setShowDescription] = useState(false);
+  const [showTipModal, setShowTipModal] = useState(false);
+  const [customTipAmount, setCustomTipAmount] = useState('');
+  const [customTipAmountUsd, setCustomTipAmountUsd] = useState('');
+  const [tipping, setTipping] = useState(false);
+  const [tipMessage, setTipMessage] = useState('');
+  const [builderData, setBuilderData] = useState(null);
+  const { sendTransaction } = useSendTransaction();
+  const MIN_TIP_USD = 0.20;
+
+  // Fetch builder profile for tipping
+  useEffect(() => {
+    if (showTipModal && project.builderFid) {
+      fetch(`/api/user-profile?fid=${project.builderFid}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.user) {
+            setBuilderData(data.user);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [showTipModal, project.builderFid]);
+
+  // Sync USD amount when ETH price loads or modal opens
+  useEffect(() => {
+    if (showTipModal && ethPrice && !customTipAmountUsd && !customTipAmount) {
+      setCustomTipAmountUsd(MIN_TIP_USD.toFixed(2));
+      const minEth = MIN_TIP_USD / ethPrice;
+      setCustomTipAmount(minEth.toString());
+    } else if (showTipModal && ethPrice && !customTipAmountUsd && customTipAmount) {
+      const usdValue = (parseFloat(customTipAmount) * ethPrice).toFixed(2);
+      setCustomTipAmountUsd(usdValue);
+    }
+  }, [showTipModal, ethPrice, customTipAmount, customTipAmountUsd]);
+
+  const handleOpenClick = async () => {
+    if (!project.links?.miniapp) return;
+    
+    // Track click
+    try {
+      await fetch('/api/track-click', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId: project.id, type: 'click' }),
+      });
+    } catch (error) {
+      console.error('Error tracking click:', error);
+    }
+    
+    // Open mini app
+    const miniappUrl = project.links.miniapp;
+    if (isInFarcaster) {
+      try {
+        if (sdk.actions?.openUrl) {
+          await sdk.actions.openUrl({ url: miniappUrl });
+        } else {
+          window.open(miniappUrl, '_blank', 'noopener,noreferrer');
+        }
+      } catch (error) {
+        window.open(miniappUrl, '_blank', 'noopener,noreferrer');
+      }
+    } else {
+      window.open(miniappUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  return (
+    <>
+      <div className="border border-white p-4 hover:bg-white/5 transition-all">
+        <div className="flex items-start gap-4">
+          <div className="flex items-center gap-2 min-w-[80px] shrink-0">
+            <div className="text-2xl font-black w-8 text-center">
+              #{project.rank}
+            </div>
+            {rankChange !== null && (
+              <div className={`text-xs ${
+                rankChange > 0 ? 'text-green-400' : 
+                rankChange < 0 ? 'text-red-400' : 
+                'text-gray-500'
+              }`}>
+                {rankChange > 0 ? '↑' : rankChange < 0 ? '↓' : '—'}
+                {rankChange !== 0 && Math.abs(rankChange)}
+              </div>
+            )}
+          </div>
+          
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-3 mb-1">
+              <h3 className="text-lg font-black truncate">{project.name}</h3>
+              <span className="text-[9px] tracking-[0.2em] px-2 py-0.5 bg-white text-black font-bold shrink-0">
+                {project.category?.toUpperCase()}
+              </span>
+            </div>
+            <p className="text-[10px] text-gray-500 mb-1">{project.tagline}</p>
+            
+            {/* Description - expandable */}
+            {project.description && (
+              <div className="mb-2">
+                {showDescription ? (
+                  <div>
+                    <p className="text-xs text-gray-400 leading-relaxed mb-1">{project.description}</p>
+                    <button
+                      onClick={() => setShowDescription(false)}
+                      className="text-[9px] text-gray-500 hover:text-white underline"
+                    >
+                      SHOW LESS
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowDescription(true)}
+                    className="text-[9px] text-gray-500 hover:text-white underline"
+                  >
+                    SHOW MORE
+                  </button>
+                )}
+              </div>
+            )}
+            
+            <div className="flex items-center gap-4 text-[9px] tracking-[0.2em] text-gray-600 flex-wrap">
+              <span className="flex items-center gap-1">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                  <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                </svg>
+                {formatNumber(project.todayViews || project.stats?.views || 0)}
+              </span>
+              <span className="flex items-center gap-1">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+                </svg>
+                {formatNumber(project.todayClicks || project.stats?.clicks || 0)}
+              </span>
+              <span className="flex items-center gap-1">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.343 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.343-1.253V5z" clipRule="evenodd" />
+                </svg>
+                {formatTipsUsd(project.stats?.tips || 0, ethPrice)}
+              </span>
+            </div>
+          </div>
+          
+          <div className="flex gap-2 shrink-0">
+            {project.links?.miniapp && (
+              <button
+                onClick={handleOpenClick}
+                className="px-4 py-2 border border-white text-[10px] tracking-[0.2em] hover:bg-white hover:text-black transition-all whitespace-nowrap"
+              >
+                OPEN
+              </button>
+            )}
+            {isInFarcaster && isConnected && (
+              <button
+                onClick={() => setShowTipModal(true)}
+                className="px-3 py-2 border border-white text-[9px] tracking-[0.2em] hover:bg-white hover:text-black transition-all"
+                title="Tip builder"
+              >
+                TIP
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Tip Modal */}
+      {showTipModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-black border-2 border-white max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-xl font-black tracking-tight">TIP BUILDER</h3>
+                <p className="text-[9px] tracking-[0.2em] text-gray-500 mt-1">
+                  SENT ONLY TO PRIMARY FARCASTER WALLET
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowTipModal(false);
+                  setCustomTipAmount('');
+                  setCustomTipAmountUsd('');
+                  setTipMessage('');
+                }}
+                className="text-white hover:text-gray-400 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[10px] tracking-[0.2em] text-gray-500 mb-2">
+                  AMOUNT (USD)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min={MIN_TIP_USD}
+                  value={customTipAmountUsd}
+                  onChange={(e) => {
+                    const usdValue = e.target.value;
+                    setCustomTipAmountUsd(usdValue);
+                    if (usdValue === '') {
+                      setCustomTipAmount('');
+                    } else {
+                      const usdNum = parseFloat(usdValue);
+                      if (!isNaN(usdNum) && usdNum >= 0 && ethPrice) {
+                        const ethValue = usdNum / ethPrice;
+                        setCustomTipAmount(ethValue.toString());
+                      }
+                    }
+                  }}
+                  className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                  placeholder="0.00"
+                />
+                {customTipAmount && customTipAmountUsd && ethPrice && (
+                  <p className="text-[10px] text-gray-600 mt-1">
+                    ≈ {parseFloat(customTipAmount).toFixed(6)} ETH
+                  </p>
+                )}
+                <p className="text-[10px] text-gray-600 mt-1">
+                  Minimum: ${MIN_TIP_USD.toFixed(2)} USD
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                {ethPrice ? (
+                  [
+                    { usd: 5, label: '$5' },
+                    { usd: 10, label: '$10' },
+                    { usd: 25, label: '$25' },
+                    { usd: 50, label: '$50' },
+                  ].map((option) => {
+                    const ethValue = (option.usd / ethPrice).toFixed(6);
+                    return (
+                      <button
+                        key={option.usd}
+                        onClick={() => {
+                          setCustomTipAmountUsd(option.usd.toString());
+                          setCustomTipAmount(ethValue);
+                        }}
+                        className="flex-1 px-3 py-2 border border-white text-[10px] tracking-[0.2em] hover:bg-white hover:text-black transition-all"
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })
+                ) : (
+                  [
+                    { usd: 5, label: '$5' },
+                    { usd: 10, label: '$10' },
+                    { usd: 25, label: '$25' },
+                    { usd: 50, label: '$50' },
+                  ].map((option) => {
+                    const ethValue = (option.usd / 2800).toFixed(6);
+                    return (
+                      <button
+                        key={option.usd}
+                        onClick={() => {
+                          setCustomTipAmountUsd(option.usd.toString());
+                          setCustomTipAmount(ethValue);
+                        }}
+                        className="flex-1 px-3 py-2 border border-white text-[10px] tracking-[0.2em] hover:bg-white hover:text-black transition-all"
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+
+              {tipMessage && (
+                <div className={`p-3 border text-center text-[10px] tracking-[0.2em] ${
+                  tipMessage.includes('SENT') 
+                    ? 'border-green-500 text-green-400 bg-green-500/10' 
+                    : 'border-red-500 text-red-400 bg-red-500/10'
+                }`}>
+                  {tipMessage}
+                </div>
+              )}
+
+              <div className="flex gap-4 pt-4">
+                <button
+                  onClick={() => {
+                    setShowTipModal(false);
+                    setCustomTipAmount('');
+                    setCustomTipAmountUsd('');
+                    setTipMessage('');
+                  }}
+                  className="px-6 py-2 border border-white font-bold hover:bg-white hover:text-black transition-all"
+                >
+                  CANCEL
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!isInFarcaster || !isConnected) {
+                      setTipMessage('CONNECT WALLET TO TIP');
+                      setTimeout(() => setTipMessage(''), 3000);
+                      return;
+                    }
+                    
+                    if (!builderData?.walletAddress || !builderData?.verified) {
+                      setTipMessage('BUILDER NEEDS VERIFIED FARCASTER WALLET');
+                      setTimeout(() => setTipMessage(''), 3000);
+                      return;
+                    }
+
+                    if (!customTipAmount || parseFloat(customTipAmount) <= 0) {
+                      setTipMessage('INVALID TIP AMOUNT');
+                      setTimeout(() => setTipMessage(''), 3000);
+                      return;
+                    }
+
+                    setTipping(true);
+                    setTipMessage('');
+
+                    try {
+                      const { parseEther } = await import('viem');
+                      await sendTransaction({
+                        to: builderData.walletAddress,
+                        value: parseEther(customTipAmount),
+                      });
+
+                      // Track tip
+                      try {
+                        await fetch('/api/track-tip', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            projectId: project.id,
+                            amount: customTipAmount,
+                            recipientFid: builderData?.fid || project.builderFid,
+                          }),
+                        });
+                      } catch (error) {
+                        console.error('Error tracking tip:', error);
+                      }
+
+                      const usdAmount = ethPrice ? (parseFloat(customTipAmount) * ethPrice).toFixed(2) : null;
+                      setTipMessage(`TIP SENT! ${parseFloat(customTipAmount).toFixed(6)} ETH${usdAmount ? ` ($${usdAmount})` : ''}`);
+                      setTimeout(() => {
+                        setShowTipModal(false);
+                        setCustomTipAmount('');
+                        setCustomTipAmountUsd('');
+                        setTipMessage('');
+                      }, 3000);
+                    } catch (error) {
+                      console.error('Error sending tip:', error);
+                      setTipMessage('TIP FAILED. PLEASE TRY AGAIN.');
+                    } finally {
+                      setTipping(false);
+                    }
+                  }}
+                  disabled={tipping || !customTipAmountUsd || parseFloat(customTipAmountUsd) < MIN_TIP_USD || !customTipAmount || parseFloat(customTipAmount) <= 0}
+                  className="flex-1 py-3 bg-white text-black font-black text-sm tracking-[0.2em] hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {tipping ? 'SENDING...' : ethPrice ? `SEND $${(parseFloat(customTipAmount) * ethPrice).toFixed(2)}` : `SEND ${customTipAmount ? parseFloat(customTipAmount).toFixed(6) : '0'} ETH`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+// ============================================
 // CATEGORY RANKINGS
 // ============================================
-const CategoryRankings = ({ category, ethPrice }) => {
+const CategoryRankings = ({ category, ethPrice, isInFarcaster = false, isConnected = false }) => {
   const [rankings, setRankings] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -1138,69 +1510,14 @@ const CategoryRankings = ({ category, ethPrice }) => {
           const rankChange = previousRank ? previousRank - project.rank : null;
           
           return (
-            <div
+            <ProjectCard 
               key={project.id || `project-${index}`}
-              className="border border-white p-4 hover:bg-white/5 transition-all"
-            >
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 min-w-[80px] shrink-0">
-                  <div className="text-2xl font-black w-8 text-center">
-                    #{project.rank}
-                  </div>
-                  {rankChange !== null && (
-                    <div className={`text-xs ${
-                      rankChange > 0 ? 'text-green-400' : 
-                      rankChange < 0 ? 'text-red-400' : 
-                      'text-gray-500'
-                    }`}>
-                      {rankChange > 0 ? '↑' : rankChange < 0 ? '↓' : '—'}
-                      {rankChange !== 0 && Math.abs(rankChange)}
-                    </div>
-                  )}
-                </div>
-                
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-1">
-                    <h3 className="text-lg font-black truncate">{project.name}</h3>
-                    <span className="text-[9px] tracking-[0.2em] px-2 py-0.5 bg-white text-black font-bold shrink-0">
-                      {project.category?.toUpperCase()}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-gray-500 mb-2 line-clamp-1">{project.tagline}</p>
-                  <div className="flex items-center gap-4 text-[9px] tracking-[0.2em] text-gray-600 flex-wrap">
-                    <span className="flex items-center gap-1">
-                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                        <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                      </svg>
-                      {formatNumber(project.todayViews || project.stats?.views || 0)}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-                      </svg>
-                      {formatNumber(project.todayClicks || project.stats?.clicks || 0)}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.343 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.343-1.253V5z" clipRule="evenodd" />
-                      </svg>
-                      {formatTipsUsd(project.stats?.tips || 0, ethPrice)}
-                    </span>
-                  </div>
-                </div>
-                
-                {project.links?.miniapp && (
-                  <button
-                    onClick={() => window.open(project.links.miniapp, '_blank', 'noopener,noreferrer')}
-                    className="px-4 py-2 border border-white text-[10px] tracking-[0.2em] hover:bg-white hover:text-black transition-all shrink-0 whitespace-nowrap"
-                  >
-                    OPEN
-                  </button>
-                )}
-              </div>
-            </div>
+              project={project}
+              rankChange={rankChange}
+              ethPrice={ethPrice}
+              isInFarcaster={isInFarcaster}
+              isConnected={isConnected}
+            />
           );
         }).filter(Boolean) : (
           <div className="border border-white p-6 text-center">
@@ -1881,7 +2198,7 @@ export default function Seen() {
             </div>
           </div>
         ) : (
-          <CategoryRankings category={category} ethPrice={ethPrice} />
+          <CategoryRankings category={category} ethPrice={ethPrice} isInFarcaster={isInFarcaster} isConnected={isConnected} />
         )}
       </main>
 
