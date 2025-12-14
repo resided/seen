@@ -36,12 +36,12 @@ TREASURY_PRIVATE_KEY=0x...your_new_private_key_here
 
 ### 3. Treasury Address (REQUIRED)
 ```
-TREASURY_ADDRESS=0x32b907f125C4b929D5D9565FA24Bc6BF9af39fBb
+TREASURY_ADDRESS=0x...your_treasury_wallet_address
 ```
 - Public address of the treasury wallet (seentreasury)
 - Must match the address derived from TREASURY_PRIVATE_KEY
 - Used for verification and payment collection
-- **Note:** This address is public and safe to expose (it's just a wallet address)
+- **Note:** Set this in Vercel environment variables only, not in code
 
 ### 4. Token Amount (Optional - has default)
 ```
