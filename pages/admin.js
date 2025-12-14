@@ -1696,14 +1696,14 @@ export default function Admin() {
                       type="number"
                       step="0.01"
                       name="stats.tips"
-                      value={tipsUsdDisplay.create !== '' ? tipsUsdDisplay.create : (ethPrice ? (createFormData.stats.tips * ethPrice).toFixed(2) : createFormData.stats.tips)}
+                      value={tipsUsdDisplay.create !== '' ? tipsUsdDisplay.create : (ethPrice && createFormData.stats.tips ? (createFormData.stats.tips * ethPrice).toFixed(2) : '0')}
                       onChange={handleCreateFormChange}
                       className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
                       placeholder="0"
                     />
-                    {ethPrice && (
+                    {ethPrice && tipsUsdDisplay.create && parseFloat(tipsUsdDisplay.create) > 0 && (
                       <p className="text-[10px] text-gray-600 mt-1">
-                        ≈ {(parseFloat(tipsUsdDisplay.create || 0) / ethPrice).toFixed(6)} ETH
+                        ≈ {(parseFloat(tipsUsdDisplay.create) / ethPrice).toFixed(6)} ETH
                       </p>
                     )}
                   </div>
