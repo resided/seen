@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useAccount, useSendTransaction } from 'wagmi';
+import { parseEther } from 'viem';
 
 const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, neynarUserScore = null }) => {
   const MIN_NEYNAR_SCORE = 0.62; // Minimum Neynar user score required to submit
@@ -17,10 +19,16 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
   });
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
+  const [paymentTxHash, setPaymentTxHash] = useState(null);
+  const [processingPayment, setProcessingPayment] = useState(false);
+  
+  const { isConnected, address } = useAccount();
+  const { sendTransaction } = useSendTransaction();
   
   // Featured submission pricing (configurable)
   const FEATURED_PRICE = 0.016; // ETH amount
   const FEATURED_PRICE_DISPLAY = '$45'; // USD display price
+  const TREASURY_ADDRESS = '0xEa73a775fa9935E686E003ae378996972386639F'; // Treasury wallet to receive payments
 
   const handleChange = (e) => {
     const newFormData = {
@@ -65,9 +73,36 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
       return;
     }
 
-    // If featured submission, payment would be handled here
-    // For now, just submit with payment amount
     const paymentAmount = formData.submissionType === 'featured' ? FEATURED_PRICE : 0;
+
+    // If featured submission, collect payment first
+    if (formData.submissionType === 'featured' && paymentAmount > 0) {
+      if (!isConnected || !address) {
+        setMessage('ERROR: CONNECT WALLET TO PAY FOR FEATURED SUBMISSION');
+        setSubmitting(false);
+        return;
+      }
+
+      try {
+        setProcessingPayment(true);
+        setMessage('PROCESSING PAYMENT...');
+
+        // Send payment transaction
+        const hash = await sendTransaction({
+          to: TREASURY_ADDRESS,
+          value: parseEther(paymentAmount.toString()),
+        });
+
+        setPaymentTxHash(hash);
+        setMessage('PAYMENT SENT! SUBMITTING PROJECT...');
+      } catch (error) {
+        console.error('Payment error:', error);
+        setMessage('PAYMENT FAILED. PLEASE TRY AGAIN.');
+        setSubmitting(false);
+        setProcessingPayment(false);
+        return;
+      }
+    }
 
     try {
       const response = await fetch('/api/submit', {
@@ -79,6 +114,8 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
           ...formData,
           submissionType: formData.submissionType,
           paymentAmount: paymentAmount,
+          paymentTxHash: paymentTxHash || null,
+          submitterWalletAddress: formData.submissionType === 'featured' ? address : null,
           links: {
             miniapp: formData.miniapp,
             website: formData.website,
@@ -93,7 +130,7 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
 
       if (response.ok) {
         if (formData.submissionType === 'featured') {
-          setMessage(`SUBMITTED! YOUR FEATURED SUBMISSION IS PENDING ADMIN APPROVAL. YOU WILL BE CONTACTED FOR PAYMENT IF APPROVED.`);
+          setMessage(`SUBMITTED! PAYMENT RECEIVED. YOUR FEATURED SUBMISSION IS PENDING ADMIN APPROVAL.${paymentTxHash ? ` TX: ${paymentTxHash.slice(0, 10)}...` : ''}`);
         } else {
           setMessage('SUBMITTED! YOUR PROJECT IS PENDING ADMIN APPROVAL AND WILL BE ADDED TO THE QUEUE IF APPROVED.');
         }
@@ -108,6 +145,7 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
       setMessage('ERROR SUBMITTING PROJECT');
     } finally {
       setSubmitting(false);
+      setProcessingPayment(false);
     }
   };
 
@@ -246,7 +284,10 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
                 />
                 <div className="flex-1">
                   <div className="text-sm font-bold">FEATURED SLOT</div>
-                  <div className="text-[10px] text-gray-500">{FEATURED_PRICE_DISPLAY} - Priority placement</div>
+                  <div className="text-[10px] text-gray-500">{FEATURED_PRICE_DISPLAY} ({FEATURED_PRICE} ETH) - Payment required</div>
+                  {formData.submissionType === 'featured' && !isConnected && (
+                    <div className="text-[9px] text-yellow-400 mt-1">⚠ CONNECT WALLET TO PAY</div>
+                  )}
                 </div>
               </label>
             </div>
@@ -344,10 +385,10 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
             </button>
             <button
               type="submit"
-              disabled={submitting || (neynarUserScore !== null && neynarUserScore < MIN_NEYNAR_SCORE)}
+              disabled={submitting || processingPayment || (neynarUserScore !== null && neynarUserScore < MIN_NEYNAR_SCORE) || (formData.submissionType === 'featured' && !isConnected)}
               className="py-3 bg-white text-black font-black text-sm tracking-[0.2em] hover:bg-gray-200 transition-all disabled:opacity-50"
             >
-              {submitting ? 'SUBMITTING...' : (neynarUserScore !== null && neynarUserScore < MIN_NEYNAR_SCORE) ? 'SCORE TOO LOW' : 'SUBMIT'}
+              {processingPayment ? 'PROCESSING PAYMENT...' : submitting ? 'SUBMITTING...' : (neynarUserScore !== null && neynarUserScore < MIN_NEYNAR_SCORE) ? 'SCORE TOO LOW' : (formData.submissionType === 'featured' && !isConnected) ? 'CONNECT WALLET' : formData.submissionType === 'featured' ? `SUBMIT & PAY ${FEATURED_PRICE_DISPLAY}` : 'SUBMIT'}
             </button>
           </div>
         </form>

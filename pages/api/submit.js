@@ -20,6 +20,8 @@ export default async function handler(req, res) {
       category,
       submissionType,
       paymentAmount,
+      paymentTxHash,
+      submitterWalletAddress,
       links,
       submitterFid // FID of the person submitting (current user)
     } = req.body
@@ -127,6 +129,8 @@ export default async function handler(req, res) {
       category: category.toLowerCase(),
       submissionType: submissionType || 'queue',
       paymentAmount: paymentAmount || 0,
+      paymentTxHash: paymentTxHash || null,
+      submitterWalletAddress: submitterWalletAddress || null,
       links: links || {}
     })
 

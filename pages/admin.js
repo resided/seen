@@ -419,6 +419,35 @@ export default function Admin() {
     }
   };
 
+  const handleRefund = async (projectId) => {
+    if (!confirm(`Are you sure you want to refund ${submissions.find(s => s.id === projectId)?.paymentAmount || 0} ETH?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/admin/refund', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          projectId,
+          fid: userFid || null 
+        }),
+        credentials: 'include',
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setMessage(`Refund sent! TX: ${data.refundTxHash?.slice(0, 10)}...`);
+        // Refresh submissions
+        fetchSubmissions();
+      } else {
+        setMessage(data.error || 'Failed to refund');
+      }
+    } catch (error) {
+      setMessage('Error processing refund');
+    }
+  };
+
   const handleReject = async (projectId) => {
     if (!confirm('Are you sure you want to reject this submission?')) {
       return;
@@ -1411,6 +1440,12 @@ export default function Admin() {
                       {submission.paymentAmount > 0 && (
                         <span className="text-yellow-500 ml-2">
                           ({submission.paymentAmount} ETH)
+                          {submission.paymentTxHash && (
+                            <span className="text-[9px] ml-1">• Paid</span>
+                          )}
+                          {submission.refunded && (
+                            <span className="text-red-400 ml-1">• Refunded</span>
+                          )}
                         </span>
                       )}
                     </div>
@@ -1468,6 +1503,30 @@ export default function Admin() {
                     </div>
                   )}
 
+                  {submission.paymentAmount > 0 && submission.submitterWalletAddress && (
+                    <div className="mb-4 p-3 border border-yellow-500 bg-yellow-900/10">
+                      <div className="text-xs text-yellow-400 mb-1">
+                        PAYMENT INFO
+                      </div>
+                      <div className="text-[10px] text-gray-400">
+                        Amount: {submission.paymentAmount} ETH
+                      </div>
+                      {submission.paymentTxHash && (
+                        <div className="text-[10px] text-gray-400">
+                          Payment TX: <span className="font-mono">{submission.paymentTxHash.slice(0, 20)}...</span>
+                        </div>
+                      )}
+                      <div className="text-[10px] text-gray-400">
+                        Wallet: <span className="font-mono">{submission.submitterWalletAddress.slice(0, 20)}...</span>
+                      </div>
+                      {submission.refunded && submission.refundTxHash && (
+                        <div className="text-[10px] text-red-400 mt-1">
+                          Refunded TX: <span className="font-mono">{submission.refundTxHash.slice(0, 20)}...</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="flex gap-4 pt-4 border-t border-white">
                     <button
                       onClick={() => handleApprove(submission.id)}
@@ -1481,6 +1540,14 @@ export default function Admin() {
                     >
                       FEATURE NOW
                     </button>
+                    {submission.paymentAmount > 0 && !submission.refunded && submission.submitterWalletAddress && (
+                      <button
+                        onClick={() => handleRefund(submission.id)}
+                        className="px-6 py-2 bg-red-600 text-white font-bold hover:bg-red-500 transition-all"
+                      >
+                        REFUND
+                      </button>
+                    )}
                     <button
                       onClick={() => handleReject(submission.id)}
                       className="px-6 py-2 border border-white font-bold hover:bg-white hover:text-black transition-all"
