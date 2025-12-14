@@ -58,15 +58,18 @@ export default async function handler(req, res) {
       });
     }
 
-    // Track claim by featured project ID (not daily)
-    const claimKey = `claim:featured:${featuredProjectId}:${fid}`;
+    // Track claim by featured project ID + featuredAt timestamp + FID
+    // This allows users to claim again if the same project is featured again later
+    const featuredAtTimestamp = Math.floor(featuredAt.getTime() / 1000); // Unix timestamp in seconds
+    const claimKey = `claim:featured:${featuredProjectId}:${featuredAtTimestamp}:${fid}`;
     
-    // Check if already claimed for this featured project
+    // Check if already claimed for this specific featured rotation
     const alreadyClaimed = await redis.exists(claimKey);
     if (alreadyClaimed && !txHash) {
       return res.status(400).json({ 
-        error: 'Already claimed for this featured project',
+        error: 'Already claimed for this featured project rotation',
         featuredProjectId,
+        featuredAt: featuredAt.toISOString(),
         expirationTime: expirationTime.toISOString(),
       });
     }
@@ -75,8 +78,9 @@ export default async function handler(req, res) {
     if (txHash) {
       // Calculate TTL: time until expiration
       const ttl = Math.max(0, Math.floor((expirationTime - now) / 1000));
+      const featuredAtTimestamp = Math.floor(featuredAt.getTime() / 1000);
       await redis.setEx(claimKey, ttl, '1');
-      await redis.setEx(`claim:tx:${featuredProjectId}:${fid}`, ttl, txHash);
+      await redis.setEx(`claim:tx:${featuredProjectId}:${featuredAtTimestamp}:${fid}`, ttl, txHash);
       
       return res.status(200).json({
         success: true,
@@ -132,10 +136,11 @@ export default async function handler(req, res) {
 
       // Calculate TTL: time until expiration (expires when featured project changes)
       const ttl = Math.max(0, Math.floor((expirationTime - now) / 1000));
+      const featuredAtTimestamp = Math.floor(featuredAt.getTime() / 1000);
       
       // Record the claim with transaction hash (expires when featured project changes)
       await redis.setEx(claimKey, ttl, '1');
-      await redis.setEx(`claim:tx:${featuredProjectId}:${fid}`, ttl, hash);
+      await redis.setEx(`claim:tx:${featuredProjectId}:${featuredAtTimestamp}:${fid}`, ttl, hash);
 
       return res.status(200).json({
         success: true,

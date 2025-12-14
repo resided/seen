@@ -37,8 +37,10 @@ export default async function handler(req, res) {
     const now = new Date();
     const expired = now > expirationTime;
     
-    // Check if claimed for this featured project
-    const claimKey = `claim:featured:${featuredProjectId}:${fid}`;
+    // Check if claimed for this specific featured rotation (includes featuredAt timestamp)
+    // This allows users to claim again if the same project is featured again later
+    const featuredAtTimestamp = Math.floor(featuredAt.getTime() / 1000); // Unix timestamp in seconds
+    const claimKey = `claim:featured:${featuredProjectId}:${featuredAtTimestamp}:${fid}`;
     const claimed = await redis.exists(claimKey);
 
     return res.status(200).json({

@@ -53,9 +53,12 @@ export default async function handler(req, res) {
     }
 
     const featuredProjectId = featuredProject.id;
+    const featuredAt = featuredProject.featuredAt ? new Date(featuredProject.featuredAt) : new Date();
+    const featuredAtTimestamp = Math.floor(featuredAt.getTime() / 1000);
     
-    // Find all claim keys for this featured project
-    const pattern = `claim:featured:${featuredProjectId}:*`;
+    // Find all claim keys for this specific featured rotation
+    // Pattern includes featuredAt timestamp to only reset current rotation
+    const pattern = `claim:featured:${featuredProjectId}:${featuredAtTimestamp}:*`;
     const keys = [];
     
     // Redis SCAN to find all matching keys
@@ -69,8 +72,8 @@ export default async function handler(req, res) {
       keys.push(...result.keys);
     } while (cursor !== 0);
 
-    // Also find transaction hash keys for this featured project
-    const txPattern = `claim:tx:${featuredProjectId}:*`;
+    // Also find transaction hash keys for this specific featured rotation
+    const txPattern = `claim:tx:${featuredProjectId}:${featuredAtTimestamp}:*`;
     const txKeys = [];
     cursor = 0;
     do {
@@ -93,11 +96,12 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
-      message: `Reset ${keys.length} claim(s) and ${txKeys.length} transaction(s) for featured project ${featuredProjectId}`,
+      message: `Reset ${keys.length} claim(s) and ${txKeys.length} transaction(s) for featured project ${featuredProjectId} (rotation started at ${featuredAt.toISOString()})`,
       claimsReset: keys.length,
       transactionsReset: txKeys.length,
       featuredProjectId,
       featuredProjectName: featuredProject.name,
+      featuredAt: featuredAt.toISOString(),
     });
   } catch (error) {
     console.error('Error resetting claims:', error);
