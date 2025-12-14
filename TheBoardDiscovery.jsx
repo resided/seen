@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAccount, useConnect, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi';
-import { parseEther, parseUnits, erc20Abi, encodeFunctionData } from 'viem';
+import { parseEther, parseUnits, erc20Abi, encodeFunctionData, toHex, stringToHex } from 'viem';
 import { sdk } from '@farcaster/miniapp-sdk';
 import SubmitForm from './components/SubmitForm';
 
