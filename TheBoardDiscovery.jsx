@@ -1103,27 +1103,39 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
   const [claimed, setClaimed] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [message, setMessage] = useState('');
-  const [nextClaimTime, setNextClaimTime] = useState(null);
+  const [expirationTime, setExpirationTime] = useState(null);
+  const [expired, setExpired] = useState(false);
   const { address } = useAccount();
 
   useEffect(() => {
-    // Check if user has claimed today
+    // Check claim status (tied to featured project)
     if (userFid) {
-      fetch('/api/claim/status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fid: userFid }),
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data.claimed) {
-            setClaimed(true);
-            if (data.nextClaimTime) {
-              setNextClaimTime(new Date(data.nextClaimTime));
-            }
-          }
+      const checkStatus = () => {
+        fetch('/api/claim/status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fid: userFid }),
         })
-        .catch(() => {});
+          .then(res => res.json())
+          .then(data => {
+            if (data.claimed) {
+              setClaimed(true);
+            }
+            if (data.expired) {
+              setExpired(true);
+              setClaimed(false); // Reset if expired
+            }
+            if (data.expirationTime) {
+              setExpirationTime(new Date(data.expirationTime));
+            }
+          })
+          .catch(() => {});
+      };
+      
+      checkStatus();
+      // Check every 30 seconds to catch expiration
+      const interval = setInterval(checkStatus, 30000);
+      return () => clearInterval(interval);
     }
   }, [userFid]);
 
@@ -1134,7 +1146,12 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
     }
 
     if (claimed) {
-      setMessage('ALREADY CLAIMED TODAY');
+      setMessage('ALREADY CLAIMED FOR THIS FEATURED PROJECT');
+      return;
+    }
+
+    if (expired) {
+      setMessage('CLAIM WINDOW EXPIRED. WAIT FOR NEXT FEATURED PROJECT.');
       return;
     }
 
@@ -1161,11 +1178,16 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
         } else {
           setMessage(data.message || 'CLAIMED! TOKENS SENT TO YOUR WALLET');
         }
-        if (data.nextClaimTime) {
-          setNextClaimTime(new Date(data.nextClaimTime));
+        if (data.expirationTime) {
+          setExpirationTime(new Date(data.expirationTime));
         }
       } else {
-        setMessage(data.error || 'CLAIM FAILED');
+        if (data.expired) {
+          setExpired(true);
+          setMessage('CLAIM WINDOW EXPIRED. WAIT FOR NEXT FEATURED PROJECT.');
+        } else {
+          setMessage(data.error || 'CLAIM FAILED');
+        }
       }
     } catch (error) {
       console.error('Error claiming tokens:', error);
@@ -1175,21 +1197,40 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
     }
   };
 
-  const getTimeUntilNextClaim = () => {
-    if (!nextClaimTime) return null;
+  const getTimeUntilExpiration = () => {
+    if (!expirationTime) return null;
     const now = new Date();
-    const diff = nextClaimTime - now;
-    if (diff <= 0) return null;
+    const diff = expirationTime - now;
+    if (diff <= 0) {
+      setExpired(true);
+      return 'EXPIRED';
+    }
     
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    return `${hours}h ${minutes}m`;
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+    return `${hours}h ${minutes}m ${seconds}s`;
   };
+
+  // Update expiration status every second
+  useEffect(() => {
+    if (!expirationTime) return;
+    
+    const interval = setInterval(() => {
+      const now = new Date();
+      if (now > expirationTime) {
+        setExpired(true);
+        setClaimed(false); // Reset claim status when expired
+      }
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [expirationTime]);
 
   return (
     <div className="border border-white">
       <div className="border-b border-white p-3">
-        <span className="text-[10px] tracking-[0.3em]">DAILY CLAIM</span>
+        <span className="text-[10px] tracking-[0.3em]">FEATURED CLAIM</span>
       </div>
       <div className="p-6 text-center space-y-4">
         {message && (
@@ -1202,13 +1243,21 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
           </div>
         )}
         
-        {claimed ? (
+        {expired ? (
+          <>
+            <div className="text-4xl mb-2 text-red-400">✗</div>
+            <div className="text-sm font-bold mb-2 text-red-400">CLAIM EXPIRED</div>
+            <div className="text-[10px] tracking-[0.2em] text-gray-500">
+              WAIT FOR NEXT FEATURED PROJECT
+            </div>
+          </>
+        ) : claimed ? (
           <>
             <div className="text-4xl mb-2">✓</div>
-            <div className="text-sm font-bold mb-2">CLAIMED TODAY</div>
-            {nextClaimTime && getTimeUntilNextClaim() && (
+            <div className="text-sm font-bold mb-2">CLAIMED</div>
+            {expirationTime && getTimeUntilExpiration() && getTimeUntilExpiration() !== 'EXPIRED' && (
               <div className="text-[10px] tracking-[0.2em] text-gray-500">
-                NEXT CLAIM IN {getTimeUntilNextClaim()}
+                EXPIRES IN {getTimeUntilExpiration()}
               </div>
             )}
           </>
@@ -1220,20 +1269,25 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
                 <div className="text-2xl font-black relative z-10">$</div>
               </div>
             </div>
-            <div className="text-sm font-bold mb-2">CLAIM YOUR DAILY TOKENS</div>
+            <div className="text-sm font-bold mb-2">CLAIM YOUR TOKENS</div>
+            {expirationTime && getTimeUntilExpiration() && getTimeUntilExpiration() !== 'EXPIRED' && (
+              <div className="text-xs text-gray-500 mb-2">
+                EXPIRES IN {getTimeUntilExpiration()}
+              </div>
+            )}
             <div className="text-[10px] tracking-[0.2em] text-gray-500 mb-4">
-              CONNECT WALLET TO CLAIM
+              {!isInFarcaster || !isConnected ? 'CONNECT WALLET TO CLAIM' : 'CLAIM EXPIRES WHEN FEATURED PROJECT CHANGES'}
             </div>
             <button
               onClick={handleClaim}
-              disabled={!isInFarcaster || !isConnected || claiming}
+              disabled={!isInFarcaster || !isConnected || claiming || expired || claimed}
               className={`w-full py-3 font-black text-sm tracking-[0.2em] transition-all ${
-                isInFarcaster && isConnected && !claiming
+                isInFarcaster && isConnected && !claiming && !expired && !claimed
                   ? 'bg-white text-black hover:bg-gray-200'
                   : 'bg-gray-600 text-gray-400 cursor-not-allowed'
               }`}
             >
-              {claiming ? 'CLAIMING...' : 'CLAIM NOW'}
+              {claiming ? 'CLAIMING...' : expired ? 'EXPIRED' : claimed ? 'CLAIMED' : 'CLAIM NOW'}
             </button>
           </>
         )}

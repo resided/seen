@@ -1,5 +1,6 @@
-// API route to reset today's daily claims (admin only)
+// API route to reset claims for current featured project (admin only)
 import { getRedisClient } from '../../../lib/redis';
+import { getFeaturedProject } from '../../../lib/projects';
 import { parse } from 'cookie';
 
 const ADMIN_FID = 342433; // Admin FID
@@ -45,10 +46,16 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Redis not available' });
     }
 
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    // Get current featured project
+    const featuredProject = await getFeaturedProject();
+    if (!featuredProject || !featuredProject.id) {
+      return res.status(400).json({ error: 'No featured project found' });
+    }
+
+    const featuredProjectId = featuredProject.id;
     
-    // Find all claim keys for today
-    const pattern = `claim:daily:*:${today}`;
+    // Find all claim keys for this featured project
+    const pattern = `claim:featured:${featuredProjectId}:*`;
     const keys = [];
     
     // Redis SCAN to find all matching keys
@@ -62,8 +69,8 @@ export default async function handler(req, res) {
       keys.push(...result.keys);
     } while (cursor !== 0);
 
-    // Also find transaction hash keys
-    const txPattern = `claim:tx:*:${today}`;
+    // Also find transaction hash keys for this featured project
+    const txPattern = `claim:tx:${featuredProjectId}:*`;
     const txKeys = [];
     cursor = 0;
     do {
@@ -75,7 +82,7 @@ export default async function handler(req, res) {
       txKeys.push(...result.keys);
     } while (cursor !== 0);
 
-    // Delete all claim keys for today
+    // Delete all claim keys for this featured project
     if (keys.length > 0) {
       await redis.del(keys);
     }
@@ -86,10 +93,11 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
-      message: `Reset ${keys.length} claim(s) and ${txKeys.length} transaction(s) for today (${today})`,
+      message: `Reset ${keys.length} claim(s) and ${txKeys.length} transaction(s) for featured project ${featuredProjectId}`,
       claimsReset: keys.length,
       transactionsReset: txKeys.length,
-      date: today,
+      featuredProjectId,
+      featuredProjectName: featuredProject.name,
     });
   } catch (error) {
     console.error('Error resetting claims:', error);

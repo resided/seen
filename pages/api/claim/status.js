@@ -1,5 +1,6 @@
-// API route to check daily claim status
+// API route to check claim status (tied to featured project)
 import { getRedisClient } from '../../../lib/redis';
+import { getFeaturedProject } from '../../../lib/projects';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -15,24 +16,41 @@ export default async function handler(req, res) {
 
     const redis = await getRedisClient();
     if (!redis) {
-      return res.status(200).json({ claimed: false });
+      return res.status(200).json({ claimed: false, expired: false });
     }
 
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    const claimKey = `claim:daily:${fid}:${today}`;
+    // Get current featured project
+    const featuredProject = await getFeaturedProject();
+    if (!featuredProject || !featuredProject.id) {
+      return res.status(200).json({ 
+        claimed: false, 
+        expired: false,
+        noFeaturedProject: true 
+      });
+    }
+
+    const featuredProjectId = featuredProject.id;
+    const featuredAt = featuredProject.featuredAt ? new Date(featuredProject.featuredAt) : new Date();
     
+    // Calculate expiration: 24 hours from when project was featured
+    const expirationTime = new Date(featuredAt.getTime() + 24 * 60 * 60 * 1000);
+    const now = new Date();
+    const expired = now > expirationTime;
+    
+    // Check if claimed for this featured project
+    const claimKey = `claim:featured:${featuredProjectId}:${fid}`;
     const claimed = await redis.exists(claimKey);
-    
-    // Calculate next claim time (24 hours from now)
-    const nextClaimTime = new Date();
-    nextClaimTime.setHours(24, 0, 0, 0); // Next midnight
 
     return res.status(200).json({
       claimed: claimed === 1,
-      nextClaimTime: nextClaimTime.toISOString(),
+      expired,
+      featuredProjectId,
+      featuredAt: featuredAt.toISOString(),
+      expirationTime: expirationTime.toISOString(),
+      timeRemaining: expired ? 0 : Math.max(0, expirationTime - now),
     });
   } catch (error) {
     console.error('Error checking claim status:', error);
-    return res.status(200).json({ claimed: false });
+    return res.status(200).json({ claimed: false, expired: false });
   }
 }
