@@ -190,21 +190,15 @@ export default async function handler(req, res) {
       let errorMessage = 'Failed to send tokens';
       let errorDetails = txError.message;
 
-      // Check for specific error patterns (order matters - most specific first)
-      const errorMsg = txError.message?.toLowerCase() || '';
-      
-      if (errorMsg.includes('insufficient funds') || errorMsg.includes('balance') || errorMsg.includes('insufficient balance')) {
+      if (txError.message?.includes('insufficient funds') || txError.message?.includes('balance')) {
         errorMessage = 'Insufficient token balance in treasury wallet';
         errorDetails = 'The treasury wallet does not have enough tokens to send. Please add tokens to the treasury wallet.';
-      } else if (errorMsg.includes('invalid contract address') || errorMsg.includes('contract address is invalid') || errorMsg.includes('address is not a contract') || errorMsg.includes('does not exist') || errorMsg.includes('no contract at address')) {
+      } else if (txError.message?.includes('execution reverted') || txError.message?.includes('revert')) {
+        errorMessage = 'Token transfer failed - contract execution reverted';
+        errorDetails = 'The token contract rejected the transfer. This could mean: (1) Invalid contract address, (2) Contract is not an ERC20 token, (3) Contract is paused, or (4) Transfer function failed.';
+      } else if (txError.message?.includes('invalid address') || txError.message?.includes('address')) {
         errorMessage = 'Invalid contract address';
         errorDetails = 'The token contract address is not valid or the contract does not exist on Base network.';
-      } else if (errorMsg.includes('execution reverted') || errorMsg.includes('revert') || errorMsg.includes('reverted')) {
-        errorMessage = 'Token transfer failed - contract execution reverted';
-        errorDetails = 'The token contract rejected the transfer. This could mean: (1) Contract is not an ERC20 token, (2) Contract is paused, (3) Transfer function failed, or (4) Insufficient allowance/balance.';
-      } else if (errorMsg.includes('network') || errorMsg.includes('chain') || errorMsg.includes('wrong network')) {
-        errorMessage = 'Network mismatch';
-        errorDetails = 'The contract may be on a different network. Verify the contract is deployed on Base network.';
       }
 
       return res.status(500).json({ 
