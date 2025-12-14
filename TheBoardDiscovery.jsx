@@ -398,18 +398,18 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          <div>
-            <div className="text-3xl font-black">{formatNumber(liveStats.views || app.stats?.views || 0)}</div>
+        <div className="grid grid-cols-3 gap-2 mb-6">
+          <div className="min-w-0">
+            <div className="text-3xl font-black truncate">{formatNumber(liveStats.views || app.stats?.views || 0)}</div>
             <div className="text-[9px] tracking-[0.3em] text-gray-500 mt-1">VIEWS</div>
           </div>
-          <div>
-            <div className="text-3xl font-black">{formatNumber(liveStats.clicks || app.stats?.clicks || 0)}</div>
+          <div className="min-w-0">
+            <div className="text-3xl font-black truncate">{formatNumber(liveStats.clicks || app.stats?.clicks || 0)}</div>
             <div className="text-[9px] tracking-[0.3em] text-gray-500 mt-1">CLICKS</div>
           </div>
-          <div>
-            <div className="text-3xl font-black">{liveStats.tips || app.stats?.tips || 0}Ξ</div>
-            <div className="text-[9px] tracking-[0.3em] text-gray-500 mt-1">TIPPED TODAY</div>
+          <div className="min-w-0">
+            <div className="text-3xl font-black truncate">{liveStats.tips || app.stats?.tips || 0}Ξ</div>
+            <div className="text-[8px] tracking-[0.2em] text-gray-500 mt-1 leading-tight">TIPPED</div>
           </div>
         </div>
 
