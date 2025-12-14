@@ -1697,14 +1697,12 @@ export default function Seen() {
               ) : (
                 <LiveChat messages={messages} onSend={handleSendMessage} isInFarcaster={isInFarcaster} />
               )}
-              {/* Show claim section if in Farcaster (always visible) or if user clicked miniapp */}
-              {(isInFarcaster || hasClickedMiniapp) && (
-                <DailyClaim 
-                  isInFarcaster={isInFarcaster} 
-                  userFid={userInfo?.fid || null}
-                  isConnected={isConnected}
-                />
-              )}
+              {/* Always show claim section - users can claim if they have wallet connected */}
+              <DailyClaim 
+                isInFarcaster={isInFarcaster} 
+                userFid={userInfo?.fid || null}
+                isConnected={isConnected}
+              />
             </div>
           </div>
         ) : (
