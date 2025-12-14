@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const SubmitForm = ({ onClose, onSubmit, userFid }) => {
+const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false }) => {
   const [formData, setFormData] = useState({
     name: '',
     tagline: '',
@@ -31,6 +31,20 @@ const SubmitForm = ({ onClose, onSubmit, userFid }) => {
     e.preventDefault();
     setSubmitting(true);
     setMessage('');
+
+    // Check if miniapp is installed (required)
+    if (!isMiniappInstalled) {
+      setMessage('ERROR: YOU MUST ADD THIS MINI APP TO YOUR FARCASTER ACCOUNT BEFORE SUBMITTING');
+      setSubmitting(false);
+      return;
+    }
+
+    // Require miniapp URL
+    if (!formData.miniapp || !formData.miniapp.trim()) {
+      setMessage('ERROR: MINI APP URL IS REQUIRED');
+      setSubmitting(false);
+      return;
+    }
 
     // If featured submission, payment would be handled here
     // For now, just submit with payment amount
@@ -231,16 +245,18 @@ const SubmitForm = ({ onClose, onSubmit, userFid }) => {
 
           <div>
             <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-              MINI APP URL
+              MINI APP URL *
             </label>
             <input
               type="url"
               name="miniapp"
               value={formData.miniapp}
               onChange={handleChange}
+              required
               className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
               placeholder="https://warpcast.com/~/mini-app/your-app"
             />
+            <p className="text-[10px] text-gray-600 mt-1">Required to submit your project</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

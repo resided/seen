@@ -218,49 +218,66 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false }) => {
               {!builderData?.fid && app.builderFid && ` • FID #${app.builderFid}`}
             </div>
           </div>
-          <button 
-            onClick={async () => {
-              if (!isInFarcaster) return;
-              
-              try {
-                const targetFid = builderData?.fid || app.builderFid;
-                const targetUsername = builderData?.username;
+          <div className="flex flex-col gap-2">
+            <button 
+              onClick={async () => {
+                if (!isInFarcaster) return;
                 
-                if (!targetFid) {
-                  console.error('No FID available to follow');
-                  return;
-                }
-
-                // Build profile URL
-                const profileUrl = creatorProfileUrl || 
-                  (targetUsername ? `https://farcaster.xyz/${targetUsername}` : `https://farcaster.xyz/profiles/${targetFid}`);
-
-                // Try to use Farcaster SDK to open profile (where user can follow)
                 try {
-                  if (sdk.actions?.openUrl) {
-                    await sdk.actions.openUrl({ url: profileUrl });
-                  } else {
-                    // Fallback: open profile in new tab
+                  const targetFid = builderData?.fid || app.builderFid;
+                  const targetUsername = builderData?.username;
+                  
+                  if (!targetFid) {
+                    console.error('No FID available to follow');
+                    return;
+                  }
+
+                  // Build profile URL
+                  const profileUrl = creatorProfileUrl || 
+                    (targetUsername ? `https://farcaster.xyz/${targetUsername}` : `https://farcaster.xyz/profiles/${targetFid}`);
+
+                  // Try to use Farcaster SDK to open profile (where user can follow)
+                  try {
+                    if (sdk.actions?.openUrl) {
+                      await sdk.actions.openUrl({ url: profileUrl });
+                    } else {
+                      // Fallback: open profile in new tab
+                      window.open(profileUrl, '_blank', 'noopener,noreferrer');
+                    }
+                  } catch (error) {
+                    console.error('Error opening profile:', error);
+                    // Fallback: open profile page
                     window.open(profileUrl, '_blank', 'noopener,noreferrer');
                   }
                 } catch (error) {
-                  console.error('Error opening profile:', error);
-                  // Fallback: open profile page
-                  window.open(profileUrl, '_blank', 'noopener,noreferrer');
+                  console.error('Error in follow handler:', error);
                 }
-              } catch (error) {
-                console.error('Error in follow handler:', error);
-              }
-            }}
-            disabled={!isInFarcaster}
-            className={`text-[10px] tracking-[0.2em] px-3 py-1.5 border border-white transition-all ${
-              isInFarcaster 
-                ? 'hover:bg-white hover:text-black' 
-                : 'opacity-50 cursor-not-allowed'
-            }`}
-          >
-            FOLLOW
-          </button>
+              }}
+              disabled={!isInFarcaster}
+              className={`text-[10px] tracking-[0.2em] px-3 py-1.5 border border-white transition-all ${
+                isInFarcaster 
+                  ? 'hover:bg-white hover:text-black' 
+                  : 'opacity-50 cursor-not-allowed'
+              }`}
+            >
+              FOLLOW
+            </button>
+            {/* Follow on X button - get X username from app data or builder data */}
+            {(app.links?.twitter || app.twitter || builderData?.twitter) && (
+              <button
+                onClick={() => {
+                  const xUsername = app.links?.twitter || app.twitter || builderData?.twitter;
+                  const xUrl = xUsername.startsWith('http') 
+                    ? xUsername 
+                    : `https://x.com/${xUsername.replace('@', '')}`;
+                  window.open(xUrl, '_blank', 'noopener,noreferrer');
+                }}
+                className="text-[10px] tracking-[0.2em] px-3 py-1.5 border border-white hover:bg-white hover:text-black transition-all"
+              >
+                FOLLOW ON X
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Stats */}
@@ -483,7 +500,7 @@ const LiveChat = ({ messages, onSend, isInFarcaster = false }) => {
 // ============================================
 // SUBMIT CTA
 // ============================================
-const SubmitSection = ({ onSubmit, isInFarcaster = false }) => (
+const SubmitSection = ({ onSubmit, isInFarcaster = false, isMiniappInstalled = false }) => (
   <div className="border border-white p-6 text-center">
     <h3 className="text-xl font-black tracking-tight mb-2">GET YOUR PROJECT FEATURED</h3>
     <p className="text-sm text-gray-500 tracking-wider mb-4">
@@ -503,16 +520,30 @@ const SubmitSection = ({ onSubmit, isInFarcaster = false }) => (
         <div className="text-[9px] tracking-[0.2em] text-gray-500">TO SUBMIT</div>
       </div>
     </div>
+    {!isMiniappInstalled && isInFarcaster && (
+      <div className="mb-4 p-4 border border-yellow-500 bg-yellow-500/10">
+        <p className="text-sm text-yellow-400 mb-2">
+          ⚠️ ADD THIS MINI APP TO SUBMIT PROJECTS
+        </p>
+        <p className="text-xs text-yellow-500">
+          You must add this miniapp to your Farcaster account before submitting.
+        </p>
+      </div>
+    )}
     <button 
       onClick={onSubmit}
-      disabled={!isInFarcaster}
+      disabled={!isInFarcaster || !isMiniappInstalled}
       className={`w-full py-4 font-black text-sm tracking-[0.3em] transition-all ${
-        isInFarcaster 
+        isInFarcaster && isMiniappInstalled
           ? 'bg-white text-black hover:bg-gray-200' 
           : 'bg-gray-600 text-gray-400 cursor-not-allowed'
       }`}
     >
-      {isInFarcaster ? 'SUBMIT YOUR PROJECT' : 'OPEN IN FARCASTER TO SUBMIT'}
+      {!isInFarcaster 
+        ? 'OPEN IN FARCASTER TO SUBMIT'
+        : !isMiniappInstalled
+        ? 'ADD MINI APP TO SUBMIT'
+        : 'SUBMIT YOUR PROJECT'}
     </button>
   </div>
 );
@@ -570,12 +601,13 @@ export default function Seen() {
   const [lastMessageTimestamp, setLastMessageTimestamp] = useState(null);
   const [chatLoading, setChatLoading] = useState(true);
   const [isInFarcaster, setIsInFarcaster] = useState(false);
+  const [isMiniappInstalled, setIsMiniappInstalled] = useState(false);
   
   // Wagmi wallet connection
   const { isConnected, address } = useAccount()
   const { connect, connectors } = useConnect()
   
-  // Detect if we're in Farcaster context
+  // Detect if we're in Farcaster context and check miniapp installation
   useEffect(() => {
     const checkFarcasterContext = async () => {
       try {
@@ -583,13 +615,19 @@ export default function Seen() {
         const context = await sdk.context;
         if (context?.user || context) {
           setIsInFarcaster(true);
+          // Check if miniapp is installed
+          // The miniapp is considered "installed" if we can access the context
+          // In Farcaster, if you're viewing the miniapp, it's installed
+          setIsMiniappInstalled(true);
         } else {
           // Also check user agent for Farcaster desktop
           const userAgent = navigator.userAgent.toLowerCase();
           if (userAgent.includes('farcaster') || userAgent.includes('warpcast')) {
             setIsInFarcaster(true);
+            setIsMiniappInstalled(true);
           } else {
             setIsInFarcaster(false);
+            setIsMiniappInstalled(false);
           }
         }
       } catch (error) {
@@ -597,8 +635,10 @@ export default function Seen() {
         const userAgent = navigator.userAgent.toLowerCase();
         if (userAgent.includes('farcaster') || userAgent.includes('warpcast')) {
           setIsInFarcaster(true);
+          setIsMiniappInstalled(true);
         } else {
           setIsInFarcaster(false);
+          setIsMiniappInstalled(false);
         }
       }
     };
@@ -888,7 +928,11 @@ export default function Seen() {
                   <div className="text-sm text-gray-500">NO FEATURED PROJECT</div>
                 </div>
               )}
-              <SubmitSection onSubmit={() => setShowSubmitForm(true)} isInFarcaster={isInFarcaster} />
+              <SubmitSection 
+                onSubmit={() => setShowSubmitForm(true)} 
+                isInFarcaster={isInFarcaster}
+                isMiniappInstalled={isMiniappInstalled}
+              />
             </div>
             
             {/* Right: Chat + Queue */}
@@ -920,6 +964,7 @@ export default function Seen() {
           onClose={() => setShowSubmitForm(false)}
           onSubmit={handleSubmitSuccess}
           userFid={userInfo?.fid || null}
+          isMiniappInstalled={isMiniappInstalled}
         />
       )}
       

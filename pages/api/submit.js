@@ -76,6 +76,15 @@ export default async function handler(req, res) {
       links: links || {}
     })
 
+    // Log submission for debugging
+    console.log('New submission received:', {
+      id: project.id,
+      name: project.name,
+      builder: project.builder,
+      status: project.status,
+      submissionType: project.submissionType
+    });
+
     res.status(201).json({
       success: true,
       message: 'Project submitted successfully! It will be reviewed and added to the queue.',
