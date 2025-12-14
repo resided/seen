@@ -26,10 +26,40 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
   const { sendTransaction } = useSendTransaction();
   
   // Featured submission pricing (configurable)
-  const FEATURED_PRICE = 0.016; // ETH amount
-  const FEATURED_PRICE_DISPLAY = '$45'; // USD display price
+  const FEATURED_PRICE_USD = 45; // USD price
+  const [ethPrice, setEthPrice] = useState(null);
+  const [ethPriceLoading, setEthPriceLoading] = useState(true);
   // Treasury address should be fetched from API or environment
   const [treasuryAddress, setTreasuryAddress] = useState(null);
+  
+  // Calculate ETH amount from USD price
+  const FEATURED_PRICE_ETH = ethPrice ? (FEATURED_PRICE_USD / ethPrice) : null;
+  const FEATURED_PRICE_DISPLAY = `$${FEATURED_PRICE_USD}`;
+  
+  // Fetch ETH price
+  useEffect(() => {
+    const fetchEthPrice = async () => {
+      try {
+        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.ethereum?.usd) {
+            setEthPrice(data.ethereum.usd);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching ETH price:', error);
+        setEthPrice(2800); // Approximate fallback
+      } finally {
+        setEthPriceLoading(false);
+      }
+    };
+    
+    fetchEthPrice();
+    // Refresh price every 30 seconds
+    const interval = setInterval(fetchEthPrice, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Fetch treasury address from API
   useEffect(() => {
@@ -90,7 +120,16 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
       return;
     }
 
-    const paymentAmount = formData.submissionType === 'featured' ? FEATURED_PRICE : 0;
+    // Calculate payment amount dynamically based on ETH price
+    let paymentAmount = 0;
+    if (formData.submissionType === 'featured') {
+      if (!ethPrice || !FEATURED_PRICE_ETH) {
+        setMessage('ERROR: ETH PRICE NOT LOADED. PLEASE WAIT AND TRY AGAIN.');
+        setSubmitting(false);
+        return;
+      }
+      paymentAmount = FEATURED_PRICE_ETH;
+    }
 
     // If featured submission, collect payment first
     if (formData.submissionType === 'featured' && paymentAmount > 0) {
@@ -113,7 +152,7 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
         // Send payment transaction
         const hash = await sendTransaction({
           to: treasuryAddress,
-          value: parseEther(paymentAmount.toString()),
+          value: parseEther(paymentAmount.toFixed(6)),
         });
 
         setPaymentTxHash(hash);
@@ -307,7 +346,10 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
                 />
                 <div className="flex-1">
                   <div className="text-sm font-bold">FEATURED SLOT</div>
-                  <div className="text-[10px] text-gray-500">{FEATURED_PRICE_DISPLAY} ({FEATURED_PRICE} ETH) - Payment required</div>
+                  <div className="text-[10px] text-gray-500">
+                    {FEATURED_PRICE_DISPLAY} 
+                    {ethPriceLoading ? ' (Loading...)' : FEATURED_PRICE_ETH ? ` (~${FEATURED_PRICE_ETH.toFixed(6)} ETH)` : ' (Price unavailable)'} - Payment required
+                  </div>
                   {formData.submissionType === 'featured' && !isConnected && (
                     <div className="text-[9px] text-yellow-400 mt-1">⚠ CONNECT WALLET TO PAY</div>
                   )}
@@ -393,9 +435,9 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
               value={formData.twitter}
               onChange={handleChange}
               className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-              placeholder="@protardio or protardio (username only)"
+              placeholder="@ireside or ireside (username only)"
             />
-            <p className="text-[10px] text-gray-600 mt-1">Enter username only (e.g., @protardio or protardio). A "Follow on X" button will appear on your featured project.</p>
+            <p className="text-[10px] text-gray-600 mt-1">Enter username only (e.g., @ireside or ireside). A "Follow on X" button will appear on your featured project.</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4 pt-4">
