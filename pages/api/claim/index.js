@@ -118,6 +118,14 @@ export default async function handler(req, res) {
           error: 'Treasury private key not configured properly. Must start with 0x' 
         });
       }
+
+      // Validate token contract address format
+      if (!TOKEN_CONTRACT || !TOKEN_CONTRACT.startsWith('0x') || TOKEN_CONTRACT.length !== 42) {
+        return res.status(500).json({ 
+          error: 'Invalid token contract address. Must be a valid Ethereum address (0x followed by 40 hex characters)',
+          provided: TOKEN_CONTRACT || 'NOT SET'
+        });
+      }
       
       const account = privateKeyToAccount(TREASURY_PRIVATE_KEY);
       
@@ -132,12 +140,23 @@ export default async function handler(req, res) {
         transport: http(),
       });
 
+      // Validate amount
+      const tokenAmount = parseUnits(TOKEN_AMOUNT, TOKEN_DECIMALS);
+      console.log('Sending tokens:', {
+        contract: TOKEN_CONTRACT,
+        to: walletAddress,
+        amount: TOKEN_AMOUNT,
+        amountWei: tokenAmount.toString(),
+        decimals: TOKEN_DECIMALS,
+        from: account.address,
+      });
+
       // Send ERC20 tokens
       const hash = await walletClient.writeContract({
         address: TOKEN_CONTRACT,
         abi: erc20Abi,
         functionName: 'transfer',
-        args: [walletAddress, parseUnits(TOKEN_AMOUNT, TOKEN_DECIMALS)],
+        args: [walletAddress, tokenAmount],
       });
 
       // Calculate TTL: time until expiration (expires when featured project changes)
@@ -157,10 +176,41 @@ export default async function handler(req, res) {
         amount: TOKEN_AMOUNT,
       });
     } catch (txError) {
-      console.error('Error sending tokens:', txError);
+      console.error('Error sending tokens:', {
+        error: txError,
+        message: txError.message,
+        cause: txError.cause,
+        contract: TOKEN_CONTRACT,
+        amount: TOKEN_AMOUNT,
+        decimals: TOKEN_DECIMALS,
+        recipient: walletAddress,
+      });
+
+      // Provide more specific error messages
+      let errorMessage = 'Failed to send tokens';
+      let errorDetails = txError.message;
+
+      if (txError.message?.includes('insufficient funds') || txError.message?.includes('balance')) {
+        errorMessage = 'Insufficient token balance in treasury wallet';
+        errorDetails = 'The treasury wallet does not have enough tokens to send. Please add tokens to the treasury wallet.';
+      } else if (txError.message?.includes('execution reverted') || txError.message?.includes('revert')) {
+        errorMessage = 'Token transfer failed - contract execution reverted';
+        errorDetails = 'The token contract rejected the transfer. This could mean: (1) Invalid contract address, (2) Contract is not an ERC20 token, (3) Contract is paused, or (4) Transfer function failed.';
+      } else if (txError.message?.includes('invalid address') || txError.message?.includes('address')) {
+        errorMessage = 'Invalid contract address';
+        errorDetails = 'The token contract address is not valid or the contract does not exist on Base network.';
+      }
+
       return res.status(500).json({ 
-        error: 'Failed to send tokens',
-        details: txError.message 
+        error: errorMessage,
+        details: errorDetails,
+        contract: TOKEN_CONTRACT,
+        troubleshooting: {
+          checkContract: 'Verify the contract address is correct and deployed on Base network',
+          checkBalance: 'Verify the treasury wallet has enough tokens',
+          checkContractType: 'Verify the contract is a valid ERC20 token with transfer() function',
+          checkNetwork: 'Verify the contract is on Base network (not Ethereum mainnet)',
+        }
       });
     }
   } catch (error) {
