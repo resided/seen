@@ -1762,12 +1762,30 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
               </div>
             )}
             <button
-              onClick={() => {
+              onClick={async () => {
                 const miniappUrl = 'https://farcaster.xyz/miniapps/EvK2rV9tUv3h/seen';
-                // Put URL on new line for better embedding
-                const castText = encodeURIComponent(`I just claimed $SEEN for checking out today's featured miniapp\n\n${miniappUrl}`);
-                const farcastUrl = `https://warpcast.com/~/compose?text=${castText}`;
-                window.open(farcastUrl, '_blank', 'noopener,noreferrer');
+                const castText = `I just claimed $SEEN for checking out today's featured miniapp\n\n${miniappUrl}`;
+                
+                // Use Farcaster SDK composeCast for proper embedding
+                try {
+                  if (typeof window !== 'undefined' && sdk?.actions?.composeCast) {
+                    await sdk.actions.composeCast({
+                      text: castText,
+                      embeds: [miniappUrl]
+                    });
+                  } else {
+                    // Fallback to warpcast URL if SDK not available
+                    const encodedText = encodeURIComponent(castText);
+                    const farcastUrl = `https://warpcast.com/~/compose?text=${encodedText}`;
+                    window.open(farcastUrl, '_blank', 'noopener,noreferrer');
+                  }
+                } catch (error) {
+                  console.error('Error opening compose:', error);
+                  // Fallback to warpcast URL
+                  const encodedText = encodeURIComponent(castText);
+                  const farcastUrl = `https://warpcast.com/~/compose?text=${encodedText}`;
+                  window.open(farcastUrl, '_blank', 'noopener,noreferrer');
+                }
               }}
               className="w-full py-3 border border-white font-bold text-sm tracking-[0.2em] hover:bg-white hover:text-black transition-all mt-4"
             >
