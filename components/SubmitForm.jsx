@@ -557,9 +557,9 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
               value={formData.twitter}
               onChange={handleChange}
               className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-              placeholder="@ireside or ireside (username only)"
+              placeholder="@ireside (include @)"
             />
-            <p className="text-[10px] text-gray-600 mt-1">Enter username only (e.g., @ireside or ireside). A "Follow on X" button will appear on your featured project.</p>
+            <p className="text-[10px] text-gray-600 mt-1">Enter username with @ symbol (e.g., @ireside). A "Follow on X" button will appear on your featured project.</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4 pt-4">
