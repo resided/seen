@@ -1113,14 +1113,14 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
 
   return (
     <>
-      <div className="border border-white p-4 hover:bg-white/5 transition-all">
-        <div className="flex items-start gap-4">
+      <div className="border border-white p-4 md:p-6 hover:bg-white/5 transition-all">
+        <div className="flex flex-col md:flex-row items-start gap-4">
           <div className="flex items-center gap-2 min-w-[80px] shrink-0">
-            <div className="text-2xl font-black w-8 text-center">
+            <div className="text-2xl md:text-3xl font-black w-10 md:w-12 text-center">
               #{project.rank}
             </div>
             {rankChange !== null && (
-              <div className={`text-xs ${
+              <div className={`text-xs md:text-sm ${
                 rankChange > 0 ? 'text-green-400' : 
                 rankChange < 0 ? 'text-red-400' : 
                 'text-gray-500'
@@ -1132,54 +1132,59 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
           </div>
           
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-3 mb-1">
-              <h3 className="text-lg font-black truncate">{project.name}</h3>
+            <div className="flex items-center gap-3 mb-2 flex-wrap">
+              <h3 className="text-xl md:text-2xl font-black break-words">{project.name}</h3>
               <span className="text-[9px] tracking-[0.2em] px-2 py-0.5 bg-white text-black font-bold shrink-0">
                 {project.category?.toUpperCase()}
               </span>
             </div>
-            <p className="text-[10px] text-gray-500 mb-1">{project.tagline}</p>
+            <p className="text-sm text-gray-500 mb-2">{project.tagline}</p>
             
-            {/* Description - expandable */}
+            {/* Description - show more by default, can collapse */}
             {project.description && (
-              <div className="mb-2">
+              <div className="mb-3">
                 {showDescription ? (
                   <div>
-                    <p className="text-xs text-gray-400 leading-relaxed mb-1">{project.description}</p>
+                    <p className="text-sm text-gray-400 leading-relaxed mb-1 whitespace-pre-wrap break-words">{project.description}</p>
                     <button
                       onClick={() => setShowDescription(false)}
-                      className="text-[9px] text-gray-500 hover:text-white underline"
+                      className="text-[10px] text-gray-500 hover:text-white underline"
                     >
                       SHOW LESS
                     </button>
                   </div>
                 ) : (
-                  <button
-                    onClick={() => setShowDescription(true)}
-                    className="text-[9px] text-gray-500 hover:text-white underline"
-                  >
-                    SHOW MORE
-                  </button>
+                  <div>
+                    <p className="text-sm text-gray-400 leading-relaxed mb-1 line-clamp-3 whitespace-pre-wrap break-words">{project.description}</p>
+                    {project.description.length > 150 && (
+                      <button
+                        onClick={() => setShowDescription(true)}
+                        className="text-[10px] text-gray-500 hover:text-white underline"
+                      >
+                        SHOW MORE
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             )}
             
-            <div className="flex items-center gap-4 text-[9px] tracking-[0.2em] text-gray-600 flex-wrap">
-              <span className="flex items-center gap-1">
-                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+            <div className="flex items-center gap-4 md:gap-6 text-xs md:text-sm tracking-[0.2em] text-gray-600 flex-wrap">
+              <span className="flex items-center gap-1.5">
+                <svg className="w-4 h-4 md:w-5 md:h-5" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
                   <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
                 </svg>
                 {formatNumber(project.todayViews || project.stats?.views || 0)}
               </span>
-              <span className="flex items-center gap-1">
-                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+              <span className="flex items-center gap-1.5">
+                <svg className="w-4 h-4 md:w-5 md:h-5" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
                 </svg>
                 {formatNumber(project.todayClicks || project.stats?.clicks || 0)}
               </span>
-              <span className="flex items-center gap-1">
-                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+              <span className="flex items-center gap-1.5">
+                <svg className="w-4 h-4 md:w-5 md:h-5" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.343 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.343-1.253V5z" clipRule="evenodd" />
                 </svg>
@@ -1188,11 +1193,11 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
             </div>
           </div>
           
-          <div className="flex gap-2 shrink-0">
+          <div className="flex gap-2 shrink-0 w-full md:w-auto mt-2 md:mt-0">
             {project.links?.miniapp && (
               <button
                 onClick={handleOpenClick}
-                className="px-4 py-2 border border-white text-[10px] tracking-[0.2em] hover:bg-white hover:text-black transition-all whitespace-nowrap"
+                className="flex-1 md:flex-none px-6 py-3 md:px-4 md:py-2 border border-white text-sm md:text-[10px] tracking-[0.2em] hover:bg-white hover:text-black transition-all whitespace-nowrap font-bold"
               >
                 OPEN
               </button>
@@ -1200,7 +1205,7 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
             {isInFarcaster && isConnected && (
               <button
                 onClick={() => setShowTipModal(true)}
-                className="px-3 py-2 border border-white text-[9px] tracking-[0.2em] hover:bg-white hover:text-black transition-all"
+                className="flex-1 md:flex-none px-6 py-3 md:px-3 md:py-2 border border-white text-sm md:text-[9px] tracking-[0.2em] hover:bg-white hover:text-black transition-all font-bold"
                 title="Tip builder"
               >
                 TIP
