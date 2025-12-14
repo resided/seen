@@ -21,7 +21,9 @@ export default async function handler(req, res) {
       submissionType,
       paymentAmount,
       paymentTxHash,
+      paymentTimestamp,
       submitterWalletAddress,
+      plannedGoLiveDate,
       links,
       submitterFid // FID of the person submitting (current user)
     } = req.body
@@ -130,7 +132,9 @@ export default async function handler(req, res) {
       submissionType: submissionType || 'queue',
       paymentAmount: paymentAmount || 0,
       paymentTxHash: paymentTxHash || null,
+      paymentTimestamp: paymentTimestamp || null,
       submitterWalletAddress: submitterWalletAddress || null,
+      plannedGoLiveDate: plannedGoLiveDate || null,
       links: links || {}
     })
 

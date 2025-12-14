@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAccount, useSendTransaction } from 'wagmi';
+import { useAccount, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi';
 import { parseEther } from 'viem';
 
 const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, neynarUserScore = null }) => {
@@ -16,6 +16,7 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
     github: '',
     twitter: '',
     submissionType: 'queue', // 'queue' (free) or 'featured' (paid)
+    plannedGoLiveDate: '', // Date when they plan to go live
   });
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
@@ -23,7 +24,10 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
   const [processingPayment, setProcessingPayment] = useState(false);
   
   const { isConnected, address } = useAccount();
-  const { sendTransaction } = useSendTransaction();
+  const { sendTransaction, data: txData } = useSendTransaction();
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+    hash: txData,
+  });
   
   // Featured submission pricing (configurable)
   const FEATURED_PRICE_USD = 45; // USD price
@@ -76,6 +80,62 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
         });
     }
   }, [formData.submissionType]);
+
+  // Auto-submit after payment confirmation
+  useEffect(() => {
+    if (formData.submissionType === 'featured' && paymentTxHash && isConfirmed && !submitting && !processingPayment) {
+      // Payment confirmed, now submit the form
+      const submitAfterPayment = async () => {
+        setSubmitting(true);
+        setMessage('PAYMENT CONFIRMED! SUBMITTING PROJECT...');
+        
+        try {
+          const paymentAmount = FEATURED_PRICE_ETH;
+          const response = await fetch('/api/submit', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              ...formData,
+              submissionType: formData.submissionType,
+              paymentAmount: paymentAmount,
+              paymentTxHash: paymentTxHash,
+              paymentTimestamp: new Date().toISOString(),
+              submitterWalletAddress: address,
+              links: {
+                miniapp: formData.miniapp,
+                website: formData.website,
+                github: formData.github,
+                twitter: formData.twitter || null,
+              },
+              submitterFid: userFid || null,
+              plannedGoLiveDate: formData.plannedGoLiveDate || null,
+            }),
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            setMessage(`SUBMITTED! PAYMENT RECEIVED. YOUR FEATURED SUBMISSION IS PENDING ADMIN APPROVAL. TX: ${paymentTxHash.slice(0, 10)}...`);
+            setTimeout(() => {
+              onSubmit?.();
+              onClose();
+            }, 4000);
+          } else {
+            setMessage(data.error || 'SUBMISSION FAILED');
+          }
+        } catch (error) {
+          setMessage('ERROR SUBMITTING PROJECT');
+        } finally {
+          setSubmitting(false);
+          setProcessingPayment(false);
+        }
+      };
+      
+      submitAfterPayment();
+    }
+  }, [isConfirmed, paymentTxHash, formData.submissionType]);
 
   const handleChange = (e) => {
     const newFormData = {
@@ -156,7 +216,11 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
         });
 
         setPaymentTxHash(hash);
-        setMessage('PAYMENT SENT! SUBMITTING PROJECT...');
+        setMessage('PAYMENT SENT! WAITING FOR CONFIRMATION...');
+        
+        // Wait for transaction confirmation
+        // The useWaitForTransactionReceipt hook will handle this
+        // We'll check isConfirmed in the next part
       } catch (error) {
         console.error('Payment error:', error);
         setMessage('PAYMENT FAILED. PLEASE TRY AGAIN.');
@@ -166,49 +230,66 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
       }
     }
 
-    try {
-      const response = await fetch('/api/submit', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...formData,
-          submissionType: formData.submissionType,
-          paymentAmount: paymentAmount,
-          paymentTxHash: paymentTxHash || null,
-          submitterWalletAddress: formData.submissionType === 'featured' ? address : null,
-          links: {
-            miniapp: formData.miniapp,
-            website: formData.website,
-            github: formData.github,
-            twitter: formData.twitter || null,
-          },
-          submitterFid: userFid || null, // Pass current user's FID for score validation
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        if (formData.submissionType === 'featured') {
-          setMessage(`SUBMITTED! PAYMENT RECEIVED. YOUR FEATURED SUBMISSION IS PENDING ADMIN APPROVAL.${paymentTxHash ? ` TX: ${paymentTxHash.slice(0, 10)}...` : ''}`);
-        } else {
-          setMessage('SUBMITTED! YOUR PROJECT IS PENDING ADMIN APPROVAL AND WILL BE ADDED TO THE QUEUE IF APPROVED.');
-        }
-        setTimeout(() => {
-          onSubmit?.();
-          onClose();
-        }, 4000);
-      } else {
-        setMessage(data.error || 'SUBMISSION FAILED');
+    // If payment was sent but not confirmed yet, wait
+    if (formData.submissionType === 'featured' && paymentTxHash && !isConfirmed) {
+      if (isConfirming) {
+        setMessage('WAITING FOR PAYMENT CONFIRMATION...');
+        setSubmitting(false);
+        return; // Don't submit yet, wait for confirmation
       }
-    } catch (error) {
-      setMessage('ERROR SUBMITTING PROJECT');
-    } finally {
+      // If transaction failed or was rejected
+      setMessage('PAYMENT NOT CONFIRMED. PLEASE TRY AGAIN.');
       setSubmitting(false);
       setProcessingPayment(false);
+      return;
     }
+
+    // For queue submissions, submit immediately
+    // For featured submissions, wait for payment confirmation (handled in useEffect)
+    if (formData.submissionType === 'queue') {
+      try {
+        const response = await fetch('/api/submit', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            ...formData,
+            submissionType: formData.submissionType,
+            paymentAmount: 0,
+            paymentTxHash: null,
+            paymentTimestamp: null,
+            submitterWalletAddress: null,
+            plannedGoLiveDate: formData.plannedGoLiveDate || null,
+            links: {
+              miniapp: formData.miniapp,
+              website: formData.website,
+              github: formData.github,
+              twitter: formData.twitter || null,
+            },
+            submitterFid: userFid || null,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          setMessage('SUBMITTED! YOUR PROJECT IS PENDING ADMIN APPROVAL AND WILL BE ADDED TO THE QUEUE IF APPROVED.');
+          setTimeout(() => {
+            onSubmit?.();
+            onClose();
+          }, 4000);
+        } else {
+          setMessage(data.error || 'SUBMISSION FAILED');
+        }
+      } catch (error) {
+        setMessage('ERROR SUBMITTING PROJECT');
+      } finally {
+        setSubmitting(false);
+        setProcessingPayment(false);
+      }
+    }
+    // For featured submissions, payment confirmation will trigger submission via useEffect
   };
 
   return (
@@ -350,6 +431,9 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
                     {FEATURED_PRICE_DISPLAY} 
                     {ethPriceLoading ? ' (Loading...)' : FEATURED_PRICE_ETH ? ` (~${FEATURED_PRICE_ETH.toFixed(6)} ETH)` : ' (Price unavailable)'} - Payment required
                   </div>
+                  <div className="text-[9px] text-yellow-400 mt-1 font-bold">
+                    ⚠ MUST CHOOSE FEATURED DROPDOWN MENU
+                  </div>
                   {formData.submissionType === 'featured' && !isConnected && (
                     <div className="text-[9px] text-yellow-400 mt-1">⚠ CONNECT WALLET TO PAY</div>
                   )}
@@ -378,7 +462,40 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
               <option value="tools">TOOLS</option>
               <option value="nft">NFT</option>
             </select>
+            {formData.submissionType === 'featured' && formData.category !== 'featured' && (
+              <div className="text-[9px] text-red-400 mt-1">
+                ⚠ MUST CHOOSE FEATURED FROM DROPDOWN MENU
+              </div>
+            )}
           </div>
+
+          {formData.submissionType === 'featured' && (
+            <div>
+              <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                PLANNED GO LIVE DATE (OPTIONAL)
+              </label>
+              <input
+                type="date"
+                name="plannedGoLiveDate"
+                value={formData.plannedGoLiveDate}
+                onChange={handleChange}
+                min={new Date().toISOString().split('T')[0]}
+                className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+              />
+              <p className="text-[10px] text-gray-600 mt-1">
+                When do you plan to launch? We'll try to accommodate, but slot may be booked. We'll reach out if we need a different date.
+              </p>
+            </div>
+          )}
+
+          {formData.submissionType === 'featured' && (
+            <div className="p-4 border border-yellow-500/50 bg-yellow-500/10">
+              <div className="text-xs font-bold text-yellow-400 mb-2">⚠ SLOT AVAILABILITY DISCLAIMER</div>
+              <div className="text-[10px] text-yellow-300">
+                Featured slots may be booked. We'll review your submission and reach out if we need to schedule a different date. Payment is required upfront and will be refunded if we cannot accommodate your requested date.
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
@@ -450,10 +567,10 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
             </button>
             <button
               type="submit"
-              disabled={submitting || processingPayment || (neynarUserScore !== null && neynarUserScore < MIN_NEYNAR_SCORE) || (formData.submissionType === 'featured' && !isConnected)}
+              disabled={submitting || processingPayment || isConfirming || (neynarUserScore !== null && neynarUserScore < MIN_NEYNAR_SCORE) || (formData.submissionType === 'featured' && !isConnected) || (formData.submissionType === 'featured' && paymentTxHash && !isConfirmed) || (formData.submissionType === 'featured' && formData.category !== 'featured')}
               className="py-3 bg-white text-black font-black text-sm tracking-[0.2em] hover:bg-gray-200 transition-all disabled:opacity-50"
             >
-              {processingPayment ? 'PROCESSING PAYMENT...' : submitting ? 'SUBMITTING...' : (neynarUserScore !== null && neynarUserScore < MIN_NEYNAR_SCORE) ? 'SCORE TOO LOW' : (formData.submissionType === 'featured' && !isConnected) ? 'CONNECT WALLET' : formData.submissionType === 'featured' ? `SUBMIT & PAY ${FEATURED_PRICE_DISPLAY}` : 'SUBMIT'}
+              {isConfirming ? 'WAITING FOR CONFIRMATION...' : processingPayment ? 'PROCESSING PAYMENT...' : submitting ? 'SUBMITTING...' : (neynarUserScore !== null && neynarUserScore < MIN_NEYNAR_SCORE) ? 'SCORE TOO LOW' : (formData.submissionType === 'featured' && !isConnected) ? 'CONNECT WALLET' : (formData.submissionType === 'featured' && formData.category !== 'featured') ? 'MUST CHOOSE FEATURED' : formData.submissionType === 'featured' ? `SUBMIT & PAY ${FEATURED_PRICE_DISPLAY}` : 'SUBMIT'}
             </button>
           </div>
         </form>
