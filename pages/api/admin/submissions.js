@@ -35,6 +35,8 @@ export default function handler(req, res) {
 
   try {
     const submissions = getPendingSubmissions()
+    // Log for debugging
+    console.log(`Admin fetching submissions: ${submissions.length} pending`);
     res.status(200).json({
       submissions,
       count: submissions.length
