@@ -919,6 +919,7 @@ export default function Seen() {
         <SubmitForm
           onClose={() => setShowSubmitForm(false)}
           onSubmit={handleSubmitSuccess}
+          userFid={userInfo?.fid || null}
         />
       )}
       

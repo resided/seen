@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const SubmitForm = ({ onClose, onSubmit }) => {
+const SubmitForm = ({ onClose, onSubmit, userFid }) => {
   const [formData, setFormData] = useState({
     name: '',
     tagline: '',
@@ -49,7 +49,8 @@ const SubmitForm = ({ onClose, onSubmit }) => {
             miniapp: formData.miniapp,
             website: formData.website,
             github: formData.github,
-          }
+          },
+          submitterFid: userFid || null, // Pass current user's FID for score validation
         }),
       });
 

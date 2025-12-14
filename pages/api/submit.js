@@ -1,7 +1,10 @@
 // API route to submit a new project
 import { submitProject } from '../../lib/projects'
+import { fetchUserByFid } from '../../lib/neynar'
 
-export default function handler(req, res) {
+const MIN_NEYNAR_SCORE = 0.62; // Minimum Neynar user score required to submit
+
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
@@ -16,12 +19,44 @@ export default function handler(req, res) {
       category,
       submissionType,
       paymentAmount,
-      links
+      links,
+      submitterFid // FID of the person submitting (current user)
     } = req.body
 
     // Validate required fields
     if (!name || !tagline || !description || !builder || !category) {
       return res.status(400).json({ error: 'Missing required fields' })
+    }
+
+    // Check Neynar user score if submitterFid is provided
+    if (submitterFid) {
+      const apiKey = process.env.NEYNAR_API_KEY;
+      if (apiKey) {
+        try {
+          const user = await fetchUserByFid(submitterFid, apiKey);
+          if (user) {
+            const userScore = user.experimental?.neynar_user_score;
+            
+            // If score exists and is below threshold, reject submission
+            if (userScore !== null && userScore !== undefined) {
+              if (userScore < MIN_NEYNAR_SCORE) {
+                return res.status(403).json({ 
+                  error: `Your Neynar user score (${userScore.toFixed(2)}) is below the required threshold of ${MIN_NEYNAR_SCORE}. Only users with a score of ${MIN_NEYNAR_SCORE} or higher can submit projects.`,
+                  userScore: userScore,
+                  minScore: MIN_NEYNAR_SCORE
+                });
+              }
+            } else {
+              // If score is not available, allow submission but log it
+              console.warn(`User ${submitterFid} has no Neynar score available`);
+            }
+          }
+        } catch (error) {
+          console.error('Error checking Neynar user score:', error);
+          // If we can't check the score, we'll allow submission but log the error
+          // You might want to change this to reject if score checking is critical
+        }
+      }
     }
 
     // Validate featured submission has payment
