@@ -71,9 +71,45 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false })
   const [tipping, setTipping] = useState(false);
   const [tipMessage, setTipMessage] = useState('');
   const [showTipModal, setShowTipModal] = useState(false);
-  const [customTipAmount, setCustomTipAmount] = useState('0.001');
+  const [customTipAmount, setCustomTipAmount] = useState('0.001'); // Stored as ETH internally
+  const [customTipAmountUsd, setCustomTipAmountUsd] = useState(''); // Display value in USD
+  const [ethPrice, setEthPrice] = useState(null);
+  const [ethPriceLoading, setEthPriceLoading] = useState(true);
   
   const { sendTransaction } = useSendTransaction();
+
+  // Fetch live ETH price
+  useEffect(() => {
+    const fetchEthPrice = async () => {
+      try {
+        // Using CoinGecko API (free, no API key needed)
+        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd');
+        const data = await response.json();
+        if (data.ethereum?.usd) {
+          setEthPrice(data.ethereum.usd);
+        }
+      } catch (error) {
+        console.error('Error fetching ETH price:', error);
+        // Fallback to a default price if API fails
+        setEthPrice(2800); // Approximate fallback
+      } finally {
+        setEthPriceLoading(false);
+      }
+    };
+
+    fetchEthPrice();
+    // Refresh price every 30 seconds
+    const interval = setInterval(fetchEthPrice, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Sync USD amount when ETH price loads or modal opens
+  useEffect(() => {
+    if (showTipModal && ethPrice && !customTipAmountUsd && customTipAmount) {
+      const usdValue = (parseFloat(customTipAmount) * ethPrice).toFixed(2);
+      setCustomTipAmountUsd(usdValue);
+    }
+  }, [showTipModal, ethPrice, customTipAmount, customTipAmountUsd]);
   
   useEffect(() => {
     const timer = setInterval(() => {
@@ -406,8 +442,12 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false })
                 return;
               }
 
-              // Show tip modal
+              // Show tip modal and initialize USD amount
               setShowTipModal(true);
+              if (ethPrice) {
+                const initialUsd = (parseFloat(customTipAmount) * ethPrice).toFixed(2);
+                setCustomTipAmountUsd(initialUsd);
+              }
             }}
             disabled={!isInFarcaster || !isConnected || !builderData?.walletAddress || !builderData?.verified}
             className={`bg-black py-4 font-bold text-sm tracking-[0.2em] transition-all ${
@@ -436,6 +476,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false })
                 onClick={() => {
                   setShowTipModal(false);
                   setCustomTipAmount('0.001');
+                  setCustomTipAmountUsd('');
                   setTipMessage('');
                 }}
                 className="text-white hover:text-gray-400 text-2xl"
@@ -457,37 +498,97 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false })
             <div className="space-y-4">
               <div>
                 <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                  AMOUNT (ETH)
+                  AMOUNT (USD)
                 </label>
+                <p className="text-[9px] tracking-[0.2em] text-gray-600 mb-2">
+                  AMOUNT SHOWN IN USD • CONVERTS TO ETH AT CURRENT PRICE
+                </p>
+                {ethPriceLoading ? (
+                  <div className="text-[10px] text-gray-500 mb-2">Loading ETH price...</div>
+                ) : ethPrice ? (
+                  <div className="text-[10px] text-gray-500 mb-2">
+                    1 ETH = ${ethPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                ) : null}
                 <input
                   type="number"
-                  step="0.001"
-                  min="0.001"
-                  value={customTipAmount}
+                  step="0.01"
+                  min="0.01"
+                  value={customTipAmountUsd}
                   onChange={(e) => {
-                    const value = e.target.value;
-                    if (value === '' || (!isNaN(value) && parseFloat(value) >= 0)) {
-                      setCustomTipAmount(value);
+                    const usdValue = e.target.value;
+                    setCustomTipAmountUsd(usdValue);
+                    
+                    // Convert USD to ETH for storage (this is what gets sent)
+                    if (usdValue === '') {
+                      setCustomTipAmount('0.001'); // Reset to minimum
+                    } else {
+                      const usdNum = parseFloat(usdValue);
+                      if (!isNaN(usdNum) && usdNum >= 0) {
+                        const currentPrice = ethPrice || 2800;
+                        const ethValue = usdNum / currentPrice;
+                        setCustomTipAmount(ethValue.toString());
+                      }
                     }
                   }}
                   className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                  placeholder="0.001"
+                  placeholder="0.00"
                 />
+                {customTipAmount && customTipAmountUsd && ethPrice && (
+                  <p className="text-[10px] text-gray-600 mt-1">
+                    ≈ {parseFloat(customTipAmount).toFixed(6)} ETH
+                  </p>
+                )}
                 <p className="text-[10px] text-gray-600 mt-1">
-                  Minimum: 0.001 ETH
+                  Minimum: ${ethPrice ? (0.001 * ethPrice).toFixed(2) : '2.80'} (~0.001 ETH)
                 </p>
               </div>
 
               <div className="flex gap-2">
-                {['0.001', '0.01', '0.1', '1'].map((amount) => (
-                  <button
-                    key={amount}
-                    onClick={() => setCustomTipAmount(amount)}
-                    className="flex-1 px-3 py-2 border border-white text-[10px] tracking-[0.2em] hover:bg-white hover:text-black transition-all"
-                  >
-                    {amount} ETH
-                  </button>
-                ))}
+                {ethPrice ? (
+                  [
+                    { usd: 5, label: '$5' },
+                    { usd: 10, label: '$10' },
+                    { usd: 25, label: '$25' },
+                    { usd: 50, label: '$50' },
+                  ].map((option) => {
+                    const ethValue = (option.usd / ethPrice).toFixed(6);
+                    return (
+                      <button
+                        key={option.usd}
+                        onClick={() => {
+                          setCustomTipAmountUsd(option.usd.toString());
+                          setCustomTipAmount(ethValue);
+                        }}
+                        className="flex-1 px-3 py-2 border border-white text-[10px] tracking-[0.2em] hover:bg-white hover:text-black transition-all"
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })
+                ) : (
+                  // Fallback if price not loaded - show USD amounts based on fallback price
+                  [
+                    { usd: 5, label: '$5' },
+                    { usd: 10, label: '$10' },
+                    { usd: 25, label: '$25' },
+                    { usd: 50, label: '$50' },
+                  ].map((option) => {
+                    const ethValue = (option.usd / 2800).toFixed(6);
+                    return (
+                      <button
+                        key={option.usd}
+                        onClick={() => {
+                          setCustomTipAmountUsd(option.usd.toString());
+                          setCustomTipAmount(ethValue);
+                        }}
+                        className="flex-1 px-3 py-2 border border-white text-[10px] tracking-[0.2em] hover:bg-white hover:text-black transition-all"
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })
+                )}
               </div>
 
               <div className="pt-4 border-t border-white">
@@ -529,9 +630,11 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false })
                 <button
                   onClick={async () => {
                     const amount = parseFloat(customTipAmount);
+                    const minEth = 0.001;
+                    const minUsd = ethPrice ? (minEth * ethPrice).toFixed(2) : '2.80';
                     
-                    if (!amount || amount < 0.001) {
-                      setTipMessage('MINIMUM TIP IS 0.001 ETH');
+                    if (!amount || amount < minEth) {
+                      setTipMessage(`MINIMUM TIP IS $${minUsd} (~0.001 ETH)`);
                       setTimeout(() => setTipMessage(''), 3000);
                       return;
                     }
@@ -583,10 +686,12 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false })
                         console.error('Error tracking tip:', error);
                       }
 
-                      setTipMessage(`TIP SENT! ${customTipAmount} ETH`);
+                      const usdAmount = ethPrice ? (parseFloat(customTipAmount) * ethPrice).toFixed(2) : null;
+                      setTipMessage(`TIP SENT! ${parseFloat(customTipAmount).toFixed(6)} ETH${usdAmount ? ` ($${usdAmount})` : ''}`);
                       setTimeout(() => {
                         setShowTipModal(false);
                         setCustomTipAmount('0.001');
+                        setCustomTipAmountUsd('');
                         setTipMessage('');
                       }, 3000);
                     } catch (error) {
@@ -599,7 +704,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false })
                   disabled={tipping || !customTipAmount || parseFloat(customTipAmount) < 0.001}
                   className="flex-1 py-3 bg-white text-black font-black text-sm tracking-[0.2em] hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {tipping ? 'SENDING...' : `SEND ${customTipAmount} ETH`}
+                  {tipping ? 'SENDING...' : ethPrice ? `SEND $${(parseFloat(customTipAmount) * ethPrice).toFixed(2)}` : `SEND ${parseFloat(customTipAmount).toFixed(6)} ETH`}
                 </button>
               </div>
             </div>
