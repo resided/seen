@@ -444,6 +444,37 @@ export default function Admin() {
     }
   };
 
+  const handleResetClaims = async () => {
+    if (!confirm('Are you sure you want to reset ALL claims for today? This will allow everyone to claim again today.')) {
+      return;
+    }
+
+    if (!confirm('This action cannot be undone. Type RESET to confirm.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/admin/reset-claims', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          confirm: 'RESET',
+          fid: userFid || null 
+        }),
+        credentials: 'include',
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setMessage(data.message || 'Claims reset successfully!');
+      } else {
+        setMessage(data.error || 'Failed to reset claims');
+      }
+    } catch (error) {
+      setMessage('Error resetting claims');
+    }
+  };
+
   const handleArchive = async (projectId, archive = true) => {
     const action = archive ? 'archive' : 'unarchive';
     const confirmMsg = archive 
@@ -658,6 +689,13 @@ export default function Admin() {
                 className="px-4 py-2 bg-yellow-500 text-black font-bold hover:bg-yellow-400 transition-all"
               >
                 {showCreateForm ? 'CANCEL' : '+ CREATE PROJECT'}
+              </button>
+              <button
+                onClick={handleResetClaims}
+                className="px-4 py-2 bg-red-600 text-white font-bold hover:bg-red-500 transition-all"
+                title="Reset all daily claims for today"
+              >
+                RESET CLAIMS
               </button>
               <button
                 onClick={handleLogout}
