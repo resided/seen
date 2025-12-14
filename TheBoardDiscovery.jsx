@@ -65,6 +65,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false }) => {
   const [creatorProfileUrl, setCreatorProfileUrl] = useState(null);
   const [builderData, setBuilderData] = useState(null);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [liveStats, setLiveStats] = useState({ views: 0, clicks: 0, tips: 0 });
   
   useEffect(() => {
     const timer = setInterval(() => {
@@ -79,6 +80,32 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false }) => {
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Track view when component mounts
+  useEffect(() => {
+    if (app?.id) {
+      // Track view
+      fetch('/api/track-click', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId: app.id, type: 'view' }),
+      }).catch(() => {}); // Fail silently
+
+      // Fetch today's stats
+      fetch(`/api/projects/stats?projectId=${app.id}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.stats) {
+            setLiveStats({
+              views: data.stats.views || app.stats?.views || 0,
+              clicks: data.stats.clicks || app.stats?.clicks || 0,
+              tips: app.stats?.tips || 0,
+            });
+          }
+        })
+        .catch(() => {});
+    }
+  }, [app?.id]);
 
   // Fetch builder profile data from Neynar
   useEffect(() => {
@@ -292,15 +319,15 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false }) => {
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4 mb-6">
           <div>
-            <div className="text-3xl font-black">{formatNumber(app.stats.installs)}</div>
-            <div className="text-[9px] tracking-[0.3em] text-gray-500 mt-1">INSTALLS</div>
+            <div className="text-3xl font-black">{formatNumber(liveStats.views || app.stats?.views || 0)}</div>
+            <div className="text-[9px] tracking-[0.3em] text-gray-500 mt-1">VIEWS</div>
           </div>
           <div>
-            <div className="text-3xl font-black">{formatNumber(app.stats.dau)}</div>
-            <div className="text-[9px] tracking-[0.3em] text-gray-500 mt-1">DAILY ACTIVE</div>
+            <div className="text-3xl font-black">{formatNumber(liveStats.clicks || app.stats?.clicks || 0)}</div>
+            <div className="text-[9px] tracking-[0.3em] text-gray-500 mt-1">CLICKS</div>
           </div>
           <div>
-            <div className="text-3xl font-black">{app.stats.tips}Ξ</div>
+            <div className="text-3xl font-black">{liveStats.tips || app.stats?.tips || 0}Ξ</div>
             <div className="text-[9px] tracking-[0.3em] text-gray-500 mt-1">TIPPED TODAY</div>
           </div>
         </div>
@@ -308,6 +335,34 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false }) => {
         {/* Actions */}
         <div className="grid grid-cols-2 gap-[1px] bg-white">
           <button 
+            onClick={async () => {
+              if (!isInFarcaster || !app.links?.miniapp) return;
+              
+              // Track click
+              try {
+                await fetch('/api/track-click', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ projectId: app.id, type: 'click' }),
+                });
+                // Update local stats
+                setLiveStats(prev => ({ ...prev, clicks: (prev.clicks || 0) + 1 }));
+              } catch (error) {
+                console.error('Error tracking click:', error);
+              }
+              
+              // Open mini app
+              const miniappUrl = app.links.miniapp;
+              if (sdk.actions?.openUrl) {
+                try {
+                  await sdk.actions.openUrl({ url: miniappUrl });
+                } catch (error) {
+                  window.open(miniappUrl, '_blank', 'noopener,noreferrer');
+                }
+              } else {
+                window.open(miniappUrl, '_blank', 'noopener,noreferrer');
+              }
+            }}
             disabled={!isInFarcaster}
             className={`bg-black py-4 font-bold text-sm tracking-[0.2em] transition-all ${
               isInFarcaster 
@@ -558,38 +613,248 @@ const SubmitSection = ({ onSubmit, isInFarcaster = false, isMiniappInstalled = f
 );
 
 // ============================================
-// UPCOMING QUEUE
+// CATEGORY RANKINGS
 // ============================================
-const UpcomingQueue = ({ queue = [] }) => {
+const CategoryRankings = ({ category }) => {
+  const [rankings, setRankings] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchRankings = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(`/api/projects/rankings?category=${category}&limit=10`);
+        const data = await response.json();
+        if (data.rankings) {
+          setRankings(data.rankings);
+        }
+      } catch (error) {
+        console.error('Error fetching rankings:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRankings();
+    // Refresh rankings every 30 seconds
+    const interval = setInterval(fetchRankings, 30000);
+    return () => clearInterval(interval);
+  }, [category]);
+
+  if (loading) {
+    return (
+      <div className="border border-white p-6 text-center">
+        <div className="text-sm text-gray-500">LOADING RANKINGS...</div>
+      </div>
+    );
+  }
+
+  if (rankings.length === 0) {
+    return (
+      <div className="text-center py-20">
+        <div className="text-6xl mb-4">📊</div>
+        <h2 className="text-2xl font-black mb-2">{category.toUpperCase()} RANKINGS</h2>
+        <p className="text-sm text-gray-500 tracking-wider">
+          NO PROJECTS IN THIS CATEGORY YET
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="border-b border-white pb-4 mb-6">
+        <h2 className="text-2xl font-black tracking-tight mb-2">{category.toUpperCase()} TOP 10</h2>
+        <p className="text-[10px] tracking-[0.3em] text-gray-500">
+          RANKED BY ENGAGEMENT • UPDATES EVERY 30 SECONDS
+        </p>
+      </div>
+      
+      <div className="space-y-2">
+        {rankings.map((project, index) => {
+          const previousRank = project.previousRank;
+          const rankChange = previousRank ? previousRank - project.rank : null;
+          
+          return (
+            <div
+              key={project.id}
+              className="border border-white p-4 hover:bg-white/5 transition-all"
+            >
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 min-w-[80px]">
+                  <div className="text-2xl font-black w-8 text-center">
+                    #{project.rank}
+                  </div>
+                  {rankChange !== null && (
+                    <div className={`text-xs ${
+                      rankChange > 0 ? 'text-green-400' : 
+                      rankChange < 0 ? 'text-red-400' : 
+                      'text-gray-500'
+                    }`}>
+                      {rankChange > 0 ? '↑' : rankChange < 0 ? '↓' : '—'}
+                      {rankChange !== 0 && Math.abs(rankChange)}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-1">
+                    <h3 className="text-lg font-black">{project.name}</h3>
+                    <span className="text-[9px] tracking-[0.2em] px-2 py-0.5 bg-white text-black font-bold">
+                      {project.category?.toUpperCase()}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-gray-500 mb-2">{project.tagline}</p>
+                  <div className="flex items-center gap-4 text-[9px] tracking-[0.2em] text-gray-600">
+                    <span>👁 {formatNumber(project.todayViews || project.stats?.views || 0)}</span>
+                    <span>👆 {formatNumber(project.todayClicks || project.stats?.clicks || 0)}</span>
+                    <span>💰 {project.stats?.tips || 0}Ξ</span>
+                  </div>
+                </div>
+                
+                {project.links?.miniapp && (
+                  <button
+                    onClick={() => window.open(project.links.miniapp, '_blank', 'noopener,noreferrer')}
+                    className="px-4 py-2 border border-white text-[10px] tracking-[0.2em] hover:bg-white hover:text-black transition-all"
+                  >
+                    OPEN
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// ============================================
+// DAILY CLAIM
+// ============================================
+const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false }) => {
+  const [claimed, setClaimed] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+  const [message, setMessage] = useState('');
+  const [nextClaimTime, setNextClaimTime] = useState(null);
+
+  useEffect(() => {
+    // Check if user has claimed today
+    if (userFid) {
+      fetch('/api/claim/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fid: userFid }),
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.claimed) {
+            setClaimed(true);
+            if (data.nextClaimTime) {
+              setNextClaimTime(new Date(data.nextClaimTime));
+            }
+          }
+        })
+        .catch(() => {});
+    }
+  }, [userFid]);
+
+  const handleClaim = async () => {
+    if (!isInFarcaster || !isConnected || !userFid) {
+      setMessage('CONNECT WALLET TO CLAIM');
+      return;
+    }
+
+    if (claimed) {
+      setMessage('ALREADY CLAIMED TODAY');
+      return;
+    }
+
+    setClaiming(true);
+    setMessage('');
+
+    try {
+      const response = await fetch('/api/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fid: userFid }),
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setClaimed(true);
+        setMessage('CLAIMED! TOKENS SENT TO YOUR WALLET');
+        if (data.nextClaimTime) {
+          setNextClaimTime(new Date(data.nextClaimTime));
+        }
+      } else {
+        setMessage(data.error || 'CLAIM FAILED');
+      }
+    } catch (error) {
+      setMessage('ERROR CLAIMING TOKENS');
+    } finally {
+      setClaiming(false);
+    }
+  };
+
+  const getTimeUntilNextClaim = () => {
+    if (!nextClaimTime) return null;
+    const now = new Date();
+    const diff = nextClaimTime - now;
+    if (diff <= 0) return null;
+    
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    return `${hours}h ${minutes}m`;
+  };
+
   return (
     <div className="border border-white">
       <div className="border-b border-white p-3">
-        <span className="text-[10px] tracking-[0.3em]">UPCOMING</span>
+        <span className="text-[10px] tracking-[0.3em]">DAILY CLAIM</span>
       </div>
-      <div className="divide-y divide-white/20">
-        {queue.length > 0 ? (
-          queue.map((app, index) => (
-            <div key={app.id || index} className="p-3 flex items-center gap-3">
-              <div className="w-6 h-6 border border-white flex items-center justify-center text-[10px] font-bold">
-                {index + 1}
-              </div>
-              <div className="flex-1">
-                <div className="text-sm font-bold">{app.name}</div>
-                <div className="text-[10px] text-gray-500">{app.builder}</div>
-              </div>
-              <div className="text-[9px] tracking-[0.2em] text-gray-500">{app.category?.toUpperCase()}</div>
-            </div>
-          ))
-        ) : (
-          <div className="p-6 text-center text-gray-500 text-sm">
-            NO PROJECTS IN QUEUE
+      <div className="p-6 text-center space-y-4">
+        {message && (
+          <div className={`text-[10px] tracking-[0.2em] ${
+            message.includes('CLAIMED') ? 'text-green-400' : 
+            message.includes('ERROR') || message.includes('FAILED') ? 'text-red-400' : 
+            'text-yellow-400'
+          }`}>
+            {message}
           </div>
         )}
-      </div>
-      <div className="border-t border-white p-3">
-        <button className="w-full text-[10px] tracking-[0.2em] text-gray-500 hover:text-white transition-all">
-          VIEW FULL QUEUE →
-        </button>
+        
+        {claimed ? (
+          <>
+            <div className="text-4xl mb-2">✓</div>
+            <div className="text-sm font-bold mb-2">CLAIMED TODAY</div>
+            {nextClaimTime && getTimeUntilNextClaim() && (
+              <div className="text-[10px] tracking-[0.2em] text-gray-500">
+                NEXT CLAIM IN {getTimeUntilNextClaim()}
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="text-4xl mb-2">🎁</div>
+            <div className="text-sm font-bold mb-2">CLAIM YOUR DAILY TOKENS</div>
+            <div className="text-[10px] tracking-[0.2em] text-gray-500 mb-4">
+              CONNECT WALLET TO CLAIM
+            </div>
+            <button
+              onClick={handleClaim}
+              disabled={!isInFarcaster || !isConnected || claiming}
+              className={`w-full py-3 font-black text-sm tracking-[0.2em] transition-all ${
+                isInFarcaster && isConnected && !claiming
+                  ? 'bg-white text-black hover:bg-gray-200'
+                  : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              {claiming ? 'CLAIMING...' : 'CLAIM NOW'}
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -611,6 +876,8 @@ export default function Seen() {
   const [chatLoading, setChatLoading] = useState(true);
   const [isInFarcaster, setIsInFarcaster] = useState(false);
   const [isMiniappInstalled, setIsMiniappInstalled] = useState(false);
+  const [categoryRankings, setCategoryRankings] = useState([]);
+  const [rankingsLoading, setRankingsLoading] = useState(false);
   
   // Wagmi wallet connection
   const { isConnected, address } = useAccount()
@@ -953,17 +1220,15 @@ export default function Seen() {
               ) : (
                 <LiveChat messages={messages} onSend={handleSendMessage} isInFarcaster={isInFarcaster} />
               )}
-              <UpcomingQueue queue={queue} />
+              <DailyClaim 
+                isInFarcaster={isInFarcaster} 
+                userFid={userInfo?.fid || null}
+                isConnected={isConnected}
+              />
             </div>
           </div>
         ) : (
-          <div className="text-center py-20">
-            <div className="text-6xl mb-4">🚧</div>
-            <h2 className="text-2xl font-black mb-2">{category.toUpperCase()} COMING SOON</h2>
-            <p className="text-sm text-gray-500 tracking-wider">
-              CATEGORY LISTINGS LAUNCHING NEXT WEEK
-            </p>
-          </div>
+          <CategoryRankings category={category} />
         )}
       </main>
 

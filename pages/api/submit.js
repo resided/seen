@@ -1,6 +1,7 @@
 // API route to submit a new project
 import { submitProject, checkFeaturedPaymentCooldown } from '../../lib/projects'
 import { fetchUserByFid } from '../../lib/neynar'
+import { getMiniAppCreator } from '../../lib/miniapp-utils'
 
 const MIN_NEYNAR_SCORE = 0.62; // Minimum Neynar user score required to submit
 
@@ -72,6 +73,48 @@ export default async function handler(req, res) {
           error: `You can only submit one featured project per 24 hours. Please wait ${cooldown.hoursRemaining} more hour(s) before submitting another featured project.`,
           hoursRemaining: cooldown.hoursRemaining,
         });
+      }
+    }
+
+    // Verify miniapp ownership if miniapp URL is provided
+    if (links?.miniapp && submitterFid) {
+      try {
+        const creatorInfo = await getMiniAppCreator(links.miniapp);
+        
+        if (creatorInfo?.fid) {
+          const creatorFid = parseInt(creatorInfo.fid);
+          const submitterFidInt = parseInt(submitterFid);
+          
+          // Check if submitter FID matches creator FID
+          if (creatorFid !== submitterFidInt) {
+            // Also check if builderFid matches (in case they're submitting for someone else)
+            const builderFidInt = builderFid ? parseInt(builderFid) : 0;
+            
+            if (builderFidInt !== creatorFid && builderFidInt !== submitterFidInt) {
+              return res.status(403).json({
+                error: 'Mini App ownership verification failed. The Mini App must be owned by you or the builder you specified. This prevents tip exploitation.',
+                creatorFid: creatorFid,
+                submitterFid: submitterFidInt,
+                builderFid: builderFidInt,
+              });
+            }
+          }
+          
+          // If builderFid wasn't provided but we found it from manifest, use it
+          if (!builderFid && creatorFid) {
+            // We'll use the creator FID as builderFid
+            // This will be handled below
+          }
+        } else {
+          // If we can't verify ownership (e.g., Farcaster-hosted app), log a warning
+          console.warn(`Could not verify miniapp ownership for ${links.miniapp}. Submitter FID: ${submitterFid}`);
+          // For Farcaster-hosted apps, we'll allow but log it
+          // You might want to be more strict here
+        }
+      } catch (error) {
+        console.error('Error verifying miniapp ownership:', error);
+        // If verification fails, we'll allow submission but log it
+        // In production, you might want to reject if verification is critical
       }
     }
 

@@ -82,8 +82,8 @@ export default async function handler(req, res) {
           twitter: twitter || null,
         },
         stats: stats || {
-          installs: 0,
-          dau: 0,
+          views: 0,
+          clicks: 0,
           tips: 0,
         },
       },

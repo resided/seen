@@ -29,8 +29,8 @@ export default function Admin() {
     twitter: '',
     setAsFeatured: false,
     stats: {
-      installs: 0,
-      dau: 0,
+      views: 0,
+      clicks: 0,
       tips: 0,
     },
   });
@@ -268,8 +268,8 @@ export default function Admin() {
           twitter: '',
           setAsFeatured: false,
           stats: {
-            installs: 0,
-            dau: 0,
+            views: 0,
+            clicks: 0,
             tips: 0,
           },
         });
@@ -564,29 +564,31 @@ export default function Admin() {
                 <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      INSTALLS
+                      VIEWS (INITIAL)
                     </label>
                     <input
                       type="number"
-                      name="stats.installs"
-                      value={createFormData.stats.installs}
+                      name="stats.views"
+                      value={createFormData.stats.views}
                       onChange={handleCreateFormChange}
                       className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
                       placeholder="0"
                     />
+                    <p className="text-[10px] text-gray-600 mt-1">Will be tracked automatically</p>
                   </div>
                   <div>
                     <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      DAILY ACTIVE
+                      CLICKS (INITIAL)
                     </label>
                     <input
                       type="number"
-                      name="stats.dau"
-                      value={createFormData.stats.dau}
+                      name="stats.clicks"
+                      value={createFormData.stats.clicks}
                       onChange={handleCreateFormChange}
                       className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
                       placeholder="0"
                     />
+                    <p className="text-[10px] text-gray-600 mt-1">Will be tracked automatically</p>
                   </div>
                   <div>
                     <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">

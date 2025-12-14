@@ -1,5 +1,5 @@
 // API route to fetch projects
-import { getFeaturedProject, getQueuedProjects } from '../../lib/projects'
+import { getFeaturedProject, getQueuedProjects, getProjectStatsToday } from '../../lib/projects'
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -9,6 +9,18 @@ export default async function handler(req, res) {
   try {
     const featured = await getFeaturedProject()
     const queue = await getQueuedProjects()
+
+    // Merge real-time stats with stored stats for featured project
+    if (featured?.id) {
+      const todayStats = await getProjectStatsToday(featured.id);
+      if (todayStats.views > 0 || todayStats.clicks > 0) {
+        featured.stats = {
+          ...featured.stats,
+          views: todayStats.views,
+          clicks: todayStats.clicks,
+        };
+      }
+    }
 
     res.status(200).json({
       featured,
