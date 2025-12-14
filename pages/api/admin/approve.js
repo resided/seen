@@ -55,6 +55,7 @@ export default async function handler(req, res) {
   const { projectId, action } = req.body;
 
   try {
+    console.log('Approve API called:', { projectId, action, type: typeof projectId });
 
     if (!projectId || !action) {
       return res.status(400).json({ error: 'Missing projectId or action' })
