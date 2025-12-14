@@ -2347,6 +2347,29 @@ export default function Seen() {
               ) : (
                 <LiveChat messages={messages} onSend={handleSendMessage} isInFarcaster={isInFarcaster} />
               )}
+              {/* Follow Reside Box */}
+              <div className="border border-white p-4 text-center">
+                <div className="text-sm font-black tracking-[0.2em] mb-2">FOLLOW RESIDE</div>
+                <a
+                  href="https://farcaster.xyz/ireside.eth"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={async (e) => {
+                    if (isInFarcaster && sdk.actions?.openUrl) {
+                      e.preventDefault();
+                      try {
+                        await sdk.actions.openUrl({ url: 'https://farcaster.xyz/ireside.eth' });
+                      } catch (error) {
+                        window.open('https://farcaster.xyz/ireside.eth', '_blank', 'noopener,noreferrer');
+                      }
+                    }
+                  }}
+                  className="text-[10px] tracking-[0.2em] text-gray-400 hover:text-white underline transition-colors"
+                >
+                  ireside.eth
+                </a>
+              </div>
+              
               {/* Always show claim section - users can claim if they have wallet connected */}
               <DailyClaim 
                 isInFarcaster={isInFarcaster} 
