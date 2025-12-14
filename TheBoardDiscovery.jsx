@@ -85,7 +85,7 @@ const formatTipsUsd = (ethAmount, ethPrice) => {
 const ActivityTicker = () => {
   const items = [
     'SHORTLY ACCEPTING SUBMISSIONS',
-    'TIPS GO DIRECTLY TO BUILDERS',
+    'TIPS GO DIRECTLY TO THE MINIAPP CREATOR',
     '23K+ INSTALLS TODAY',
     'BUILT FOR FARCASTER MINI APPS',
     'GET YOUR APP SEEN',
