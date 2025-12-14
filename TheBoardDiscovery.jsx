@@ -312,6 +312,25 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false }) => {
 // LIVE CHAT
 // ============================================
 const LiveChat = ({ messages, onSend, isInFarcaster = false }) => {
+  const handleUsernameClick = async (msg) => {
+    if (!msg.fid || msg.fid === 0) return; // Can't open profile without FID
+    
+    const profileUrl = `https://farcaster.xyz/profiles/${msg.fid}`;
+    
+    try {
+      if (isInFarcaster && sdk.actions?.openUrl) {
+        // Open in Farcaster app context
+        await sdk.actions.openUrl({ url: profileUrl });
+      } else {
+        // Open in new tab for web browsers
+        window.open(profileUrl, '_blank', 'noopener,noreferrer');
+      }
+    } catch (error) {
+      console.error('Error opening profile:', error);
+      // Fallback: open in new tab
+      window.open(profileUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
   const [input, setInput] = useState('');
   const [error, setError] = useState('');
   const chatRef = useRef(null);
@@ -397,10 +416,20 @@ const LiveChat = ({ messages, onSend, isInFarcaster = false }) => {
             {messages.map(msg => (
               <div key={msg.id} className="group">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-[10px] tracking-wider text-gray-500 shrink-0">
-                    {msg.user}
-                    {msg.verified && <span className="ml-1">✓</span>}
-                  </span>
+                  {msg.fid && msg.fid > 0 ? (
+                    <button
+                      onClick={() => handleUsernameClick(msg)}
+                      className="text-[10px] tracking-wider text-gray-500 shrink-0 hover:text-white hover:underline transition-all cursor-pointer"
+                    >
+                      {msg.user}
+                      {msg.verified && <span className="ml-1">✓</span>}
+                    </button>
+                  ) : (
+                    <span className="text-[10px] tracking-wider text-gray-500 shrink-0">
+                      {msg.user}
+                      {msg.verified && <span className="ml-1">✓</span>}
+                    </span>
+                  )}
                   <span className="text-[10px] text-gray-600">{msg.time}</span>
                 </div>
                 <p className="text-sm mt-0.5 leading-snug">{msg.msg}</p>
