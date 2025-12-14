@@ -97,7 +97,7 @@ const FeaturedApp = ({ app, onTip }) => {
           }
         } catch (error) {
           console.error('Error fetching builder profile:', error);
-          // Fallback to just creating profile URL
+          // Fallback - will use FID format if we can't get username
           if (app.builderFid) {
             setCreatorProfileUrl(`https://farcaster.xyz/profiles/${app.builderFid}`);
           }
@@ -198,9 +198,9 @@ const FeaturedApp = ({ app, onTip }) => {
             )}
           </div>
           <div className="flex-1">
-            {creatorProfileUrl || app.builderFid ? (
+            {creatorProfileUrl || builderData?.username || app.builderFid ? (
               <a
-                href={creatorProfileUrl || `https://farcaster.xyz/profiles/${app.builderFid}`}
+                href={creatorProfileUrl || (builderData?.username ? `https://farcaster.xyz/${builderData.username}` : `https://farcaster.xyz/profiles/${app.builderFid}`)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-sm font-bold hover:underline block"
