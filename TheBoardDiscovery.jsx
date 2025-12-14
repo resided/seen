@@ -108,7 +108,7 @@ const ActivityTicker = () => {
 // FEATURED APP CARD
 // ============================================
 const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, onMiniappClick, ethPrice = null, ethPriceLoading = false }) => {
-  const [countdown, setCountdown] = useState({ h: 8, m: 42, s: 17 });
+  const [countdown, setCountdown] = useState({ h: 0, m: 0, s: 0 });
   const [creatorProfileUrl, setCreatorProfileUrl] = useState(null);
   const [builderData, setBuilderData] = useState(null);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -138,19 +138,37 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
     }
   }, [showTipModal, ethPrice, customTipAmount, customTipAmountUsd]);
   
+  // Calculate countdown from featuredAt timestamp (24 hours from featuredAt)
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCountdown(prev => {
-        let { h, m, s } = prev;
-        s--;
-        if (s < 0) { s = 59; m--; }
-        if (m < 0) { m = 59; h--; }
-        if (h < 0) { h = 23; m = 59; s = 59; }
-        return { h, m, s };
-      });
-    }, 1000);
+    const calculateCountdown = () => {
+      if (!app?.featuredAt) {
+        setCountdown({ h: 0, m: 0, s: 0 });
+        return;
+      }
+      
+      const featuredAt = new Date(app.featuredAt);
+      const expiresAt = new Date(featuredAt.getTime() + 24 * 60 * 60 * 1000); // 24 hours from featuredAt
+      const now = new Date();
+      const diff = expiresAt - now;
+      
+      if (diff <= 0) {
+        setCountdown({ h: 0, m: 0, s: 0 });
+        return;
+      }
+      
+      const h = Math.floor(diff / (1000 * 60 * 60));
+      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const s = Math.floor((diff % (1000 * 60)) / 1000);
+      setCountdown({ h, m, s });
+    };
+
+    // Calculate immediately
+    calculateCountdown();
+    
+    // Update every second
+    const timer = setInterval(calculateCountdown, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [app?.featuredAt]);
 
   // Track view when component mounts and poll for real-time stats
   useEffect(() => {
