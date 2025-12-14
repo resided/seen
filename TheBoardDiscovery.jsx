@@ -152,7 +152,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
     return () => clearInterval(timer);
   }, []);
 
-  // Track view when component mounts
+  // Track view when component mounts and poll for real-time stats
   useEffect(() => {
     if (app?.id) {
       // Track view
@@ -163,18 +163,27 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
       }).catch(() => {}); // Fail silently
 
       // Fetch today's stats
-      fetch(`/api/projects/stats?projectId=${app.id}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.stats) {
-            setLiveStats({
-              views: data.stats.views || app.stats?.views || 0,
-              clicks: data.stats.clicks || app.stats?.clicks || 0,
-              tips: app.stats?.tips || 0,
-            });
-          }
-        })
-        .catch(() => {});
+      const fetchStats = () => {
+        fetch(`/api/projects/stats?projectId=${app.id}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.stats) {
+              setLiveStats({
+                views: data.stats.views || app.stats?.views || 0,
+                clicks: data.stats.clicks || app.stats?.clicks || 0,
+                tips: app.stats?.tips || 0,
+              });
+            }
+          })
+          .catch(() => {});
+      };
+      
+      // Fetch immediately
+      fetchStats();
+      
+      // Poll every 5 seconds for real-time updates
+      const interval = setInterval(fetchStats, 5000);
+      return () => clearInterval(interval);
     }
   }, [app?.id]);
 
@@ -1188,7 +1197,7 @@ const CategoryRankings = ({ category, ethPrice }) => {
 // ============================================
 // DAILY CLAIM
 // ============================================
-const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false, featuredApp = null }) => {
+const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false, featuredApp = null, hasClickedMiniapp = false }) => {
   const [claimed, setClaimed] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [message, setMessage] = useState('');
@@ -1229,7 +1238,17 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
   }, [userFid]);
 
   const handleClaim = async () => {
-    if (!isInFarcaster || !isConnected || !userFid || !address) {
+    if (!isInFarcaster) {
+      setMessage('OPEN IN FARCASTER TO CLAIM');
+      return;
+    }
+
+    if (!hasClickedMiniapp) {
+      setMessage('CLICK "OPEN MINI APP" FIRST TO CLAIM');
+      return;
+    }
+
+    if (!isConnected || !userFid || !address) {
       setMessage('CONNECT WALLET TO CLAIM');
       return;
     }
@@ -1385,18 +1404,24 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
               </div>
             )}
             <div className="text-[10px] tracking-[0.2em] text-gray-500 mb-4">
-              {!isInFarcaster || !isConnected ? 'CONNECT WALLET TO CLAIM' : 'CLAIM EXPIRES WHEN FEATURED PROJECT CHANGES'}
+              {!isInFarcaster 
+                ? 'OPEN IN FARCASTER TO CLAIM' 
+                : !hasClickedMiniapp 
+                ? 'CLICK "OPEN MINI APP" FIRST TO CLAIM'
+                : !isConnected 
+                ? 'CONNECT WALLET TO CLAIM' 
+                : 'CLAIM EXPIRES WHEN FEATURED PROJECT CHANGES'}
             </div>
             <button
               onClick={handleClaim}
-              disabled={!isInFarcaster || !isConnected || claiming || expired || claimed}
+              disabled={!isInFarcaster || !hasClickedMiniapp || !isConnected || claiming || expired || claimed}
               className={`w-full py-3 font-black text-sm tracking-[0.2em] transition-all ${
-                isInFarcaster && isConnected && !claiming && !expired && !claimed
+                isInFarcaster && hasClickedMiniapp && isConnected && !claiming && !expired && !claimed
                   ? 'bg-white text-black hover:bg-gray-200'
                   : 'bg-gray-600 text-gray-400 cursor-not-allowed'
               }`}
             >
-              {claiming ? 'CLAIMING...' : expired ? 'EXPIRED' : claimed ? 'CLAIMED' : 'CLAIM NOW'}
+              {claiming ? 'CLAIMING...' : expired ? 'EXPIRED' : claimed ? 'CLAIMED' : !hasClickedMiniapp ? 'OPEN MINI APP FIRST' : 'CLAIM NOW'}
             </button>
           </>
         )}
@@ -1833,6 +1858,7 @@ export default function Seen() {
                 userFid={userInfo?.fid || null}
                 isConnected={isConnected}
                 featuredApp={featuredApp}
+                hasClickedMiniapp={hasClickedMiniapp}
               />
             </div>
           </div>
