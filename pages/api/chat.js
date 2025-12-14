@@ -28,7 +28,7 @@ export default async function handler(req, res) {
   } else if (req.method === 'POST') {
     // Send a new message
     try {
-      const { msg, user, fid, verified } = req.body;
+      const { msg, user, username, fid, verified } = req.body;
       
       // Validate required fields
       if (!msg || !msg.trim()) {
@@ -51,6 +51,7 @@ export default async function handler(req, res) {
       const newMessage = await addChatMessage({
         msg: msg.trim(),
         user: user || 'ANON',
+        username: username || null,
         fid: fid || 0,
         verified: verified || false,
       });

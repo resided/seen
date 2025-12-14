@@ -315,7 +315,10 @@ const LiveChat = ({ messages, onSend, isInFarcaster = false }) => {
   const handleUsernameClick = async (msg) => {
     if (!msg.fid || msg.fid === 0) return; // Can't open profile without FID
     
-    const profileUrl = `https://farcaster.xyz/profiles/${msg.fid}`;
+    // Use username for URL if available, otherwise fallback to FID
+    const profileUrl = msg.username 
+      ? `https://farcaster.xyz/${msg.username}`
+      : `https://farcaster.xyz/profiles/${msg.fid}`;
     
     try {
       if (isInFarcaster && sdk.actions?.openUrl) {
@@ -739,6 +742,7 @@ export default function Seen() {
     try {
       // Prepare user info for the message
       const messageUser = userInfo?.displayName || userInfo?.username || (address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'ANON');
+      const messageUsername = userInfo?.username || null; // Store username separately for profile URLs
       const messageFid = userInfo?.fid || 0;
       const messageVerified = userInfo?.verified || false;
       
@@ -749,6 +753,7 @@ export default function Seen() {
         body: JSON.stringify({
           msg,
           user: messageUser,
+          username: messageUsername,
           fid: messageFid,
           verified: messageVerified,
         }),
