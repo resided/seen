@@ -145,13 +145,10 @@ export default async function handler(req, res) {
       console.log('Sending tokens:', {
         contract: TOKEN_CONTRACT,
         to: walletAddress,
-        recipient: walletAddress,
         amount: TOKEN_AMOUNT,
         amountWei: tokenAmount.toString(),
         decimals: TOKEN_DECIMALS,
         from: account.address,
-        treasury: account.address,
-        fid: fid,
       });
 
       // Send ERC20 tokens
