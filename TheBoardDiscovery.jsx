@@ -1009,7 +1009,7 @@ const LiveChat = ({ messages, onSend, isInFarcaster = false }) => {
 // ============================================
 const SubmitSection = ({ onSubmit, isInFarcaster = false, isMiniappInstalled = false }) => (
   <div className="border border-white p-6 text-center">
-    <h3 className="text-xl font-black tracking-tight mb-2">Get a paid feature</h3>
+    <h3 className="text-xl font-black tracking-tight mb-2">GET A PAID FEATURE</h3>
     <p className="text-sm text-gray-500 tracking-wider mb-4">
       STRUGGLING TO GET SEEN? SUBMIT YOUR PROJECT FOR TOMORROW'S SPOTLIGHT.
     </p>
