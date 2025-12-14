@@ -2088,9 +2088,9 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
             </div>
             <button
               onClick={handleClaim}
-              disabled={!isInFarcaster || !hasClickedMiniapp || !isConnected || claiming || expired || claimed}
+              disabled={!isInFarcaster || !hasClickedMiniapp || !isConnected || claiming || isClaimTxConfirming || expired || claimed || !treasuryAddress}
               className={`w-full py-3 font-black text-sm tracking-[0.2em] transition-all ${
-                isInFarcaster && hasClickedMiniapp && isConnected && !claiming && !expired && !claimed
+                isInFarcaster && hasClickedMiniapp && isConnected && !claiming && !isClaimTxConfirming && !expired && !claimed && treasuryAddress
                   ? 'bg-white text-black hover:bg-gray-200'
                   : 'bg-gray-600 text-gray-400 cursor-not-allowed'
               }`}
