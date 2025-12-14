@@ -1,14 +1,14 @@
 // API route to fetch projects
 import { getFeaturedProject, getQueuedProjects } from '../../lib/projects'
 
-export default function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
   try {
-    const featured = getFeaturedProject()
-    const queue = getQueuedProjects()
+    const featured = await getFeaturedProject()
+    const queue = await getQueuedProjects()
 
     res.status(200).json({
       featured,

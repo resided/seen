@@ -23,7 +23,7 @@ function isAuthenticated(req) {
   return false;
 }
 
-export default function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
@@ -42,7 +42,7 @@ export default function handler(req, res) {
     }
 
     if (action === 'approve') {
-      const project = approveProject(projectId)
+      const project = await approveProject(projectId)
       if (!project) {
         return res.status(404).json({ error: 'Project not found' })
       }
@@ -52,7 +52,7 @@ export default function handler(req, res) {
         project
       })
     } else if (action === 'reject') {
-      const project = rejectProject(projectId)
+      const project = await rejectProject(projectId)
       if (!project) {
         return res.status(404).json({ error: 'Project not found' })
       }
