@@ -1160,6 +1160,12 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
       return;
     }
 
+    // Validate address format
+    if (!address || !address.startsWith('0x') || address.length !== 42) {
+      setMessage('INVALID WALLET ADDRESS. PLEASE RECONNECT WALLET.');
+      return;
+    }
+
     if (claimed) {
       setMessage('ALREADY CLAIMED FOR THIS FEATURED PROJECT');
       return;
@@ -1175,6 +1181,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
 
     try {
       // Claim tokens - server will send tokens from treasury wallet
+      console.log('Claiming tokens:', { fid: userFid, walletAddress: address });
       const response = await fetch('/api/claim', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
