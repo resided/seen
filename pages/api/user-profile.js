@@ -77,6 +77,7 @@ export default async function handler(req, res) {
       walletAddress: primaryWallet, // PRIMARY verified Farcaster wallet address (from Neynar)
       walletAddresses: verifiedAddresses, // All verified wallet addresses
       isPrimaryWallet: true, // Flag to indicate this is the primary wallet
+      followerCount: user.follower_count || user.followers?.follower_count || user.followers || 0, // Follower count
     });
   } catch (error) {
     console.error('Error fetching user profile:', error);

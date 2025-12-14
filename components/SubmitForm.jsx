@@ -8,7 +8,7 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
     description: '',
     builder: '',
     builderFid: '',
-    category: 'featured',
+    category: 'defi',
     miniapp: '',
     website: '',
     github: '',
@@ -23,10 +23,17 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
   const FEATURED_PRICE_DISPLAY = '$45'; // USD display price
 
   const handleChange = (e) => {
-    setFormData({
+    const newFormData = {
       ...formData,
       [e.target.name]: e.target.value
-    });
+    };
+    
+    // If switching to queue and category is "featured", reset to first available category
+    if (e.target.name === 'submissionType' && e.target.value === 'queue' && formData.category === 'featured') {
+      newFormData.category = 'defi'; // Default to first non-featured category
+    }
+    
+    setFormData(newFormData);
   };
 
   const handleSubmit = async (e) => {
@@ -165,7 +172,7 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
               required
               rows="4"
               className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-              placeholder="DESCRIBE YOUR PROJECT"
+              placeholder="MAKE IT APPEALING AND EASILY READABLE. DESCRIBE YOUR PROJECT CLEARLY."
             />
           </div>
 
@@ -246,8 +253,10 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
               required
               className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
             >
-              <option value="featured">FEATURED</option>
-              <option value="main">MAIN</option>
+              {formData.submissionType === 'featured' && (
+                <option value="featured">FEATURED</option>
+              )}
+              <option value="main">FEATURED</option>
               <option value="defi">DEFI</option>
               <option value="social">SOCIAL</option>
               <option value="games">GAMES</option>
@@ -311,9 +320,9 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
               value={formData.twitter}
               onChange={handleChange}
               className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-              placeholder="@username or https://x.com/username"
+              placeholder="@protardio or protardio (username only)"
             />
-            <p className="text-[10px] text-gray-600 mt-1">If provided, a "Follow on X" button will appear on your featured project</p>
+            <p className="text-[10px] text-gray-600 mt-1">Enter username only (e.g., @protardio or protardio). A "Follow on X" button will appear on your featured project.</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4 pt-4">

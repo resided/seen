@@ -61,7 +61,7 @@ const ActivityTicker = () => {
 // ============================================
 // FEATURED APP CARD
 // ============================================
-const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false }) => {
+const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, onMiniappClick }) => {
   const [countdown, setCountdown] = useState({ h: 8, m: 42, s: 17 });
   const [creatorProfileUrl, setCreatorProfileUrl] = useState(null);
   const [builderData, setBuilderData] = useState(null);
@@ -285,8 +285,15 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false })
             )}
             <div className="text-[10px] tracking-[0.2em] text-gray-500">
               {builderData?.username ? `@${builderData.username}` : app.builder}
-              {builderData?.fid && ` • FID #${builderData.fid}`}
-              {!builderData?.fid && app.builderFid && ` • FID #${app.builderFid}`}
+              {builderData?.followerCount !== undefined && builderData.followerCount > 0 && (
+                ` • ${formatNumber(builderData.followerCount)} followers`
+              )}
+              {(!builderData?.followerCount || builderData.followerCount === 0) && builderData?.fid && (
+                ` • FID #${builderData.fid}`
+              )}
+              {(!builderData?.followerCount || builderData.followerCount === 0) && !builderData?.fid && app.builderFid && (
+                ` • FID #${app.builderFid}`
+              )}
             </div>
           </div>
           <div className="flex flex-col gap-2">
@@ -404,6 +411,11 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false })
                 setLiveStats(prev => ({ ...prev, clicks: (prev.clicks || 0) + 1 }));
               } catch (error) {
                 console.error('Error tracking click:', error);
+              }
+              
+              // Notify parent that miniapp was clicked
+              if (onMiniappClick) {
+                onMiniappClick();
               }
               
               // Open mini app
@@ -1209,10 +1221,19 @@ export default function Seen() {
   const [isMiniappInstalled, setIsMiniappInstalled] = useState(false);
   const [categoryRankings, setCategoryRankings] = useState([]);
   const [rankingsLoading, setRankingsLoading] = useState(false);
+  const [hasClickedMiniapp, setHasClickedMiniapp] = useState(false);
   
   // Wagmi wallet connection
   const { isConnected, address } = useAccount()
   const { connect, connectors } = useConnect()
+  
+  // Check if user has clicked miniapp (persist in sessionStorage)
+  useEffect(() => {
+    const hasClicked = sessionStorage.getItem('hasClickedMiniapp') === 'true';
+    if (hasClicked) {
+      setHasClickedMiniapp(true);
+    }
+  }, []);
   
   // Detect if we're in Farcaster context and check miniapp installation
   useEffect(() => {
@@ -1535,6 +1556,10 @@ export default function Seen() {
                   onTip={handleTip} 
                   isInFarcaster={isInFarcaster}
                   isConnected={isConnected}
+                  onMiniappClick={() => {
+                    setHasClickedMiniapp(true);
+                    sessionStorage.setItem('hasClickedMiniapp', 'true');
+                  }}
                 />
               ) : (
                 <div className="border border-white p-6 text-center">
@@ -1557,11 +1582,13 @@ export default function Seen() {
               ) : (
                 <LiveChat messages={messages} onSend={handleSendMessage} isInFarcaster={isInFarcaster} />
               )}
-              <DailyClaim 
-                isInFarcaster={isInFarcaster} 
-                userFid={userInfo?.fid || null}
-                isConnected={isConnected}
-              />
+              {hasClickedMiniapp && (
+                <DailyClaim 
+                  isInFarcaster={isInFarcaster} 
+                  userFid={userInfo?.fid || null}
+                  isConnected={isConnected}
+                />
+              )}
             </div>
           </div>
         ) : (

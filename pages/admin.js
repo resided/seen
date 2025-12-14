@@ -16,6 +16,28 @@ export default function Admin() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [liveProjects, setLiveProjects] = useState([]);
+  const [liveProjectsLoading, setLiveProjectsLoading] = useState(false);
+  const [editingProject, setEditingProject] = useState(null);
+  const [updating, setUpdating] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    tagline: '',
+    description: '',
+    builder: '',
+    builderFid: '',
+    category: 'main',
+    status: 'queued',
+    miniapp: '',
+    website: '',
+    github: '',
+    twitter: '',
+    stats: {
+      views: 0,
+      clicks: 0,
+      tips: 0,
+    },
+  });
   const [createFormData, setCreateFormData] = useState({
     name: '',
     tagline: '',
@@ -91,6 +113,7 @@ export default function Admin() {
   useEffect(() => {
     if (isAuthenticated) {
       fetchSubmissions();
+      fetchLiveProjects();
     }
   }, [isAuthenticated]);
 
@@ -158,6 +181,97 @@ export default function Admin() {
     }
   };
 
+  const fetchLiveProjects = async () => {
+    setLiveProjectsLoading(true);
+    try {
+      const response = await fetch('/api/admin/live-projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fid: userFid || null }),
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setLiveProjects(data.projects || []);
+      }
+    } catch (error) {
+      console.error('Error fetching live projects:', error);
+    } finally {
+      setLiveProjectsLoading(false);
+    }
+  };
+
+  const handleEdit = (project) => {
+    setEditingProject(project);
+    setEditFormData({
+      name: project.name || '',
+      tagline: project.tagline || '',
+      description: project.description || '',
+      builder: project.builder || '',
+      builderFid: project.builderFid || '',
+      category: project.category || 'main',
+      status: project.status || 'queued',
+      miniapp: project.links?.miniapp || '',
+      website: project.links?.website || '',
+      github: project.links?.github || '',
+      twitter: project.links?.twitter || '',
+      stats: project.stats || { views: 0, clicks: 0, tips: 0 },
+    });
+  };
+
+  const handleUpdateProject = async (e) => {
+    e.preventDefault();
+    setUpdating(true);
+    setMessage('');
+
+    try {
+      const response = await fetch('/api/admin/update-project', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: editingProject.id,
+          ...editFormData,
+          fid: userFid || null,
+        }),
+        credentials: 'include',
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setMessage(data.message || 'Project updated successfully!');
+        setEditingProject(null);
+        fetchLiveProjects(); // Refresh live projects
+        fetchSubmissions(); // Refresh submissions in case status changed
+      } else {
+        setMessage(data.error || 'Failed to update project');
+      }
+    } catch (error) {
+      setMessage('Error updating project');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleEditFormChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    if (name.startsWith('stats.')) {
+      const statName = name.split('.')[1];
+      setEditFormData({
+        ...editFormData,
+        stats: {
+          ...editFormData.stats,
+          [statName]: parseFloat(value) || 0,
+        },
+      });
+    } else {
+      setEditFormData({
+        ...editFormData,
+        [name]: type === 'checkbox' ? checked : value,
+      });
+    }
+  };
+
   const handleApprove = async (projectId) => {
     try {
       const response = await fetch('/api/admin/approve', {
@@ -171,6 +285,7 @@ export default function Admin() {
       if (response.ok) {
         setMessage(`Project ${projectId} approved and added to queue!`);
         fetchSubmissions(); // Refresh list
+        fetchLiveProjects(); // Refresh live projects
       } else {
         setMessage(data.error || 'Failed to approve');
       }
@@ -196,6 +311,7 @@ export default function Admin() {
       if (response.ok) {
         setMessage(`Project ${projectId} approved and featured immediately!`);
         fetchSubmissions(); // Refresh list
+        fetchLiveProjects(); // Refresh live projects
       } else {
         setMessage(data.error || 'Failed to feature project');
       }
@@ -254,6 +370,7 @@ export default function Admin() {
       if (response.ok) {
         setMessage(data.message || 'Project created successfully!');
         setShowCreateForm(false);
+        fetchLiveProjects(); // Refresh live projects
         // Reset form
         setCreateFormData({
           name: '',
@@ -404,6 +521,317 @@ export default function Admin() {
             </div>
           )}
 
+          {/* Edit Project Modal */}
+          {editingProject && (
+            <div className="mb-8 border border-white p-6 bg-black">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-black">EDIT PROJECT: {editingProject.name}</h2>
+                <button
+                  onClick={() => setEditingProject(null)}
+                  className="text-white hover:text-gray-400 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+              <form onSubmit={handleUpdateProject} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                      PROJECT NAME *
+                    </label>
+                    <input
+                      type="text"
+                      name="name"
+                      value={editFormData.name}
+                      onChange={handleEditFormChange}
+                      required
+                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                      placeholder="PROJECT NAME"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                      TAGLINE *
+                    </label>
+                    <input
+                      type="text"
+                      name="tagline"
+                      value={editFormData.tagline}
+                      onChange={handleEditFormChange}
+                      required
+                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                      placeholder="SHORT TAGLINE"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                    DESCRIPTION *
+                  </label>
+                  <textarea
+                    name="description"
+                    value={editFormData.description}
+                    onChange={handleEditFormChange}
+                    required
+                    rows="4"
+                    className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                    placeholder="DESCRIBE THE PROJECT"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                      BUILDER NAME *
+                    </label>
+                    <input
+                      type="text"
+                      name="builder"
+                      value={editFormData.builder}
+                      onChange={handleEditFormChange}
+                      required
+                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                      placeholder="BUILDER.ETH"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                      BUILDER FID (OPTIONAL)
+                    </label>
+                    <input
+                      type="number"
+                      name="builderFid"
+                      value={editFormData.builderFid}
+                      onChange={handleEditFormChange}
+                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                      placeholder="12345"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                      CATEGORY *
+                    </label>
+                    <select
+                      name="category"
+                      value={editFormData.category}
+                      onChange={handleEditFormChange}
+                      required
+                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                    >
+                      <option value="main">FEATURED</option>
+                      <option value="defi">DEFI</option>
+                      <option value="social">SOCIAL</option>
+                      <option value="games">GAMES</option>
+                      <option value="tools">TOOLS</option>
+                      <option value="nft">NFT</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                      STATUS *
+                    </label>
+                    <select
+                      name="status"
+                      value={editFormData.status}
+                      onChange={handleEditFormChange}
+                      required
+                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                    >
+                      <option value="queued">QUEUED</option>
+                      <option value="featured">FEATURED</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                    MINI APP URL
+                  </label>
+                  <input
+                    type="url"
+                    name="miniapp"
+                    value={editFormData.miniapp}
+                    onChange={handleEditFormChange}
+                    className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                    placeholder="https://warpcast.com/~/mini-app/..."
+                  />
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                      WEBSITE
+                    </label>
+                    <input
+                      type="url"
+                      name="website"
+                      value={editFormData.website}
+                      onChange={handleEditFormChange}
+                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                      placeholder="https://..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                      GITHUB
+                    </label>
+                    <input
+                      type="url"
+                      name="github"
+                      value={editFormData.github}
+                      onChange={handleEditFormChange}
+                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                      placeholder="https://github.com/..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                      TWITTER / X
+                    </label>
+                    <input
+                      type="text"
+                      name="twitter"
+                      value={editFormData.twitter}
+                      onChange={handleEditFormChange}
+                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                      placeholder="@username"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                      VIEWS
+                    </label>
+                    <input
+                      type="number"
+                      name="stats.views"
+                      value={editFormData.stats.views}
+                      onChange={handleEditFormChange}
+                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                      CLICKS
+                    </label>
+                    <input
+                      type="number"
+                      name="stats.clicks"
+                      value={editFormData.stats.clicks}
+                      onChange={handleEditFormChange}
+                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                      TIPS (ETH)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      name="stats.tips"
+                      value={editFormData.stats.tips}
+                      onChange={handleEditFormChange}
+                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-4 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setEditingProject(null)}
+                    className="px-6 py-2 border border-white font-bold hover:bg-white hover:text-black transition-all"
+                  >
+                    CANCEL
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={updating}
+                    className="px-6 py-2 bg-white text-black font-bold hover:bg-gray-200 transition-all disabled:opacity-50"
+                  >
+                    {updating ? 'UPDATING...' : 'UPDATE PROJECT'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* Live Projects Section */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-black">LIVE PROJECTS</h2>
+              <button
+                onClick={fetchLiveProjects}
+                className="px-4 py-2 border border-white text-sm hover:bg-white hover:text-black transition-all"
+              >
+                REFRESH
+              </button>
+            </div>
+            {liveProjectsLoading ? (
+              <div className="text-center py-8 border border-white">
+                <div className="text-gray-500">Loading live projects...</div>
+              </div>
+            ) : liveProjects.length === 0 ? (
+              <div className="text-center py-8 border border-white">
+                <div className="text-gray-500">NO LIVE PROJECTS</div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {liveProjects.map((project) => (
+                  <div key={project.id} className="border border-white p-4">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="text-xl font-black">{project.name}</h3>
+                          <span className={`text-[10px] tracking-[0.2em] px-2 py-1 border ${
+                            project.status === 'featured'
+                              ? 'border-yellow-500 text-yellow-500 bg-yellow-500/10'
+                              : 'border-white text-white'
+                          }`}>
+                            {project.status?.toUpperCase() || 'QUEUED'}
+                          </span>
+                          <span className="text-[10px] tracking-[0.2em] px-2 py-1 bg-white text-black">
+                            {project.category === 'main' ? 'FEATURED' : (project.category?.toUpperCase() || 'FEATURED')}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-400 mb-1">{project.tagline}</p>
+                        <p className="text-xs text-gray-500 mb-2">{project.description?.substring(0, 100)}...</p>
+                        <div className="text-xs text-gray-600">
+                          <span>Builder: {project.builder}</span>
+                          {project.stats && (
+                            <span className="ml-4">
+                              Views: {project.stats.views || 0} | Clicks: {project.stats.clicks || 0} | Tips: {project.stats.tips || 0}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleEdit(project)}
+                        className="px-4 py-2 bg-blue-500 text-white font-bold hover:bg-blue-400 transition-all ml-4"
+                      >
+                        EDIT
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="mb-8 border-t border-white pt-8">
+            <h2 className="text-2xl font-black mb-4">PENDING SUBMISSIONS</h2>
+          </div>
+
           {showCreateForm && (
             <div className="mb-8 border border-white p-6">
               <h2 className="text-2xl font-black mb-4">CREATE PROJECT</h2>
@@ -496,7 +924,7 @@ export default function Admin() {
                       required
                       className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
                     >
-                      <option value="main">MAIN</option>
+                      <option value="main">FEATURED</option>
                       <option value="defi">DEFI</option>
                       <option value="social">SOCIAL</option>
                       <option value="games">GAMES</option>
@@ -662,7 +1090,7 @@ export default function Admin() {
                       <div className="flex items-center gap-3 mb-2">
                         <h2 className="text-2xl font-black">{submission.name}</h2>
                         <span className="text-[10px] tracking-[0.2em] px-2 py-1 bg-white text-black">
-                          {submission.category?.toUpperCase() || 'MAIN'}
+                          {submission.category === 'main' ? 'FEATURED' : (submission.category?.toUpperCase() || 'FEATURED')}
                         </span>
                         <span className={`text-[10px] tracking-[0.2em] px-2 py-1 border ${
                           submission.status === 'pending_payment'
