@@ -83,14 +83,15 @@ export default async function handler(req, res) {
     const keys = [];
     
     // Redis SCAN to find all matching keys
+    // redis.scan() returns [cursor, keys] tuple in node-redis v4+
     let cursor = 0;
     do {
-      const result = await redis.scan(cursor, {
+      const [nextCursor, foundKeys] = await redis.scan(cursor, {
         MATCH: pattern,
         COUNT: 100
       });
-      cursor = result.cursor;
-      keys.push(...result.keys);
+      cursor = nextCursor;
+      keys.push(...foundKeys);
     } while (cursor !== 0);
 
     // Also find transaction hash keys for this specific featured rotation
@@ -98,12 +99,25 @@ export default async function handler(req, res) {
     const txKeys = [];
     cursor = 0;
     do {
-      const result = await redis.scan(cursor, {
+      const [nextCursor, foundKeys] = await redis.scan(cursor, {
         MATCH: txPattern,
         COUNT: 100
       });
-      cursor = result.cursor;
-      txKeys.push(...result.keys);
+      cursor = nextCursor;
+      txKeys.push(...foundKeys);
+    } while (cursor !== 0);
+
+    // Also find claim count keys for this specific featured rotation
+    const countPattern = `claim:count:${featuredProjectId}:${featuredAtTimestamp}:*`;
+    const countKeys = [];
+    cursor = 0;
+    do {
+      const [nextCursor, foundKeys] = await redis.scan(cursor, {
+        MATCH: countPattern,
+        COUNT: 100
+      });
+      cursor = nextCursor;
+      countKeys.push(...foundKeys);
     } while (cursor !== 0);
 
     // Delete all claim keys for this featured project
@@ -114,11 +128,16 @@ export default async function handler(req, res) {
     if (txKeys.length > 0) {
       await redis.del(txKeys);
     }
+    
+    if (countKeys.length > 0) {
+      await redis.del(countKeys);
+    }
 
     return res.status(200).json({
       success: true,
-      message: `Reset ${keys.length} claim(s) and ${txKeys.length} transaction(s) for featured project ${featuredProjectId} (rotation started at ${featuredAt.toISOString()})`,
+      message: `Reset ${keys.length} claim(s), ${countKeys.length} count(s), and ${txKeys.length} transaction(s) for featured project ${featuredProjectId} (rotation started at ${featuredAt.toISOString()})`,
       claimsReset: keys.length,
+      countsReset: countKeys.length,
       transactionsReset: txKeys.length,
       featuredProjectId,
       featuredProjectName: featuredProject.name,
