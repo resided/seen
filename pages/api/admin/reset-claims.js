@@ -77,6 +77,13 @@ export default async function handler(req, res) {
     const featuredAt = featuredProject.featuredAt ? new Date(featuredProject.featuredAt) : new Date();
     const featuredAtTimestamp = Math.floor(featuredAt.getTime() / 1000);
     
+    console.log('Resetting claims for:', {
+      featuredProjectId,
+      featuredAt: featuredAt.toISOString(),
+      featuredAtTimestamp,
+      resetDonut
+    });
+    
     // Find all claim keys for this specific featured rotation
     // Pattern includes featuredAt timestamp to only reset current rotation
     const pattern = `claim:featured:${featuredProjectId}:${featuredAtTimestamp}:*`;
@@ -85,40 +92,62 @@ export default async function handler(req, res) {
     // Redis SCAN to find all matching keys
     // redis.scan() returns [cursor, keys] tuple in node-redis v4+
     let cursor = 0;
-    do {
-      const [nextCursor, foundKeys] = await redis.scan(cursor, {
-        MATCH: pattern,
-        COUNT: 100
-      });
-      cursor = nextCursor;
-      keys.push(...foundKeys);
-    } while (cursor !== 0);
+    try {
+      do {
+        const [nextCursor, foundKeys] = await redis.scan(cursor, {
+          MATCH: pattern,
+          COUNT: 100
+        });
+        // Cursor might be string "0" or number 0, convert to number for comparison
+        cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
+        if (foundKeys && foundKeys.length > 0) {
+          keys.push(...foundKeys);
+        }
+      } while (cursor !== 0);
+    } catch (scanError) {
+      console.error('Error scanning for claim keys:', scanError);
+      throw new Error(`Failed to scan for claim keys: ${scanError.message}`);
+    }
 
     // Also find transaction hash keys for this specific featured rotation
     const txPattern = `claim:tx:${featuredProjectId}:${featuredAtTimestamp}:*`;
     const txKeys = [];
     cursor = 0;
-    do {
-      const [nextCursor, foundKeys] = await redis.scan(cursor, {
-        MATCH: txPattern,
-        COUNT: 100
-      });
-      cursor = nextCursor;
-      txKeys.push(...foundKeys);
-    } while (cursor !== 0);
+    try {
+      do {
+        const [nextCursor, foundKeys] = await redis.scan(cursor, {
+          MATCH: txPattern,
+          COUNT: 100
+        });
+        cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
+        if (foundKeys && foundKeys.length > 0) {
+          txKeys.push(...foundKeys);
+        }
+      } while (cursor !== 0);
+    } catch (scanError) {
+      console.error('Error scanning for tx keys:', scanError);
+      throw new Error(`Failed to scan for transaction keys: ${scanError.message}`);
+    }
 
     // Also find claim count keys for this specific featured rotation
     const countPattern = `claim:count:${featuredProjectId}:${featuredAtTimestamp}:*`;
     const countKeys = [];
     cursor = 0;
-    do {
-      const [nextCursor, foundKeys] = await redis.scan(cursor, {
-        MATCH: countPattern,
-        COUNT: 100
-      });
-      cursor = nextCursor;
-      countKeys.push(...foundKeys);
-    } while (cursor !== 0);
+    try {
+      do {
+        const [nextCursor, foundKeys] = await redis.scan(cursor, {
+          MATCH: countPattern,
+          COUNT: 100
+        });
+        cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
+        if (foundKeys && foundKeys.length > 0) {
+          countKeys.push(...foundKeys);
+        }
+      } while (cursor !== 0);
+    } catch (scanError) {
+      console.error('Error scanning for count keys:', scanError);
+      throw new Error(`Failed to scan for count keys: ${scanError.message}`);
+    }
 
     // Delete all claim keys for this featured project
     try {
@@ -150,14 +179,21 @@ export default async function handler(req, res) {
       const donutUserPattern = 'donut:user:*';
       const donutUserKeys = [];
       cursor = 0;
-      do {
-        const [nextCursor, foundKeys] = await redis.scan(cursor, {
-          MATCH: donutUserPattern,
-          COUNT: 100
-        });
-        cursor = nextCursor;
-        donutUserKeys.push(...foundKeys);
-      } while (cursor !== 0);
+      try {
+        do {
+          const [nextCursor, foundKeys] = await redis.scan(cursor, {
+            MATCH: donutUserPattern,
+            COUNT: 100
+          });
+          cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
+          if (foundKeys && foundKeys.length > 0) {
+            donutUserKeys.push(...foundKeys);
+          }
+        } while (cursor !== 0);
+      } catch (scanError) {
+        console.error('Error scanning for DONUT user keys:', scanError);
+        throw new Error(`Failed to scan for DONUT user keys: ${scanError.message}`);
+      }
       
       if (donutUserKeys.length > 0) {
         try {
@@ -170,6 +206,14 @@ export default async function handler(req, res) {
       }
     }
 
+    console.log('Reset complete:', {
+      claimsFound: keys.length,
+      countsFound: countKeys.length,
+      txFound: txKeys.length,
+      donutUsersReset,
+      donutCountReset
+    });
+    
     let message = `Reset ${keys.length} claim(s), ${countKeys.length} count(s), and ${txKeys.length} transaction(s) for featured project ${featuredProjectId} (rotation started at ${featuredAt.toISOString()})`;
     if (resetDonut) {
       message += `. Also reset DONUT data: ${donutUsersReset} user(s) and global count.`;
