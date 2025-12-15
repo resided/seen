@@ -96,8 +96,9 @@ export default async function handler(req, res) {
     const claimKey = `claim:featured:${featuredProjectId}:${featuredAtTimestamp}:${fid}`;
     
     // Check if already claimed for this specific featured rotation
+    // Always check regardless of txHash to prevent double-claiming
     const alreadyClaimed = await redis.exists(claimKey);
-    if (alreadyClaimed && !txHash) {
+    if (alreadyClaimed) {
       return res.status(400).json({ 
         error: 'Already claimed for this featured project rotation',
         featuredProjectId,
@@ -105,10 +106,6 @@ export default async function handler(req, res) {
         expirationTime: expirationTime.toISOString(),
       });
     }
-
-    // If txHash is provided, verify the transaction and then send tokens
-    // Note: We continue to the token transfer flow below to send tokens from treasury
-    // The txHash is stored when we record the claim after successful token transfer
 
     // If no token contract configured, return token details for client-side transaction
     if (!TOKEN_CONTRACT || !TREASURY_PRIVATE_KEY) {
