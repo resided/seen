@@ -99,8 +99,8 @@ export default async function handler(req, res) {
       donutAvailable, // Whether DONUT bonus is still available for this user
       donutRemaining, // How many DONUT tokens remain globally
       userHasDonut: !!userHasDonut, // Whether this user has already received a DONUT
-      // 30M+ holders get 2x SEEN amount (100k) when DONUT is available
-      donutBonusSeenAmount: donutAvailable ? (isHolder ? (parseInt(DONUT_BONUS_SEEN_AMOUNT) * 2).toString() : DONUT_BONUS_SEEN_AMOUNT) : null, // SEEN amount if DONUT available
+      // 30M+ holders get 160k SEEN when DONUT is available, regular users get 50k
+      donutBonusSeenAmount: donutAvailable ? (isHolder ? '160000' : DONUT_BONUS_SEEN_AMOUNT) : null, // SEEN amount if DONUT available
     });
   } catch (error) {
     console.error('Error checking claim status:', error);
