@@ -305,8 +305,16 @@ export default async function handler(req, res) {
       
       // If user already had DONUT, nothing to do (lock result was null)
       
-      // Determine amounts: if DONUT available, send 50k SEEN + 1 DONUT, otherwise regular amount
-      const seenAmount = donutAvailable ? DONUT_BONUS_SEEN_AMOUNT : TOKEN_AMOUNT;
+      // Determine amounts: 
+      // - If DONUT available: regular users get 50k SEEN + 1 DONUT, 30M+ holders get 100k SEEN + 1 DONUT
+      // - If DONUT not available: regular amount (80k SEEN)
+      let seenAmount;
+      if (donutAvailable) {
+        // 30M+ holders get 2x SEEN amount when DONUT is available (100k instead of 50k)
+        seenAmount = isHolder ? (parseInt(DONUT_BONUS_SEEN_AMOUNT) * 2).toString() : DONUT_BONUS_SEEN_AMOUNT;
+      } else {
+        seenAmount = TOKEN_AMOUNT;
+      }
       const seenAmountWei = parseUnits(seenAmount, TOKEN_DECIMALS);
       
       console.log('Sending tokens:', {
