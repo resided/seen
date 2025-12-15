@@ -146,11 +146,20 @@ export default async function handler(req, res) {
           // Get current window counter (if any)
           const currentWindowCount = parseInt(await redis.get(clicksKey) || '0');
           
-          // Calculate how much the total changed
-          const totalDifference = newTotal - currentStoredTotal;
+          // When manually setting stats, we want to set the window counter to match the new total
+          // Calculate the difference between stored stats and window counter to maintain consistency
+          // If window counter is 0 or doesn't exist, set it directly to the new total
+          // Otherwise, adjust by the difference to preserve any clicks that happened since last update
+          let newWindowCount;
+          if (currentWindowCount === 0) {
+            // If no window counter exists, set it to the new total directly
+            newWindowCount = newTotal;
+          } else {
+            // Calculate how much the total changed and adjust window counter accordingly
+            const totalDifference = newTotal - currentStoredTotal;
+            newWindowCount = Math.max(0, currentWindowCount + totalDifference);
+          }
           
-          // Adjust window counter by the difference so future increments continue from new base
-          const newWindowCount = Math.max(0, currentWindowCount + totalDifference);
           await redis.set(clicksKey, newWindowCount.toString());
           
           // Set expiration: 48 hours for featured (to cover full 24h window + buffer), 2 days for others
@@ -189,11 +198,20 @@ export default async function handler(req, res) {
           // Get current window counter (if any)
           const currentWindowCount = parseInt(await redis.get(viewsKey) || '0');
           
-          // Calculate how much the total changed
-          const totalDifference = newTotal - currentStoredTotal;
+          // When manually setting stats, we want to set the window counter to match the new total
+          // Calculate the difference between stored stats and window counter to maintain consistency
+          // If window counter is 0 or doesn't exist, set it directly to the new total
+          // Otherwise, adjust by the difference to preserve any views that happened since last update
+          let newWindowCount;
+          if (currentWindowCount === 0) {
+            // If no window counter exists, set it to the new total directly
+            newWindowCount = newTotal;
+          } else {
+            // Calculate how much the total changed and adjust window counter accordingly
+            const totalDifference = newTotal - currentStoredTotal;
+            newWindowCount = Math.max(0, currentWindowCount + totalDifference);
+          }
           
-          // Adjust window counter by the difference so future increments continue from new base
-          const newWindowCount = Math.max(0, currentWindowCount + totalDifference);
           await redis.set(viewsKey, newWindowCount.toString());
           
           // Set expiration: 48 hours for featured (to cover full 24h window + buffer), 2 days for others
