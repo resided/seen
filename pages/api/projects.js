@@ -16,11 +16,11 @@ export default async function handler(req, res) {
       const windowStats = await getProjectStatsToday(featured.id, featured.featuredAt);
       // Always use window stats (they reflect manual overrides and continue counting)
       // If window stats exist, use them; otherwise fall back to stored stats
-      featured.stats = {
-        ...featured.stats,
+        featured.stats = {
+          ...featured.stats,
         views: windowStats.views || (featured.stats?.views || 0),
         clicks: windowStats.clicks || (featured.stats?.clicks || 0),
-      };
+        };
     }
 
     res.status(200).json({

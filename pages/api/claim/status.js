@@ -1,6 +1,9 @@
 // API route to check claim status (tied to featured project)
 import { getRedisClient } from '../../../lib/redis';
 import { getFeaturedProject } from '../../../lib/projects';
+import { getTokenBalance, HOLDER_TIERS } from '../../../lib/token-balance';
+
+const WHALE_CLAIM_LIMIT = 2; // Whales (30M+) can claim 2x daily
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -8,7 +11,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { fid } = req.body;
+    const { fid, walletAddress } = req.body;
 
     if (!fid) {
       return res.status(400).json({ error: 'FID is required' });
@@ -37,23 +40,50 @@ export default async function handler(req, res) {
     const now = new Date();
     const expired = now > expirationTime;
     
-    // Check if claimed for this specific featured rotation (includes featuredAt timestamp)
-    // This allows users to claim again if the same project is featured again later
-    const featuredAtTimestamp = Math.floor(featuredAt.getTime() / 1000); // Unix timestamp in seconds
-    const claimKey = `claim:featured:${featuredProjectId}:${featuredAtTimestamp}:${fid}`;
-    const claimed = await redis.exists(claimKey);
+    // Check holder tier for claim multiplier
+    let holderTier = HOLDER_TIERS.NONE;
+    let maxClaims = 1;
+    
+    if (walletAddress) {
+      try {
+        const { tier } = await getTokenBalance(walletAddress);
+        holderTier = tier;
+        if (tier.label === 'WHALE') {
+          maxClaims = WHALE_CLAIM_LIMIT;
+        }
+      } catch (tierError) {
+        console.error('Error checking holder tier:', tierError);
+      }
+    }
+    
+    // Check claim count for this specific featured rotation
+    const featuredAtTimestamp = Math.floor(featuredAt.getTime() / 1000);
+    const claimCountKey = `claim:count:${featuredProjectId}:${featuredAtTimestamp}:${fid}`;
+    const claimCount = parseInt(await redis.get(claimCountKey) || '0');
+    
+    // User is "fully claimed" when they've used all their claims
+    const fullyClaimed = claimCount >= maxClaims;
+    const canClaimAgain = claimCount < maxClaims && !expired;
 
     // TODO: REMOVE THIS AFTER TESTING - Bypass for testing (FID 342433)
     const TEST_BYPASS_FID = 342433;
     const isBypassEnabled = parseInt(fid) === TEST_BYPASS_FID;
 
     return res.status(200).json({
-      claimed: isBypassEnabled ? false : claimed === 1,
+      claimed: isBypassEnabled ? false : fullyClaimed,
+      claimCount,
+      maxClaims,
+      canClaimAgain: isBypassEnabled ? true : canClaimAgain,
       expired,
       featuredProjectId,
       featuredAt: featuredAt.toISOString(),
       expirationTime: expirationTime.toISOString(),
       timeRemaining: expired ? 0 : Math.max(0, expirationTime - now),
+      holderTier: holderTier.label,
+      holderBenefits: {
+        claimMultiplier: holderTier.claimMultiplier,
+        featuredDiscount: Math.round(holderTier.featuredDiscount * 100),
+      },
     });
   } catch (error) {
     console.error('Error checking claim status:', error);

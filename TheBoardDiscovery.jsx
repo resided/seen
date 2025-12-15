@@ -1815,12 +1815,105 @@ const CategoryRankings = ({ category, ethPrice, isInFarcaster = false, isConnect
 // ============================================
 // FAQ COMPONENT
 // ============================================
+// ============================================
+// TOKEN BENEFITS (Holder perks + Coming Soon)
+// ============================================
+const TokenBenefits = () => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="border border-white">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors"
+      >
+        <span className="text-sm font-black tracking-[0.2em]">💎 $SEEN HOLDER BENEFITS</span>
+        <span className="text-xl">{isOpen ? '−' : '+'}</span>
+      </button>
+      {isOpen && (
+        <div className="p-4 border-t border-white/20 space-y-4">
+          {/* Active Benefits */}
+          <div>
+            <div className="text-[10px] tracking-[0.2em] text-green-400 mb-2">✓ ACTIVE NOW</div>
+            <div className="space-y-2 text-[11px]">
+              <div className="flex items-start gap-2">
+                <span className="text-green-400">•</span>
+                <div>
+                  <span className="font-bold">2X DAILY CLAIMS</span>
+                  <span className="text-gray-500"> — Hold 30M+ $SEEN to claim tokens twice per featured project</span>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-green-400">•</span>
+                <div>
+                  <span className="font-bold">FEATURED DISCOUNTS</span>
+                  <span className="text-gray-500"> — Up to 30% off featured slot pricing for holders</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Tier Breakdown */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="p-2 border border-yellow-400/50 bg-yellow-400/5 text-center">
+              <div className="text-[10px] font-bold text-yellow-400">WHALE</div>
+              <div className="text-[9px] text-gray-500">30M+ $SEEN</div>
+              <div className="text-[9px] text-white">2x claims</div>
+              <div className="text-[9px] text-green-400">30% off</div>
+            </div>
+            <div className="p-2 border border-blue-400/50 bg-blue-400/5 text-center">
+              <div className="text-[10px] font-bold text-blue-400">DOLPHIN</div>
+              <div className="text-[9px] text-gray-500">10M+ $SEEN</div>
+              <div className="text-[9px] text-white">1x claims</div>
+              <div className="text-[9px] text-green-400">20% off</div>
+            </div>
+            <div className="p-2 border border-purple-400/50 bg-purple-400/5 text-center">
+              <div className="text-[10px] font-bold text-purple-400">HOLDER</div>
+              <div className="text-[9px] text-gray-500">1M+ $SEEN</div>
+              <div className="text-[9px] text-white">1x claims</div>
+              <div className="text-[9px] text-green-400">10% off</div>
+            </div>
+          </div>
+          
+          {/* Coming Soon */}
+          <div className="border-t border-white/20 pt-4">
+            <div className="text-[10px] tracking-[0.2em] text-yellow-400 mb-2">🚀 COMING SOON</div>
+            <div className="space-y-2 text-[11px]">
+              <div className="flex items-start gap-2">
+                <span className="text-yellow-400">◦</span>
+                <div>
+                  <span className="font-bold">BUY & BURN</span>
+                  <span className="text-gray-500"> — Platform revenue used to buy back and burn $SEEN</span>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-yellow-400">◦</span>
+                <div>
+                  <span className="font-bold">LP REWARDS</span>
+                  <span className="text-gray-500"> — Stake LP tokens to earn platform fees</span>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-yellow-400">◦</span>
+                <div>
+                  <span className="font-bold">GOVERNANCE</span>
+                  <span className="text-gray-500"> — Vote on featured projects with $SEEN</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const FAQ = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
     <div className="border border-white">
-                  <button
+      <button
         onClick={() => setIsOpen(!isOpen)}
         className="w-full p-3 border-b border-white flex items-center justify-between hover:bg-white/5 transition-all"
                   >
@@ -2816,6 +2909,9 @@ export default function Seen() {
                 hasClickedMiniapp={hasClickedMiniapp}
                 neynarUserScore={userInfo?.neynarUserScore || null}
               />
+              
+              {/* Token Benefits Section */}
+              <TokenBenefits />
               
               {/* FAQ Section */}
               <FAQ />

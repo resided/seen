@@ -31,15 +31,25 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
   });
   
   // Featured submission pricing (configurable)
-  const FEATURED_PRICE_USD = 111; // USD price
+  const BASE_FEATURED_PRICE_USD = 111; // Base USD price
   const [ethPrice, setEthPrice] = useState(null);
   const [ethPriceLoading, setEthPriceLoading] = useState(true);
   // Treasury address should be fetched from API or environment
   const [treasuryAddress, setTreasuryAddress] = useState(null);
   
+  // Holder benefits for discount
+  const [holderBenefits, setHolderBenefits] = useState(null);
+  const [holderTier, setHolderTier] = useState('NONE');
+  
+  // Calculate discounted price for holders
+  const discountPercent = holderBenefits?.benefits?.featuredDiscount || 0;
+  const FEATURED_PRICE_USD = BASE_FEATURED_PRICE_USD * (1 - discountPercent / 100);
+  
   // Calculate ETH amount from USD price
   const FEATURED_PRICE_ETH = ethPrice ? (FEATURED_PRICE_USD / ethPrice) : null;
-  const FEATURED_PRICE_DISPLAY = `$${FEATURED_PRICE_USD}`;
+  const FEATURED_PRICE_DISPLAY = discountPercent > 0 
+    ? `$${FEATURED_PRICE_USD.toFixed(0)} (${discountPercent}% holder discount!)` 
+    : `$${BASE_FEATURED_PRICE_USD}`;
   
   // Fetch ETH price
   useEffect(() => {
@@ -65,6 +75,25 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
     const interval = setInterval(fetchEthPrice, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  // Fetch holder benefits for discount
+  useEffect(() => {
+    if (address) {
+      fetch(`/api/holder-benefits?address=${address}`)
+        .then(res => res.json())
+        .then(data => {
+          setHolderBenefits(data);
+          setHolderTier(data.tier || 'NONE');
+        })
+        .catch(() => {
+          setHolderBenefits(null);
+          setHolderTier('NONE');
+        });
+    } else {
+      setHolderBenefits(null);
+      setHolderTier('NONE');
+    }
+  }, [address]);
 
   // Fetch treasury address from API
   useEffect(() => {
@@ -447,6 +476,11 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
                     {FEATURED_PRICE_DISPLAY} 
                     {ethPriceLoading ? ' (Loading...)' : FEATURED_PRICE_ETH ? ` (~${FEATURED_PRICE_ETH.toFixed(6)} ETH)` : ' (Price unavailable)'} - Payment required
                   </div>
+                  {discountPercent > 0 && (
+                    <div className="text-[9px] text-green-400 mt-1 font-bold">
+                      🎉 {holderTier} HOLDER: {discountPercent}% OFF (was ${BASE_FEATURED_PRICE_USD})
+                    </div>
+                  )}
                   <div className="text-[9px] text-yellow-400 mt-1 font-bold">
                     ⚠ MUST CHOOSE FEATURED DROPDOWN MENU
                   </div>
@@ -455,6 +489,33 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
                   )}
                 </div>
               </label>
+            </div>
+            
+            {/* Holder discount tiers info */}
+            <div className="mt-3 p-3 border border-white/30 bg-white/5">
+              <div className="text-[10px] tracking-[0.2em] text-gray-400 mb-2">💎 $SEEN HOLDER DISCOUNTS</div>
+              <div className="grid grid-cols-3 gap-2 text-[9px]">
+                <div className={`p-2 border ${holderTier === 'WHALE' ? 'border-yellow-400 bg-yellow-400/10' : 'border-white/20'}`}>
+                  <div className="font-bold text-yellow-400">WHALE</div>
+                  <div className="text-gray-500">30M+ $SEEN</div>
+                  <div className="text-green-400">30% OFF</div>
+                </div>
+                <div className={`p-2 border ${holderTier === 'DOLPHIN' ? 'border-blue-400 bg-blue-400/10' : 'border-white/20'}`}>
+                  <div className="font-bold text-blue-400">DOLPHIN</div>
+                  <div className="text-gray-500">10M+ $SEEN</div>
+                  <div className="text-green-400">20% OFF</div>
+                </div>
+                <div className={`p-2 border ${holderTier === 'HOLDER' ? 'border-purple-400 bg-purple-400/10' : 'border-white/20'}`}>
+                  <div className="font-bold text-purple-400">HOLDER</div>
+                  <div className="text-gray-500">1M+ $SEEN</div>
+                  <div className="text-green-400">10% OFF</div>
+                </div>
+              </div>
+              {holderTier !== 'NONE' && (
+                <div className="mt-2 text-[9px] text-green-400">
+                  ✓ Your tier: {holderTier} ({holderBenefits?.balance?.toLocaleString()} $SEEN)
+                </div>
+              )}
             </div>
           </div>
 

@@ -2,12 +2,14 @@
 import { getRedisClient } from '../../../lib/redis';
 import { getFeaturedProject } from '../../../lib/projects';
 import { fetchUserByFid } from '../../../lib/neynar';
+import { getTokenBalance, HOLDER_TIERS } from '../../../lib/token-balance';
 import { createWalletClient, createPublicClient, http, parseUnits } from 'viem';
 import { base } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 import { erc20Abi } from 'viem';
 
 const MIN_NEYNAR_SCORE = 0.62; // Minimum Neynar user score required to claim
+const WHALE_CLAIM_LIMIT = 2; // Whales (30M+) can claim 2x daily
 
 // Token configuration from environment variables
 // To change claim amount, update CLAIM_TOKEN_AMOUNT in your environment variables
@@ -95,20 +97,46 @@ export default async function handler(req, res) {
     // This allows users to claim again if the same project is featured again later
     const featuredAtTimestamp = Math.floor(featuredAt.getTime() / 1000); // Unix timestamp in seconds
     const claimKey = `claim:featured:${featuredProjectId}:${featuredAtTimestamp}:${fid}`;
+    const claimCountKey = `claim:count:${featuredProjectId}:${featuredAtTimestamp}:${fid}`;
     
     // TODO: REMOVE THIS AFTER TESTING - Bypass for testing (FID 342433)
     const TEST_BYPASS_FID = 342433;
     const isBypassEnabled = parseInt(fid) === TEST_BYPASS_FID;
     
-    // Check if already claimed for this specific featured rotation
-    // Always check regardless of txHash to prevent double-claiming
-    const alreadyClaimed = await redis.exists(claimKey);
-    if (alreadyClaimed && !isBypassEnabled) {
+    // Check holder tier for claim multiplier benefits
+    let holderTier = HOLDER_TIERS.NONE;
+    let maxClaims = 1;
+    
+    if (walletAddress) {
+      try {
+        const { tier } = await getTokenBalance(walletAddress);
+        holderTier = tier;
+        // Whales (30M+) get 2 claims per featured project
+        if (tier.label === 'WHALE') {
+          maxClaims = WHALE_CLAIM_LIMIT;
+        }
+      } catch (tierError) {
+        console.error('Error checking holder tier:', tierError);
+        // Continue with default (1 claim)
+      }
+    }
+    
+    // Check claim count for this featured rotation
+    const currentClaimCount = parseInt(await redis.get(claimCountKey) || '0');
+    
+    // Check if already at max claims for this rotation
+    if (currentClaimCount >= maxClaims && !isBypassEnabled) {
+      const isWhale = holderTier.label === 'WHALE';
       return res.status(400).json({ 
-        error: 'Already claimed for this featured project rotation',
+        error: isWhale 
+          ? `Already claimed ${maxClaims}x for this featured project (whale benefit used)`
+          : 'Already claimed for this featured project rotation',
         featuredProjectId,
         featuredAt: featuredAt.toISOString(),
         expirationTime: expirationTime.toISOString(),
+        claimCount: currentClaimCount,
+        maxClaims,
+        holderTier: holderTier.label,
       });
     }
 
@@ -227,13 +255,16 @@ export default async function handler(req, res) {
 
       // Calculate TTL: time until expiration (expires when featured project changes)
       const ttl = Math.max(0, Math.floor((expirationTime - now) / 1000));
-      const featuredAtTimestamp = Math.floor(featuredAt.getTime() / 1000);
+      
+      // Increment claim count (for whale 2x benefit tracking)
+      const newClaimCount = await redis.incr(claimCountKey);
+      await redis.expire(claimCountKey, ttl);
       
       // Record the claim with transaction hash (expires when featured project changes)
-      await redis.setEx(claimKey, ttl, '1');
+      await redis.setEx(claimKey, ttl, newClaimCount.toString());
       // If txHash was provided (user transaction), use that, otherwise use treasury tx hash
       const userTxHash = txHash || hash;
-      await redis.setEx(`claim:tx:${featuredProjectId}:${featuredAtTimestamp}:${fid}`, ttl, userTxHash);
+      await redis.setEx(`claim:tx:${featuredProjectId}:${featuredAtTimestamp}:${fid}:${newClaimCount}`, ttl, userTxHash);
 
       // Track a click when user successfully claims (they opened the miniapp to claim)
       try {
@@ -258,14 +289,20 @@ export default async function handler(req, res) {
         // Don't fail the claim if click tracking fails
       }
 
-      return res.status(200).json({
-        success: true,
-        message: 'Tokens sent successfully',
+    return res.status(200).json({
+      success: true,
+        message: holderTier.label === 'WHALE' 
+          ? `Tokens sent successfully! (Claim ${newClaimCount}/${maxClaims} - Whale benefit)`
+          : 'Tokens sent successfully',
         expirationTime: expirationTime.toISOString(),
         featuredProjectId,
         txHash: txHash || hash, // Return user's txHash if provided, otherwise treasury tx hash
         treasuryTxHash: hash, // Also return treasury transaction hash
         amount: TOKEN_AMOUNT,
+        claimCount: newClaimCount,
+        maxClaims,
+        holderTier: holderTier.label,
+        canClaimAgain: newClaimCount < maxClaims,
       });
     } catch (txError) {
       console.error('Error sending tokens:', {
