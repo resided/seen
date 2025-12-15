@@ -763,6 +763,34 @@ export default function Admin() {
     }
   };
 
+  const handleResetStatsWindow = async (projectId, projectName) => {
+    if (!confirm(`Reset stats window for ${projectName}?\n\nThis will set a new featuredAt timestamp, resetting clicks/views to 0.\n\nThis cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/admin/update-project', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId,
+          featuredAt: new Date().toISOString(),
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setMessage(`Stats window reset for ${projectName}`);
+        fetchLiveProjects();
+      } else {
+        setMessage(data.error || 'Failed to reset stats window');
+      }
+    } catch (error) {
+      console.error('Error resetting stats window:', error);
+      setMessage('Error resetting stats window: ' + error.message);
+    }
+  };
+
   const handleReject = async (projectId) => {
     if (!projectId) {
       setMessage('ERROR: Invalid project ID');
@@ -1518,6 +1546,15 @@ export default function Admin() {
                         >
                           SET CLICKS
                         </button>
+                        {project.status === 'featured' && (
+                          <button
+                            onClick={() => handleResetStatsWindow(project.id, project.name)}
+                            className="px-4 py-2 bg-red-600 text-white font-bold hover:bg-red-500 transition-all text-xs"
+                            title="Reset stats window (sets new featuredAt timestamp)"
+                          >
+                            RESET STATS
+                          </button>
+                        )}
                         <button
                           onClick={() => handleArchive(project.id, true)}
                           className="px-4 py-2 bg-gray-600 text-white font-bold hover:bg-gray-500 transition-all"
