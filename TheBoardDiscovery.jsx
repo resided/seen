@@ -1263,7 +1263,19 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
                     <p className="text-sm text-gray-400 leading-relaxed mb-1 whitespace-pre-wrap break-words">{project.description}</p>
                     {project.builder && (
                       <div className="text-[10px] text-gray-500 mb-2">
-                        BUILDER: <span className="text-white font-semibold">{project.builder}</span>
+                        BUILDER:{' '}
+                        {project.builderFid ? (
+                          <a
+                            href={`https://farcaster.xyz/profiles/${project.builderFid}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-white font-semibold underline hover:text-gray-300"
+                          >
+                            {project.builder}
+                          </a>
+                        ) : (
+                          <span className="text-white font-semibold">{project.builder}</span>
+                        )}
                         {project.builderFid ? (
                           <span className="ml-1 text-gray-500">(FID {project.builderFid})</span>
                         ) : null}
