@@ -1261,6 +1261,14 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
                 {showDescription ? (
                   <div>
                     <p className="text-sm text-gray-400 leading-relaxed mb-1 whitespace-pre-wrap break-words">{project.description}</p>
+                    {project.builder && (
+                      <div className="text-[10px] text-gray-500 mb-2">
+                        BUILDER: <span className="text-white font-semibold">{project.builder}</span>
+                        {project.builderFid ? (
+                          <span className="ml-1 text-gray-500">(FID {project.builderFid})</span>
+                        ) : null}
+                      </div>
+                    )}
                     <button
                       onClick={() => setShowDescription(false)}
                       className="text-[10px] text-gray-500 hover:text-white underline"
