@@ -1815,6 +1815,51 @@ const CategoryRankings = ({ category, ethPrice, isInFarcaster = false, isConnect
 // ============================================
 // FAQ COMPONENT
 // ============================================
+
+// ============================================
+// SWAP BUTTON - In-app swap to $SEEN using Farcaster wallet
+// ============================================
+const SEEN_TOKEN_ADDRESS = '0x82a56d595ccdfa3a1dc6eef28d5f0a870f162b07';
+
+const SwapButton = ({ isInFarcaster = false, isConnected = false }) => {
+  const handleSwap = async () => {
+    // Use Matcha/0x swap frame URL - opens swap modal in Farcaster
+    const matchaSwapUrl = `https://matcha.xyz/tokens/base/${SEEN_TOKEN_ADDRESS}?sellChain=8453&buyChain=8453`;
+    
+    // Alternative: Uniswap interface URL
+    const uniswapUrl = `https://app.uniswap.org/swap?outputCurrency=${SEEN_TOKEN_ADDRESS}&chain=base&inputCurrency=ETH`;
+    
+    if (isInFarcaster && sdk.actions?.openUrl) {
+      try {
+        // Open swap URL in Farcaster's in-app browser
+        await sdk.actions.openUrl({ url: matchaSwapUrl });
+      } catch (error) {
+        console.error('Error opening swap:', error);
+        window.open(uniswapUrl, '_blank');
+      }
+    } else {
+      window.open(uniswapUrl, '_blank');
+    }
+  };
+
+  return (
+    <div className="border border-white p-4">
+      <div className="text-center">
+        <div className="text-[10px] tracking-[0.3em] text-gray-500 mb-2">GET MORE $SEEN</div>
+        <button
+          onClick={handleSwap}
+          className="w-full py-3 bg-white text-black font-black text-sm tracking-[0.2em] hover:bg-gray-200 transition-all"
+        >
+          SWAP TO $SEEN
+        </button>
+        <div className="text-[9px] text-gray-600 mt-2">
+          SWAP ETH FOR $SEEN ON BASE
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ============================================
 // TOKEN BENEFITS (Holder perks + Coming Soon)
 // ============================================
@@ -2943,51 +2988,7 @@ export default function Seen() {
               <TokenBenefits />
               
               {/* Swap to $SEEN */}
-              <div className="border border-white p-4">
-                <div className="text-center">
-                  <div className="text-[10px] tracking-[0.3em] text-gray-500 mb-2">GET MORE $SEEN</div>
-                  <button
-                    onClick={async () => {
-                      const tokenAddress = '0x82a56d595ccdfa3a1dc6eef28d5f0a870f162b07';
-                      
-                      if (isInFarcaster && sdk.experimental?.openSwap) {
-                        // Use Farcaster's native swap modal
-                        try {
-                          await sdk.experimental.openSwap({
-                            sellToken: 'ETH',
-                            buyToken: tokenAddress,
-                            chain: 'base',
-                          });
-                          return;
-                        } catch (e) {
-                          console.log('openSwap not available, trying alternatives');
-                        }
-                      }
-                      
-                      // Try using Warpcast swap URL format (opens in-app)
-                      if (isInFarcaster) {
-                        const warpcastSwapUrl = `https://warpcast.com/~/swap?token=${tokenAddress}&chain=base`;
-                        try {
-                          await sdk.actions.openUrl({ url: warpcastSwapUrl });
-                          return;
-                        } catch (e) {
-                          console.log('Warpcast swap URL failed');
-                        }
-                      }
-                      
-                      // Fallback to Uniswap
-                      const swapUrl = `https://app.uniswap.org/swap?outputCurrency=${tokenAddress}&chain=base`;
-                      window.open(swapUrl, '_blank', 'noopener,noreferrer');
-                    }}
-                    className="w-full py-3 bg-white text-black font-black text-sm tracking-[0.2em] hover:bg-gray-200 transition-all"
-                  >
-                    SWAP TO $SEEN
-                  </button>
-                  <div className="text-[9px] text-gray-600 mt-2">
-                    SWAP ETH FOR $SEEN ON BASE
-                  </div>
-                </div>
-              </div>
+              <SwapButton isInFarcaster={isInFarcaster} isConnected={isConnected} />
               
               {/* FAQ Section */}
               <FAQ />
