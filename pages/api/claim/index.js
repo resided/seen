@@ -33,6 +33,11 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // EMERGENCY KILL SWITCH - set CLAIMS_DISABLED=true in Vercel env to stop all claims
+  if (process.env.CLAIMS_DISABLED === 'true') {
+    return res.status(503).json({ error: 'Claims temporarily disabled for maintenance' });
+  }
+
   try {
     const { fid, walletAddress, txHash } = req.body;
 
