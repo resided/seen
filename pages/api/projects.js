@@ -11,15 +11,15 @@ export default async function handler(req, res) {
     const queue = await getQueuedProjects()
 
     // Merge real-time stats with stored stats for featured project
-    // Use today's stats from Redis if available (they include manual overrides), otherwise use stored stats
+    // Use window stats from Redis if available (they include manual overrides), otherwise use stored stats
     if (featured?.id) {
-      const todayStats = await getProjectStatsToday(featured.id);
-      // Always use today's stats if they exist (they reflect manual overrides and continue counting)
-      // Otherwise fall back to stored stats
+      const windowStats = await getProjectStatsToday(featured.id, featured.featuredAt);
+      // Always use window stats (they reflect manual overrides and continue counting)
+      // If window stats exist, use them; otherwise fall back to stored stats
       featured.stats = {
         ...featured.stats,
-        views: todayStats.views > 0 ? todayStats.views : (featured.stats?.views || 0),
-        clicks: todayStats.clicks > 0 ? todayStats.clicks : (featured.stats?.clicks || 0),
+        views: windowStats.views || (featured.stats?.views || 0),
+        clicks: windowStats.clicks || (featured.stats?.clicks || 0),
       };
     }
 

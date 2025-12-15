@@ -22,16 +22,30 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, tracked: false });
     }
 
-    const now = Date.now();
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    // Get project to check if it's featured and has featuredAt
+    const { getProjectById } = await import('../../lib/projects');
+    const project = await getProjectById(parseInt(projectId));
+    
+    // For featured projects, use 24-hour window from featuredAt instead of calendar date
+    let windowKey;
+    if (project?.status === 'featured' && project?.featuredAt) {
+      const featuredDate = new Date(project.featuredAt);
+      const windowStart = Math.floor(featuredDate.getTime() / 1000);
+      windowKey = windowStart.toString();
+    } else {
+      // For non-featured projects, use calendar date (backward compatibility)
+      windowKey = new Date().toISOString().split('T')[0];
+    }
+    
     const key = type === 'click' ? CLICKS_KEY : VIEWS_KEY;
-    const projectKey = `${key}:${projectId}:${today}`;
+    const projectKey = `${key}:${projectId}:${windowKey}`;
 
-    // Increment counter for today
+    // Increment counter
     await redis.incr(projectKey);
     
-    // Set expiration to 2 days (to be safe)
-    await redis.expire(projectKey, 2 * 24 * 60 * 60);
+    // Set expiration: 48 hours for featured (to cover full 24h window + buffer), 2 days for others
+    const expiration = project?.status === 'featured' ? 48 * 60 * 60 : 2 * 24 * 60 * 60;
+    await redis.expire(projectKey, expiration);
 
     // Also track unique clicks/views (using IP or FID if available)
     const clientIP = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 
@@ -40,11 +54,12 @@ export default async function handler(req, res) {
                      'unknown';
     
     if (type === 'click') {
-      // Track unique clicks per IP per day
-      const uniqueKey = `clicks:unique:${projectId}:${today}:${clientIP}`;
+      // Track unique clicks per IP per window
+      const uniqueKey = `clicks:unique:${projectId}:${windowKey}:${clientIP}`;
       const exists = await redis.exists(uniqueKey);
       if (!exists) {
-        await redis.setEx(uniqueKey, 2 * 24 * 60 * 60, '1');
+        const expiration = project?.status === 'featured' ? 48 * 60 * 60 : 2 * 24 * 60 * 60;
+        await redis.setEx(uniqueKey, expiration, '1');
       }
     }
 

@@ -120,38 +120,47 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Project not found' });
     }
 
-    // If stats were updated, also sync Redis daily counters for real-time display
+    // If stats were updated, also sync Redis window counters for real-time display
     // This sets the base value so future increments continue from the manually set number
     if (stats !== undefined && stats.clicks !== undefined) {
       try {
         const redis = await getRedisClient();
         if (redis) {
-          const today = new Date().toISOString().split('T')[0];
-          const clicksKey = `clicks:project:${projectId}:${today}`;
-          
-          // Get the project BEFORE updating to see current stored stats
+          // Get the project BEFORE updating to see current stored stats and featuredAt
           const { getProjectById } = await import('../../../lib/projects');
           const currentProject = await getProjectById(parseInt(projectId));
           const currentStoredTotal = currentProject?.stats?.clicks || 0;
           const newTotal = stats.clicks;
           
-          // Get current today's counter (if any)
-          const currentTodayCount = parseInt(await redis.get(clicksKey) || '0');
+          // Use window key based on featuredAt for featured projects, calendar date for others
+          let windowKey;
+          if (currentProject?.status === 'featured' && currentProject?.featuredAt) {
+            const featuredDate = new Date(currentProject.featuredAt);
+            windowKey = Math.floor(featuredDate.getTime() / 1000).toString();
+          } else {
+            windowKey = new Date().toISOString().split('T')[0];
+          }
+          
+          const clicksKey = `clicks:project:${projectId}:${windowKey}`;
+          
+          // Get current window counter (if any)
+          const currentWindowCount = parseInt(await redis.get(clicksKey) || '0');
           
           // Calculate how much the total changed
           const totalDifference = newTotal - currentStoredTotal;
           
-          // Adjust today's counter by the difference so future increments continue from new base
-          // Example: If stored total was 50, user sets to 100 (diff=50), and today had 5 clicks,
-          // we set today's counter to 55. Next click makes it 56, which matches total of 101.
-          const newTodayCount = Math.max(0, currentTodayCount + totalDifference);
-          await redis.set(clicksKey, newTodayCount.toString());
-          await redis.expire(clicksKey, 2 * 24 * 60 * 60);
+          // Adjust window counter by the difference so future increments continue from new base
+          const newWindowCount = Math.max(0, currentWindowCount + totalDifference);
+          await redis.set(clicksKey, newWindowCount.toString());
           
-          console.log(`Updated clicks: stored=${currentStoredTotal}→${newTotal}, today's counter=${currentTodayCount}→${newTodayCount}`);
+          // Set expiration: 48 hours for featured (to cover full 24h window + buffer), 2 days for others
+          const expiration = currentProject?.status === 'featured' ? 48 * 60 * 60 : 2 * 24 * 60 * 60;
+          await redis.expire(clicksKey, expiration);
+          
+          console.log(`Updated clicks: stored=${currentStoredTotal}→${newTotal}, window counter=${currentWindowCount}→${newWindowCount}, windowKey=${windowKey}`);
         }
       } catch (redisError) {
-        console.error('Error syncing Redis daily counter:', redisError);
+        console.error('Error syncing Redis window counter:', redisError);
         // Don't fail the update if Redis sync fails
       }
     }
@@ -160,30 +169,41 @@ export default async function handler(req, res) {
       try {
         const redis = await getRedisClient();
         if (redis) {
-          const today = new Date().toISOString().split('T')[0];
-          const viewsKey = `views:project:${projectId}:${today}`;
-          
-          // Get the project BEFORE updating to see current stored stats
+          // Get the project BEFORE updating to see current stored stats and featuredAt
           const { getProjectById } = await import('../../../lib/projects');
           const currentProject = await getProjectById(parseInt(projectId));
           const currentStoredTotal = currentProject?.stats?.views || 0;
           const newTotal = stats.views;
           
-          // Get current today's counter (if any)
-          const currentTodayCount = parseInt(await redis.get(viewsKey) || '0');
+          // Use window key based on featuredAt for featured projects, calendar date for others
+          let windowKey;
+          if (currentProject?.status === 'featured' && currentProject?.featuredAt) {
+            const featuredDate = new Date(currentProject.featuredAt);
+            windowKey = Math.floor(featuredDate.getTime() / 1000).toString();
+          } else {
+            windowKey = new Date().toISOString().split('T')[0];
+          }
+          
+          const viewsKey = `views:project:${projectId}:${windowKey}`;
+          
+          // Get current window counter (if any)
+          const currentWindowCount = parseInt(await redis.get(viewsKey) || '0');
           
           // Calculate how much the total changed
           const totalDifference = newTotal - currentStoredTotal;
           
-          // Adjust today's counter by the difference so future increments continue from new base
-          const newTodayCount = Math.max(0, currentTodayCount + totalDifference);
-          await redis.set(viewsKey, newTodayCount.toString());
-          await redis.expire(viewsKey, 2 * 24 * 60 * 60);
+          // Adjust window counter by the difference so future increments continue from new base
+          const newWindowCount = Math.max(0, currentWindowCount + totalDifference);
+          await redis.set(viewsKey, newWindowCount.toString());
           
-          console.log(`Updated views: stored=${currentStoredTotal}→${newTotal}, today's counter=${currentTodayCount}→${newTodayCount}`);
+          // Set expiration: 48 hours for featured (to cover full 24h window + buffer), 2 days for others
+          const expiration = currentProject?.status === 'featured' ? 48 * 60 * 60 : 2 * 24 * 60 * 60;
+          await redis.expire(viewsKey, expiration);
+          
+          console.log(`Updated views: stored=${currentStoredTotal}→${newTotal}, window counter=${currentWindowCount}→${newWindowCount}, windowKey=${windowKey}`);
         }
       } catch (redisError) {
-        console.error('Error syncing Redis daily counter:', redisError);
+        console.error('Error syncing Redis window counter:', redisError);
         // Don't fail the update if Redis sync fails
       }
     }
