@@ -1827,14 +1827,14 @@ const TokenBenefits = () => {
         onClick={() => setIsOpen(!isOpen)}
         className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors"
       >
-        <span className="text-sm font-black tracking-[0.2em]">💎 $SEEN HOLDER BENEFITS</span>
+        <span className="text-sm font-black tracking-[0.2em]">$SEEN HOLDER BENEFITS</span>
         <span className="text-xl">{isOpen ? '−' : '+'}</span>
       </button>
       {isOpen && (
         <div className="p-4 border-t border-white/20 space-y-4">
           {/* Active Benefits */}
           <div>
-            <div className="text-[10px] tracking-[0.2em] text-green-400 mb-2">✓ ACTIVE NOW (HOLD 30M+ $SEEN)</div>
+            <div className="text-[10px] tracking-[0.2em] text-green-400 mb-2">ACTIVE NOW (HOLD 30M+ $SEEN)</div>
             <div className="space-y-2 text-[11px]">
               <div className="flex items-start gap-2">
                 <span className="text-green-400">•</span>
@@ -1855,7 +1855,7 @@ const TokenBenefits = () => {
           
           {/* Coming Soon */}
           <div className="border-t border-white/20 pt-4">
-            <div className="text-[10px] tracking-[0.2em] text-yellow-400 mb-2">🚀 COMING SOON</div>
+            <div className="text-[10px] tracking-[0.2em] text-yellow-400 mb-2">COMING SOON</div>
             <div className="space-y-2 text-[11px]">
               <div className="flex items-start gap-2">
                 <span className="text-yellow-400">◦</span>

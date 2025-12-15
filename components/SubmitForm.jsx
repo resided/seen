@@ -475,7 +475,7 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
                   </div>
                   {isHolder && (
                     <div className="text-[9px] text-green-400 mt-1 font-bold">
-                      🎉 30M+ HOLDER: 20% OFF (was ${BASE_FEATURED_PRICE_USD})
+                      30M+ HOLDER: 20% OFF (was ${BASE_FEATURED_PRICE_USD})
                     </div>
                   )}
                   <div className="text-[9px] text-yellow-400 mt-1 font-bold">
@@ -490,13 +490,13 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
             
             {/* Holder discount info */}
             <div className="mt-3 p-3 border border-white/30 bg-white/5">
-              <div className="text-[10px] tracking-[0.2em] text-gray-400 mb-1">💎 $SEEN HOLDER DISCOUNT</div>
+              <div className="text-[10px] tracking-[0.2em] text-gray-400 mb-1">$SEEN HOLDER DISCOUNT</div>
               <div className="text-[9px] text-gray-500">
                 Hold 30M+ $SEEN for 20% off featured pricing
               </div>
               {isHolder && (
                 <div className="mt-1 text-[9px] text-green-400">
-                  ✓ You qualify! ({holderBenefits?.balance?.toLocaleString()} $SEEN)
+                  You qualify ({holderBenefits?.balance?.toLocaleString()} $SEEN)
                 </div>
               )}
             </div>
