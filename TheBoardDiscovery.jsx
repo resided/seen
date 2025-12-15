@@ -2265,7 +2265,7 @@ export default function Seen() {
   // Wagmi wallet connection
   const { isConnected, address } = useAccount()
   const { connect, connectors } = useConnect()
-  const { sendTransaction: sendChatTransaction } = useSendTransaction();
+  const { sendTransactionAsync: sendChatTransaction } = useSendTransaction();
   
   // Check if user has clicked miniapp (persist in localStorage with featured project validation)
   useEffect(() => {
