@@ -148,24 +148,33 @@ export default async function handler(req, res) {
     
     console.log('Claim count check:', {
       fid,
+      walletAddress: walletAddress?.slice(0, 10) + '...',
       newClaimCount,
       maxClaims,
       isBypassEnabled,
+      featuredProjectId,
+      featuredAtTimestamp,
+      claimCountKey,
       willAllow: newClaimCount <= maxClaims || isBypassEnabled
     });
     
     // If incrementing pushed us over max, decrement back and reject
     // Logic: maxClaims=2 means user can claim when count is 1 or 2, but not 3+
     // So we reject if newClaimCount > maxClaims
+    // IMPORTANT: We check AFTER increment, so:
+    // - maxClaims=1: count 1 is allowed (1 > 1? No), count 2 is rejected (2 > 1? Yes)
+    // - maxClaims=2: count 1-2 are allowed, count 3 is rejected
     if (newClaimCount > maxClaims && !isBypassEnabled) {
       // Rollback the increment
       await redis.decr(claimCountKey);
       console.warn('Claim rejected - exceeded max:', {
         fid,
+        walletAddress: walletAddress?.slice(0, 10) + '...',
         newClaimCount,
         maxClaims,
         featuredProjectId,
-        featuredAtTimestamp
+        featuredAtTimestamp,
+        claimCountKey
       });
       return res.status(400).json({ 
         error: isHolder 
@@ -177,6 +186,19 @@ export default async function handler(req, res) {
         claimCount: newClaimCount - 1, // Show actual count before our increment
         maxClaims,
         isHolder,
+      });
+    }
+    
+    // Additional safety: Log if someone is claiming more than expected
+    if (newClaimCount > maxClaims) {
+      console.error('CRITICAL: Claim count exceeded maxClaims but was allowed!', {
+        fid,
+        walletAddress: walletAddress?.slice(0, 10) + '...',
+        newClaimCount,
+        maxClaims,
+        isBypassEnabled,
+        featuredProjectId,
+        featuredAtTimestamp
       });
     }
     
@@ -331,6 +353,20 @@ export default async function handler(req, res) {
         from: account.address,
       });
 
+      // Verify featured project hasn't changed during claim process (prevent multi-claim exploit)
+      const currentFeaturedProject = await getFeaturedProject();
+      if (!currentFeaturedProject || currentFeaturedProject.id !== featuredProjectId) {
+        // Featured project changed - rollback and reject
+        await redis.decr(claimCountKey);
+        if (userCanGetDonut) {
+          await redis.del(userDonutKey);
+        }
+        return res.status(400).json({ 
+          error: 'Featured project changed during claim. Please try again.',
+          featuredProjectChanged: true
+        });
+      }
+      
       // Send SEEN tokens first
       const seenHash = await walletClient.writeContract({
         address: TOKEN_CONTRACT,
