@@ -78,12 +78,18 @@ const formatNumber = (num) => {
   return num.toString();
 };
 
-// Format tips in ETH to USD (rounded up to nearest dollar)
+// Format tips in ETH to USD (rounded up to nearest 10 cents / 0.10)
 const formatTipsUsd = (ethAmount, ethPrice) => {
   if (!ethAmount || ethAmount === 0) return '$0';
   if (!ethPrice) return `${ethAmount}Ξ`; // Fallback to ETH if price unavailable
   const usdAmount = parseFloat(ethAmount) * ethPrice;
-  return `$${Math.ceil(usdAmount)}`;
+  // Round up to nearest 10 cents (0.10)
+  const rounded = Math.ceil(usdAmount * 10) / 10;
+  // Format to 2 decimal places, but show minimum 0.10 if amount is > 0
+  if (rounded < 0.10 && usdAmount > 0) {
+    return '$0.10';
+  }
+  return `$${rounded.toFixed(2)}`;
 };
 
 // ============================================
