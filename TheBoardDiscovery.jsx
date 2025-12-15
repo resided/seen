@@ -2261,9 +2261,12 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
                 EXPIRES IN {getTimeUntilExpiration()}
               </div>
             )}
+            <div className="text-[10px] tracking-[0.2em] text-gray-400 mb-2">
+              30M+ $SEEN HOLDERS GET 2X DAILY CLAIMS
+            </div>
             {maxClaims > 1 && (
               <div className="text-[10px] tracking-[0.2em] text-green-400 mb-2">
-                30M+ HOLDER: {maxClaims} CLAIMS AVAILABLE
+                YOU QUALIFY: {maxClaims} CLAIMS AVAILABLE
               </div>
             )}
             <div className="text-[10px] tracking-[0.2em] text-gray-500 mb-4">
