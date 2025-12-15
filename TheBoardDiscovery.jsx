@@ -1138,9 +1138,14 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
   // Fetch builder profile for tipping
   useEffect(() => {
     if (showTipModal && project.builderFid) {
-      fetch(`/api/user-profile?fid=${project.builderFid}`)
+      fetch('/api/user-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fid: project.builderFid }),
+      })
         .then(res => res.json())
         .then(data => {
+          // API returns { user: ... }
           if (data.user) {
             setBuilderData(data.user);
           }
