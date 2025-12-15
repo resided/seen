@@ -20,6 +20,14 @@ const TREASURY_PRIVATE_KEY = process.env.TREASURY_PRIVATE_KEY; // Private key of
 const TREASURY_ADDRESS = process.env.TREASURY_ADDRESS; // Treasury wallet address (for verification) - REQUIRED
 const REQUIRE_USER_TX = process.env.REQUIRE_USER_TX !== 'false'; // Allow disabling in env if needed
 
+// DONUT token bonus configuration (one-time feature)
+const DONUT_TOKEN_CONTRACT = '0xAE4a37d554C6D6F3E398546d8566B25052e0169C'; // DONUT token address
+const DONUT_TOKEN_AMOUNT = '1'; // 1 DONUT per person
+const DONUT_TOKEN_DECIMALS = 18; // Standard ERC20 decimals
+const DONUT_MAX_SUPPLY = 1000; // Maximum 1,000 DONUT tokens to give out
+const DONUT_BONUS_SEEN_AMOUNT = '50000'; // 50,000 SEEN when DONUT is available
+const DONUT_COUNT_KEY = 'donut:count:given'; // Redis key to track DONUT tokens given
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -233,24 +241,51 @@ export default async function handler(req, res) {
         transport: http(),
       });
 
-      // Validate amount
-      const tokenAmount = parseUnits(TOKEN_AMOUNT, TOKEN_DECIMALS);
+      // Check DONUT availability
+      const donutCountGiven = parseInt(await redis.get(DONUT_COUNT_KEY) || '0');
+      const donutAvailable = donutCountGiven < DONUT_MAX_SUPPLY;
+      
+      // Determine amounts: if DONUT available, send 50k SEEN + 1 DONUT, otherwise regular amount
+      const seenAmount = donutAvailable ? DONUT_BONUS_SEEN_AMOUNT : TOKEN_AMOUNT;
+      const seenAmountWei = parseUnits(seenAmount, TOKEN_DECIMALS);
+      
       console.log('Sending tokens:', {
-        contract: TOKEN_CONTRACT,
+        donutAvailable,
+        donutCountGiven,
+        donutMaxSupply: DONUT_MAX_SUPPLY,
+        seenContract: TOKEN_CONTRACT,
+        seenAmount,
+        donutContract: donutAvailable ? DONUT_TOKEN_CONTRACT : null,
+        donutAmount: donutAvailable ? DONUT_TOKEN_AMOUNT : null,
         to: walletAddress,
-        amount: TOKEN_AMOUNT,
-        amountWei: tokenAmount.toString(),
-        decimals: TOKEN_DECIMALS,
         from: account.address,
       });
 
-      // Send ERC20 tokens
-      const hash = await walletClient.writeContract({
+      // Send SEEN tokens first
+      const seenHash = await walletClient.writeContract({
         address: TOKEN_CONTRACT,
         abi: erc20Abi,
         functionName: 'transfer',
-        args: [walletAddress, tokenAmount],
+        args: [walletAddress, seenAmountWei],
       });
+
+      // Send DONUT token if available
+      let donutHash = null;
+      if (donutAvailable) {
+        const donutAmountWei = parseUnits(DONUT_TOKEN_AMOUNT, DONUT_TOKEN_DECIMALS);
+        donutHash = await walletClient.writeContract({
+          address: DONUT_TOKEN_CONTRACT,
+          abi: erc20Abi,
+          functionName: 'transfer',
+          args: [walletAddress, donutAmountWei],
+        });
+        
+        // Increment DONUT count (persistent, doesn't expire)
+        await redis.incr(DONUT_COUNT_KEY);
+      }
+
+      // Use SEEN hash as primary hash (for backward compatibility)
+      const hash = seenHash;
 
       // Calculate TTL: time until expiration (expires when featured project changes)
       const ttl = Math.max(0, Math.floor((expirationTime - now) / 1000));
@@ -288,21 +323,30 @@ export default async function handler(req, res) {
         // Don't fail the claim if click tracking fails
       }
 
+    // Build success message
+    let successMessage = 'Tokens sent successfully';
+    if (donutAvailable) {
+      successMessage = `Tokens sent successfully! Bonus: 1 DONUT + ${seenAmount} $SEEN`;
+    } else if (isHolder) {
+      successMessage = `Tokens sent successfully! (Claim ${newClaimCount}/${maxClaims} - 30M+ holder benefit)`;
+    }
+
     return res.status(200).json({
       success: true,
-        message: isHolder 
-          ? `Tokens sent successfully! (Claim ${newClaimCount}/${maxClaims} - 30M+ holder benefit)`
-          : 'Tokens sent successfully',
-        expirationTime: expirationTime.toISOString(),
-        featuredProjectId,
-        txHash: txHash || hash, // Return user's txHash if provided, otherwise treasury tx hash
-        treasuryTxHash: hash, // Also return treasury transaction hash
-        amount: TOKEN_AMOUNT,
-        claimCount: newClaimCount,
-        maxClaims,
-        isHolder,
-        canClaimAgain: newClaimCount < maxClaims,
-      });
+      message: successMessage,
+      expirationTime: expirationTime.toISOString(),
+      featuredProjectId,
+      txHash: txHash || hash, // Return user's txHash if provided, otherwise treasury tx hash
+      treasuryTxHash: hash, // Also return treasury transaction hash
+      donutTxHash: donutHash, // DONUT transaction hash if sent
+      amount: seenAmount, // Actual SEEN amount sent
+      donutIncluded: donutAvailable, // Whether DONUT was included
+      donutRemaining: Math.max(0, DONUT_MAX_SUPPLY - donutCountGiven - (donutAvailable ? 1 : 0)), // Remaining DONUT tokens
+      claimCount: newClaimCount,
+      maxClaims,
+      isHolder,
+      canClaimAgain: newClaimCount < maxClaims,
+    });
     } catch (txError) {
       console.error('Error sending tokens:', {
         error: txError,

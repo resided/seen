@@ -87,13 +87,22 @@ export default async function handler(req, res) {
       if (!scheduledDate) {
         return res.status(400).json({ error: 'Missing scheduledDate for schedule action' })
       }
+      
       const project = await scheduleFeaturedProject(projectId, scheduledDate)
       if (!project) {
         return res.status(404).json({ error: 'Project not found' })
       }
+      
+      // Display in UK timezone for confirmation
+      const displayDate = new Date(scheduledDate).toLocaleString('en-GB', { 
+        timeZone: 'Europe/London',
+        dateStyle: 'long',
+        timeStyle: 'short'
+      });
+      
       res.status(200).json({
         success: true,
-        message: `Project scheduled to be featured on ${new Date(scheduledDate).toLocaleString()}`,
+        message: `Project scheduled to be featured on ${displayDate} (UK time)`,
         project
       })
     } else if (action === 'reject') {

@@ -5,6 +5,11 @@ import { getTokenBalance, HOLDER_THRESHOLD } from '../../../lib/token-balance';
 
 const WHALE_CLAIM_LIMIT = 2; // Whales (30M+) can claim 2x daily
 
+// DONUT token bonus configuration
+const DONUT_MAX_SUPPLY = 1000; // Maximum 1,000 DONUT tokens to give out
+const DONUT_COUNT_KEY = 'donut:count:given'; // Redis key to track DONUT tokens given
+const DONUT_BONUS_SEEN_AMOUNT = '50000'; // 50,000 SEEN when DONUT is available
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -65,6 +70,11 @@ export default async function handler(req, res) {
     const fullyClaimed = claimCount >= maxClaims;
     const canClaimAgain = claimCount < maxClaims && !expired;
 
+    // Check DONUT availability
+    const donutCountGiven = parseInt(await redis.get(DONUT_COUNT_KEY) || '0');
+    const donutAvailable = donutCountGiven < DONUT_MAX_SUPPLY;
+    const donutRemaining = Math.max(0, DONUT_MAX_SUPPLY - donutCountGiven);
+
     // TODO: REMOVE THIS AFTER TESTING - Bypass for testing (FID 342433)
     const TEST_BYPASS_FID = 342433;
     const isBypassEnabled = parseInt(fid) === TEST_BYPASS_FID;
@@ -81,6 +91,9 @@ export default async function handler(req, res) {
       timeRemaining: expired ? 0 : Math.max(0, expirationTime - now),
       isHolder,
       holderThreshold: HOLDER_THRESHOLD,
+      donutAvailable, // Whether DONUT bonus is still available
+      donutRemaining, // How many DONUT tokens remain
+      donutBonusSeenAmount: donutAvailable ? DONUT_BONUS_SEEN_AMOUNT : null, // SEEN amount if DONUT available
     });
   } catch (error) {
     console.error('Error checking claim status:', error);

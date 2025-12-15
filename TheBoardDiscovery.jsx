@@ -2005,6 +2005,9 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
   const [claimCount, setClaimCount] = useState(0);
   const [maxClaims, setMaxClaims] = useState(1);
   const [isHolder, setIsHolder] = useState(false);
+  const [donutAvailable, setDonutAvailable] = useState(false);
+  const [donutRemaining, setDonutRemaining] = useState(0);
+  const [donutBonusSeenAmount, setDonutBonusSeenAmount] = useState(null);
   const { address } = useAccount();
   const { sendTransaction, data: claimTxData } = useSendTransaction();
   const { isLoading: isClaimTxConfirming, isSuccess: isClaimTxConfirmed } = useWaitForTransactionReceipt({
@@ -2053,6 +2056,16 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
           }
           if (data.isHolder !== undefined) {
             setIsHolder(data.isHolder);
+          }
+          // Track DONUT bonus availability
+          if (data.donutAvailable !== undefined) {
+            setDonutAvailable(data.donutAvailable);
+          }
+          if (data.donutRemaining !== undefined) {
+            setDonutRemaining(data.donutRemaining);
+          }
+          if (data.donutBonusSeenAmount !== undefined) {
+            setDonutBonusSeenAmount(data.donutBonusSeenAmount);
           }
         })
         .catch(() => {});
@@ -2104,13 +2117,23 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
               setMaxClaims(data.maxClaims);
             }
             
+            // Update DONUT info from response
+            if (data.donutIncluded !== undefined) {
+              setDonutAvailable(data.donutIncluded);
+            }
+            if (data.donutRemaining !== undefined) {
+              setDonutRemaining(data.donutRemaining);
+            }
+            
             // For 30M+ holders, check if they can claim again
             if (data.canClaimAgain) {
               setClaimed(false); // Can still claim more
-              setMessage(`CLAIM ${data.claimCount} COMPLETE! TOKENS SENT.`);
+              const donutMsg = data.donutIncluded ? ' + 1 DONUT BONUS!' : '';
+              setMessage(`CLAIM ${data.claimCount} COMPLETE! TOKENS SENT${donutMsg}`);
             } else {
               setClaimed(true); // Fully claimed
-              setMessage('ALL CLAIMS COMPLETE! TOKENS SENT.');
+              const donutMsg = data.donutIncluded ? ' + 1 DONUT BONUS!' : '';
+              setMessage(`ALL CLAIMS COMPLETE! TOKENS SENT${donutMsg}`);
             }
             if (data.expirationTime) {
               setExpirationTime(new Date(data.expirationTime));
@@ -2312,6 +2335,11 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
             {expirationTime && getTimeUntilExpiration() && getTimeUntilExpiration() !== 'EXPIRED' && (
               <div className="text-xs text-gray-500 mb-2">
                 EXPIRES IN {getTimeUntilExpiration()}
+              </div>
+            )}
+            {donutAvailable && (
+              <div className="text-[10px] tracking-[0.2em] text-yellow-400 mb-2 font-bold">
+                BONUS: 1 DONUT + {donutBonusSeenAmount || '50,000'} $SEEN ({donutRemaining} LEFT)
               </div>
             )}
             <div className="text-[10px] tracking-[0.2em] text-gray-400 mb-2">

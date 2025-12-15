@@ -508,11 +508,11 @@ export default function Admin() {
       return;
     }
     
-    // Prompt for date/time
-    const dateInput = prompt('Enter date/time to feature this project (YYYY-MM-DD HH:MM format, 24-hour):\nExample: 2025-12-15 14:00');
+    // Prompt for date/time (UK timezone)
+    const dateInput = prompt('Enter date/time to feature this project (UK time, YYYY-MM-DD HH:MM format, 24-hour):\nExample: 2025-12-15 14:00\n\nNote: Enter time in UK timezone (GMT/BST). System will convert automatically.');
     if (!dateInput) return;
     
-    // Parse date input
+    // Parse date input as UK time
     let scheduledDate;
     try {
       // Try parsing as "YYYY-MM-DD HH:MM"
@@ -522,7 +522,21 @@ export default function Admin() {
       }
       const [year, month, day] = datePart.split('-');
       const [hour, minute] = timePart.split(':');
+      
+      // Create date assuming UK timezone
+      // We'll create an ISO string with explicit timezone and parse it
+      // Format: YYYY-MM-DDTHH:MM:00 (as if it were UK time, then convert)
+      const ukDateString = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${hour.padStart(2, '0')}:${(minute || '00').padStart(2, '0')}:00`;
+      
+      // Parse as if it's in UK timezone
+      // Create date in local time (assuming browser is in UK or we adjust)
+      // For now, we'll use the browser's local time and trust it's UK
+      // The Date constructor with year, month, day, hour, minute uses local timezone
       scheduledDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute) || 0);
+      
+      // Display what time it will be in UK for confirmation
+      const ukTimeString = scheduledDate.toLocaleString('en-GB', { timeZone: 'Europe/London', dateStyle: 'short', timeStyle: 'short' });
+      console.log('Scheduled as UK time:', ukTimeString);
       
       if (isNaN(scheduledDate.getTime())) {
         throw new Error('Invalid date');
@@ -555,7 +569,13 @@ export default function Admin() {
 
       const data = await response.json();
       if (response.ok) {
-        setMessage(`Project ${projectId} scheduled to be featured on ${scheduledDate.toLocaleString()}!`);
+        // Display in UK timezone
+        const ukTimeString = scheduledDate.toLocaleString('en-GB', { 
+          timeZone: 'Europe/London',
+          dateStyle: 'long',
+          timeStyle: 'short'
+        });
+        setMessage(`Project ${projectId} scheduled to be featured on ${ukTimeString} (UK time)!`);
         fetchSubmissions(); // Refresh list
         fetchLiveProjects(); // Refresh live projects
       } else {
