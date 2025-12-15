@@ -115,11 +115,14 @@ export default async function handler(req, res) {
       });
     }
 
-    // Track claim by featured project ID + featuredAt timestamp + FID
-    // This allows users to claim again if the same project is featured again later
+    // Track claim by featured project ID + featuredAt timestamp + FID AND wallet
+    // This prevents FID spoofing attacks - claims tracked by both FID and wallet
     const featuredAtTimestamp = Math.floor(featuredAt.getTime() / 1000); // Unix timestamp in seconds
     const claimKey = `claim:featured:${featuredProjectId}:${featuredAtTimestamp}:${fid}`;
     const claimCountKey = `claim:count:${featuredProjectId}:${featuredAtTimestamp}:${fid}`;
+    
+    // SECURITY: Also track by wallet address to prevent FID spoofing
+    const walletClaimCountKey = `claim:wallet:${featuredProjectId}:${featuredAtTimestamp}:${walletAddress.toLowerCase()}`;
     
     // TODO: REMOVE THIS AFTER TESTING - Bypass for testing (FID 342433)
     const TEST_BYPASS_FID = 342433;
@@ -141,33 +144,54 @@ export default async function handler(req, res) {
       maxClaims
     });
     
-    // ATOMIC CHECK: Check claim count for this featured rotation
+    // SECURITY: Check WALLET claim count FIRST to prevent FID spoofing attacks
+    // This ensures a wallet can't claim unlimited times by cycling through FIDs
+    const walletClaimCount = await redis.incr(walletClaimCountKey);
+    
+    if (walletClaimCount > maxClaims && !isBypassEnabled) {
+      // Rollback the increment
+      await redis.decr(walletClaimCountKey);
+      console.warn('SECURITY: Wallet claim limit exceeded (possible FID spoofing attempt):', {
+        fid,
+        walletAddress: walletAddress?.slice(0, 10) + '...',
+        walletClaimCount,
+        maxClaims,
+        featuredProjectId,
+        featuredAtTimestamp
+      });
+      return res.status(400).json({ 
+        error: 'This wallet has already claimed the maximum allowed for this featured project',
+        featuredProjectId,
+        walletClaimCount: walletClaimCount - 1,
+        maxClaims,
+        isHolder,
+      });
+    }
+    
+    // ATOMIC CHECK: Check FID claim count for this featured rotation
     // Use INCR to atomically increment and get the new value
-    // If it was 0, it becomes 1 (first claim). If it was already >= maxClaims, we'll check after.
     const newClaimCount = await redis.incr(claimCountKey);
     
     console.log('Claim count check:', {
       fid,
       walletAddress: walletAddress?.slice(0, 10) + '...',
       newClaimCount,
+      walletClaimCount,
       maxClaims,
       isBypassEnabled,
       featuredProjectId,
       featuredAtTimestamp,
       claimCountKey,
+      walletClaimCountKey,
       willAllow: newClaimCount <= maxClaims || isBypassEnabled
     });
     
-    // If incrementing pushed us over max, decrement back and reject
-    // Logic: maxClaims=2 means user can claim when count is 1 or 2, but not 3+
-    // So we reject if newClaimCount > maxClaims
-    // IMPORTANT: We check AFTER increment, so:
-    // - maxClaims=1: count 1 is allowed (1 > 1? No), count 2 is rejected (2 > 1? Yes)
-    // - maxClaims=2: count 1-2 are allowed, count 3 is rejected
+    // If FID claim count exceeds max, decrement both counters and reject
     if (newClaimCount > maxClaims && !isBypassEnabled) {
-      // Rollback the increment
+      // Rollback both increments
       await redis.decr(claimCountKey);
-      console.warn('Claim rejected - exceeded max:', {
+      await redis.decr(walletClaimCountKey);
+      console.warn('Claim rejected - FID exceeded max:', {
         fid,
         walletAddress: walletAddress?.slice(0, 10) + '...',
         newClaimCount,
@@ -183,7 +207,7 @@ export default async function handler(req, res) {
         featuredProjectId,
         featuredAt: featuredAt.toISOString(),
         expirationTime: expirationTime.toISOString(),
-        claimCount: newClaimCount - 1, // Show actual count before our increment
+        claimCount: newClaimCount - 1,
         maxClaims,
         isHolder,
       });
@@ -195,6 +219,7 @@ export default async function handler(req, res) {
         fid,
         walletAddress: walletAddress?.slice(0, 10) + '...',
         newClaimCount,
+        walletClaimCount,
         maxClaims,
         isBypassEnabled,
         featuredProjectId,
@@ -202,9 +227,10 @@ export default async function handler(req, res) {
       });
     }
     
-    // Set expiration on the claim count key
+    // Set expiration on both claim count keys
     const ttl = Math.max(0, Math.floor((expirationTime - now) / 1000));
     await redis.expire(claimCountKey, ttl);
+    await redis.expire(walletClaimCountKey, ttl);
 
     // If no token contract configured, return token details for client-side transaction
     if (!TOKEN_CONTRACT || !TREASURY_PRIVATE_KEY) {
@@ -353,6 +379,7 @@ export default async function handler(req, res) {
       if (!currentFeaturedProject || currentFeaturedProject.id !== featuredProjectId) {
         // Featured project changed - rollback and reject
         await redis.decr(claimCountKey);
+        await redis.decr(walletClaimCountKey);
         if (userCanGetDonut) {
           await redis.del(userDonutKey);
         }
@@ -464,9 +491,10 @@ export default async function handler(req, res) {
         recipient: walletAddress,
       });
 
-      // ROLLBACK: If token sending failed, rollback the claim count increment
+      // ROLLBACK: If token sending failed, rollback all claim count increments
       try {
         await redis.decr(claimCountKey);
+        await redis.decr(walletClaimCountKey); // Also rollback wallet claim count
         // Also rollback DONUT user lock if we set it
         if (userCanGetDonut) {
           await redis.del(userDonutKey);

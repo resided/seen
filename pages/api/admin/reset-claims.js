@@ -149,6 +149,26 @@ export default async function handler(req, res) {
       throw new Error(`Failed to scan for count keys: ${scanError.message}`);
     }
 
+    // Also find wallet claim count keys for this specific featured rotation (security feature)
+    const walletPattern = `claim:wallet:${featuredProjectId}:${featuredAtTimestamp}:*`;
+    const walletKeys = [];
+    cursor = 0;
+    try {
+      do {
+        const [nextCursor, foundKeys] = await redis.scan(cursor, {
+          MATCH: walletPattern,
+          COUNT: 100
+        });
+        cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
+        if (foundKeys && foundKeys.length > 0) {
+          walletKeys.push(...foundKeys);
+        }
+      } while (cursor !== 0);
+    } catch (scanError) {
+      console.error('Error scanning for wallet keys:', scanError);
+      throw new Error(`Failed to scan for wallet keys: ${scanError.message}`);
+    }
+
     // Delete all claim keys for this featured project
     try {
       if (keys.length > 0) {
@@ -161,6 +181,10 @@ export default async function handler(req, res) {
       
       if (countKeys.length > 0) {
         await redis.del(countKeys);
+      }
+      
+      if (walletKeys.length > 0) {
+        await redis.del(walletKeys);
       }
     } catch (delError) {
       console.error('Error deleting keys:', delError);
@@ -209,12 +233,13 @@ export default async function handler(req, res) {
     console.log('Reset complete:', {
       claimsFound: keys.length,
       countsFound: countKeys.length,
+      walletCountsFound: walletKeys.length,
       txFound: txKeys.length,
       donutUsersReset,
       donutCountReset
     });
     
-    let message = `Reset ${keys.length} claim(s), ${countKeys.length} count(s), and ${txKeys.length} transaction(s) for featured project ${featuredProjectId} (rotation started at ${featuredAt.toISOString()})`;
+    let message = `Reset ${keys.length} claim(s), ${countKeys.length} FID count(s), ${walletKeys.length} wallet count(s), and ${txKeys.length} transaction(s) for featured project ${featuredProjectId} (rotation started at ${featuredAt.toISOString()})`;
     if (resetDonut) {
       message += `. Also reset DONUT data: ${donutUsersReset} user(s) and global count.`;
     }
@@ -224,6 +249,7 @@ export default async function handler(req, res) {
       message,
       claimsReset: keys.length,
       countsReset: countKeys.length,
+      walletCountsReset: walletKeys.length,
       transactionsReset: txKeys.length,
       donutReset: resetDonut === true,
       donutUsersReset,

@@ -4,6 +4,7 @@ import { getFeaturedProject } from '../../../lib/projects';
 import { getTokenBalance, HOLDER_THRESHOLD } from '../../../lib/token-balance';
 
 const WHALE_CLAIM_LIMIT = 2; // Whales (30M+) can claim 2x daily
+const TOKEN_AMOUNT = process.env.CLAIM_TOKEN_AMOUNT || '80000'; // Amount per claim
 
 // DONUT token bonus configuration
 const DONUT_MAX_SUPPLY = 1000; // Maximum 1,000 DONUT tokens to give out
