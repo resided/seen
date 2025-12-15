@@ -897,6 +897,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
 // LIVE CHAT
 // ============================================
 const LiveChat = ({ messages, onSend, isInFarcaster = false }) => {
+  const { isConnected, address } = useAccount();
   const handleUsernameClick = async (msg) => {
     if (!msg.fid || msg.fid === 0) return; // Can't open profile without FID
     
@@ -957,7 +958,17 @@ const LiveChat = ({ messages, onSend, isInFarcaster = false }) => {
       return;
     }
     
-    // Call onSend which will handle API call and show server-side errors
+    if (!isInFarcaster) {
+      setError('OPEN IN FARCASTER TO SEND ONCHAIN CHAT');
+      return;
+    }
+
+    if (!isConnected || !address) {
+      setError('CONNECT WALLET TO SEND ONCHAIN CHAT');
+      return;
+    }
+    
+    // Call onSend which will handle API call and (optionally) onchain tx + server-side errors
     try {
       await onSend(trimmed.toUpperCase());
       setInput('');
