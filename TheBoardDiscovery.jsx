@@ -1015,7 +1015,7 @@ const LiveChat = ({ messages, onSend, isInFarcaster = false }) => {
             {messages.length} MESSAGES
           </span>
           <span className="block text-[9px] tracking-[0.2em] text-gray-600">
-            ONCHAIN MESSAGE • TOP SUPPORTERS MAY RECEIVE TOKENS
+            FREE ONCHAIN MESSAGE (0 ETH) • TOP SUPPORTERS MAY RECEIVE TOKENS
           </span>
         </div>
       </div>
