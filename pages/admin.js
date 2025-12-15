@@ -810,6 +810,9 @@ export default function Admin() {
       return;
     }
 
+    // Ask if they also want to reset DONUT data
+    const resetDonut = confirm('Also reset DONUT bonus data? This will:\n- Reset global DONUT count (back to 0/1000)\n- Allow all users to receive DONUT again\n\nClick OK to include DONUT reset, or Cancel to reset claims only.');
+
     try {
       setMessage('Resetting claims...');
       const response = await fetch('/api/admin/reset-claims', {
@@ -817,6 +820,7 @@ export default function Admin() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           confirm: 'RESET',
+          resetDonut: resetDonut,
           fid: userFid || null 
         }),
         credentials: 'include',

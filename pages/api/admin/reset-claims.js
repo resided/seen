@@ -54,7 +54,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { confirm } = req.body;
+    const { confirm, resetDonut } = req.body;
     
     if (confirm !== 'RESET') {
       return res.status(400).json({ 
@@ -133,12 +133,47 @@ export default async function handler(req, res) {
       await redis.del(countKeys);
     }
 
+    // Optionally reset DONUT data (if resetDonut is true)
+    let donutUsersReset = 0;
+    let donutCountReset = false;
+    if (resetDonut === true) {
+      // Reset global DONUT count
+      await redis.del('donut:count:given');
+      donutCountReset = true;
+      
+      // Reset all user DONUT flags
+      const donutUserPattern = 'donut:user:*';
+      const donutUserKeys = [];
+      cursor = 0;
+      do {
+        const [nextCursor, foundKeys] = await redis.scan(cursor, {
+          MATCH: donutUserPattern,
+          COUNT: 100
+        });
+        cursor = nextCursor;
+        donutUserKeys.push(...foundKeys);
+      } while (cursor !== 0);
+      
+      if (donutUserKeys.length > 0) {
+        await redis.del(donutUserKeys);
+        donutUsersReset = donutUserKeys.length;
+      }
+    }
+
+    let message = `Reset ${keys.length} claim(s), ${countKeys.length} count(s), and ${txKeys.length} transaction(s) for featured project ${featuredProjectId} (rotation started at ${featuredAt.toISOString()})`;
+    if (resetDonut) {
+      message += `. Also reset DONUT data: ${donutUsersReset} user(s) and global count.`;
+    }
+
     return res.status(200).json({
       success: true,
-      message: `Reset ${keys.length} claim(s), ${countKeys.length} count(s), and ${txKeys.length} transaction(s) for featured project ${featuredProjectId} (rotation started at ${featuredAt.toISOString()})`,
+      message,
       claimsReset: keys.length,
       countsReset: countKeys.length,
       transactionsReset: txKeys.length,
+      donutReset: resetDonut === true,
+      donutUsersReset,
+      donutCountReset,
       featuredProjectId,
       featuredProjectName: featuredProject.name,
       featuredAt: featuredAt.toISOString(),
