@@ -2181,13 +2181,35 @@ export default function Seen() {
   const { isConnected, address } = useAccount()
   const { connect, connectors } = useConnect()
   
-  // Check if user has clicked miniapp (persist in sessionStorage)
+  // Check if user has clicked miniapp (persist in localStorage with featured project validation)
   useEffect(() => {
-    const hasClicked = sessionStorage.getItem('hasClickedMiniapp') === 'true';
-    if (hasClicked) {
-      setHasClickedMiniapp(true);
+    if (!featuredApp?.id) return;
+    
+    try {
+      const storedData = localStorage.getItem('hasClickedMiniapp');
+      if (storedData) {
+        const parsed = JSON.parse(storedData);
+        // Validate: must be for current featured project and within 24 hours
+        const featuredAtTime = featuredApp.featuredAt ? new Date(featuredApp.featuredAt).getTime() : Date.now();
+        const isValidProject = parsed.projectId === featuredApp.id;
+        const isValidWindow = parsed.featuredAt === featuredAtTime || 
+          (Date.now() - parsed.clickedAt < 24 * 60 * 60 * 1000); // Within 24 hours of click
+        
+        if (isValidProject && isValidWindow) {
+          setHasClickedMiniapp(true);
+        } else {
+          // Clear stale data
+          localStorage.removeItem('hasClickedMiniapp');
+        }
+      }
+    } catch (e) {
+      // Handle legacy sessionStorage or corrupted data
+      const legacyClicked = sessionStorage.getItem('hasClickedMiniapp') === 'true';
+      if (legacyClicked) {
+        setHasClickedMiniapp(true);
+      }
     }
-  }, []);
+  }, [featuredApp?.id, featuredApp?.featuredAt]);
   
   // Detect if we're in Farcaster context and check miniapp installation
   // Check every time the app opens
@@ -2566,6 +2588,14 @@ export default function Seen() {
                   ethPriceLoading={ethPriceLoading}
                   onMiniappClick={() => {
                     setHasClickedMiniapp(true);
+                    // Store with project info for validation
+                    const clickData = {
+                      projectId: featuredApp?.id,
+                      featuredAt: featuredApp?.featuredAt ? new Date(featuredApp.featuredAt).getTime() : Date.now(),
+                      clickedAt: Date.now()
+                    };
+                    localStorage.setItem('hasClickedMiniapp', JSON.stringify(clickData));
+                    // Also set sessionStorage for backward compatibility
                     sessionStorage.setItem('hasClickedMiniapp', 'true');
                   }}
                 />
