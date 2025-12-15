@@ -2296,8 +2296,8 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
           </div>
         )}
         
-        {/* Check Neynar score - show message if too low */}
-        {neynarUserScore !== null && neynarUserScore < MIN_NEYNAR_SCORE ? (
+        {/* Check Neynar score - show message if too low (30M+ holders bypass this) */}
+        {neynarUserScore !== null && neynarUserScore < MIN_NEYNAR_SCORE && !isHolder ? (
           <>
             <div className="mb-4 flex items-center justify-center">
               <div className="w-16 h-16 border-2 border-white flex items-center justify-center relative">
@@ -2310,7 +2310,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
               Your Neynar user score ({neynarUserScore.toFixed(2)}) is below the required threshold of {MIN_NEYNAR_SCORE}.
             </div>
             <div className="text-[10px] tracking-[0.2em] text-gray-400">
-              Only users with a score of {MIN_NEYNAR_SCORE} or higher can claim tokens.
+              Only users with a score of {MIN_NEYNAR_SCORE} or higher can claim tokens. 30M+ $SEEN holders bypass this requirement.
             </div>
           </>
         ) : expired ? (
