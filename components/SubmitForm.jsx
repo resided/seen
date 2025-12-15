@@ -473,14 +473,24 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
               required
               className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
             >
-              {formData.submissionType === 'featured' && (
-                <option value="featured">FEATURED</option>
-              )}
-              <option value="defi">DEFI</option>
-              <option value="social">SOCIAL</option>
-              <option value="games">GAMES</option>
-              <option value="tools">TOOLS</option>
-              <option value="nft">NFT</option>
+              <option value="featured" disabled={formData.submissionType === 'queue'}>
+                FEATURED
+              </option>
+              <option value="defi" disabled={formData.submissionType === 'featured'}>
+                DEFI
+              </option>
+              <option value="social" disabled={formData.submissionType === 'featured'}>
+                SOCIAL
+              </option>
+              <option value="games" disabled={formData.submissionType === 'featured'}>
+                GAMES
+              </option>
+              <option value="tools" disabled={formData.submissionType === 'featured'}>
+                TOOLS
+              </option>
+              <option value="nft" disabled={formData.submissionType === 'featured'}>
+                NFT
+              </option>
             </select>
             {formData.submissionType === 'featured' && formData.category !== 'featured' && (
               <div className="text-[9px] text-red-400 mt-1">
