@@ -2,7 +2,7 @@
 import { getRedisClient } from '../../../lib/redis';
 import { getFeaturedProject } from '../../../lib/projects';
 import { fetchUserByFid } from '../../../lib/neynar';
-import { createWalletClient, http, parseUnits } from 'viem';
+import { createWalletClient, createPublicClient, http, parseUnits } from 'viem';
 import { base } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 import { erc20Abi } from 'viem';
@@ -16,6 +16,7 @@ const TOKEN_AMOUNT = process.env.CLAIM_TOKEN_AMOUNT || '80000'; // Amount to sen
 const TOKEN_DECIMALS = parseInt(process.env.CLAIM_TOKEN_DECIMALS || '18'); // Token decimals
 const TREASURY_PRIVATE_KEY = process.env.TREASURY_PRIVATE_KEY; // Private key of wallet holding tokens (0x prefix)
 const TREASURY_ADDRESS = process.env.TREASURY_ADDRESS; // Treasury wallet address (for verification) - REQUIRED
+const REQUIRE_USER_TX = process.env.REQUIRE_USER_TX !== 'false'; // Allow disabling in env if needed
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -128,6 +129,51 @@ export default async function handler(req, res) {
         expirationTime: expirationTime.toISOString(),
         featuredProjectId,
       });
+    }
+
+    // If user tx is required, verify provided txHash (unless bypass)
+    if (REQUIRE_USER_TX && !isBypassEnabled) {
+      if (!txHash) {
+        return res.status(400).json({ error: 'Transaction hash required for claiming' });
+      }
+
+      try {
+        const publicClient = createPublicClient({
+          chain: base,
+          transport: http(),
+        });
+
+        const receipt = await publicClient.getTransactionReceipt({ hash: txHash });
+        if (!receipt || receipt.status !== 'success') {
+          return res.status(400).json({ error: 'Transaction not successful or not found' });
+        }
+
+        // Basic sender/recipient validation
+        const tx = await publicClient.getTransaction({ hash: txHash });
+        const senderMatches = tx.from?.toLowerCase() === walletAddress.toLowerCase();
+        const recipientMatches = TREASURY_ADDRESS
+          ? (tx.to?.toLowerCase() === TREASURY_ADDRESS.toLowerCase())
+          : !!tx.to;
+
+        if (!senderMatches) {
+          return res.status(400).json({ error: 'Transaction sender does not match claiming wallet' });
+        }
+
+        if (!recipientMatches) {
+          return res.status(400).json({ error: 'Transaction not sent to treasury address' });
+        }
+
+        // Optional: ensure data contains "claim" marker if present
+        if (tx.input && tx.input !== '0x') {
+          const inputLower = tx.input.toLowerCase();
+          if (!inputLower.includes('636c61696d')) { // hex for 'claim'
+            console.warn('Claim tx input missing claim marker');
+          }
+        }
+      } catch (verifyError) {
+        console.error('Error verifying user transaction:', verifyError);
+        return res.status(400).json({ error: 'Failed to verify user transaction' });
+      }
     }
 
     // Send tokens from treasury wallet
