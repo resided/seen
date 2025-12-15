@@ -1834,44 +1834,22 @@ const TokenBenefits = () => {
         <div className="p-4 border-t border-white/20 space-y-4">
           {/* Active Benefits */}
           <div>
-            <div className="text-[10px] tracking-[0.2em] text-green-400 mb-2">✓ ACTIVE NOW</div>
+            <div className="text-[10px] tracking-[0.2em] text-green-400 mb-2">✓ ACTIVE NOW (HOLD 30M+ $SEEN)</div>
             <div className="space-y-2 text-[11px]">
               <div className="flex items-start gap-2">
                 <span className="text-green-400">•</span>
                 <div>
                   <span className="font-bold">2X DAILY CLAIMS</span>
-                  <span className="text-gray-500"> — Hold 30M+ $SEEN to claim tokens twice per featured project</span>
+                  <span className="text-gray-500"> — Claim tokens twice per featured project</span>
                 </div>
               </div>
               <div className="flex items-start gap-2">
                 <span className="text-green-400">•</span>
                 <div>
-                  <span className="font-bold">FEATURED DISCOUNTS</span>
-                  <span className="text-gray-500"> — Up to 30% off featured slot pricing for holders</span>
+                  <span className="font-bold">20% OFF FEATURED</span>
+                  <span className="text-gray-500"> — Discounted featured slot pricing</span>
                 </div>
               </div>
-            </div>
-          </div>
-          
-          {/* Tier Breakdown */}
-          <div className="grid grid-cols-3 gap-2">
-            <div className="p-2 border border-yellow-400/50 bg-yellow-400/5 text-center">
-              <div className="text-[10px] font-bold text-yellow-400">WHALE</div>
-              <div className="text-[9px] text-gray-500">30M+ $SEEN</div>
-              <div className="text-[9px] text-white">2x claims</div>
-              <div className="text-[9px] text-green-400">30% off</div>
-            </div>
-            <div className="p-2 border border-blue-400/50 bg-blue-400/5 text-center">
-              <div className="text-[10px] font-bold text-blue-400">DOLPHIN</div>
-              <div className="text-[9px] text-gray-500">10M+ $SEEN</div>
-              <div className="text-[9px] text-white">1x claims</div>
-              <div className="text-[9px] text-green-400">20% off</div>
-            </div>
-            <div className="p-2 border border-purple-400/50 bg-purple-400/5 text-center">
-              <div className="text-[10px] font-bold text-purple-400">HOLDER</div>
-              <div className="text-[9px] text-gray-500">1M+ $SEEN</div>
-              <div className="text-[9px] text-white">1x claims</div>
-              <div className="text-[9px] text-green-400">10% off</div>
             </div>
           </div>
           
@@ -1891,13 +1869,6 @@ const TokenBenefits = () => {
                 <div>
                   <span className="font-bold">LP REWARDS</span>
                   <span className="text-gray-500"> — Stake LP tokens to earn platform fees</span>
-                </div>
-              </div>
-              <div className="flex items-start gap-2">
-                <span className="text-yellow-400">◦</span>
-                <div>
-                  <span className="font-bold">GOVERNANCE</span>
-                  <span className="text-gray-500"> — Vote on featured projects with $SEEN</span>
                 </div>
               </div>
             </div>

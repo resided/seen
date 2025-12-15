@@ -1,5 +1,5 @@
 // API route to get holder benefits based on $SEEN balance
-import { getTokenBalance, HOLDER_TIERS } from '../../lib/token-balance';
+import { getTokenBalance, HOLDER_THRESHOLD, HOLDER_DISCOUNT } from '../../lib/token-balance';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -13,34 +13,16 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { balance, balanceFormatted, tier } = await getTokenBalance(address);
+    const { balance, balanceFormatted, isHolder } = await getTokenBalance(address);
 
-    // Return all tier info for UI display
     return res.status(200).json({
       address,
       balance: balanceFormatted,
-      tier: tier.label,
+      isHolder,
+      threshold: HOLDER_THRESHOLD,
       benefits: {
-        claimMultiplier: tier.claimMultiplier,
-        featuredDiscount: tier.featuredDiscount,
-        featuredDiscountPercent: Math.round(tier.featuredDiscount * 100),
-      },
-      tiers: {
-        WHALE: { 
-          minBalance: HOLDER_TIERS.WHALE.minBalance, 
-          claimMultiplier: HOLDER_TIERS.WHALE.claimMultiplier,
-          featuredDiscount: Math.round(HOLDER_TIERS.WHALE.featuredDiscount * 100),
-        },
-        DOLPHIN: { 
-          minBalance: HOLDER_TIERS.DOLPHIN.minBalance, 
-          claimMultiplier: HOLDER_TIERS.DOLPHIN.claimMultiplier,
-          featuredDiscount: Math.round(HOLDER_TIERS.DOLPHIN.featuredDiscount * 100),
-        },
-        HOLDER: { 
-          minBalance: HOLDER_TIERS.HOLDER.minBalance, 
-          claimMultiplier: HOLDER_TIERS.HOLDER.claimMultiplier,
-          featuredDiscount: Math.round(HOLDER_TIERS.HOLDER.featuredDiscount * 100),
-        },
+        canClaim2x: isHolder,
+        featuredDiscount: isHolder ? Math.round(HOLDER_DISCOUNT * 100) : 0,
       },
     });
   } catch (error) {

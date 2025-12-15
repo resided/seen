@@ -37,18 +37,18 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
   // Treasury address should be fetched from API or environment
   const [treasuryAddress, setTreasuryAddress] = useState(null);
   
-  // Holder benefits for discount
+  // Holder benefits for discount (30M+ = 20% off)
   const [holderBenefits, setHolderBenefits] = useState(null);
-  const [holderTier, setHolderTier] = useState('NONE');
+  const isHolder = holderBenefits?.isHolder || false;
   
-  // Calculate discounted price for holders
-  const discountPercent = holderBenefits?.benefits?.featuredDiscount || 0;
+  // Calculate discounted price for 30M+ holders (20% off)
+  const discountPercent = isHolder ? 20 : 0;
   const FEATURED_PRICE_USD = BASE_FEATURED_PRICE_USD * (1 - discountPercent / 100);
   
   // Calculate ETH amount from USD price
   const FEATURED_PRICE_ETH = ethPrice ? (FEATURED_PRICE_USD / ethPrice) : null;
-  const FEATURED_PRICE_DISPLAY = discountPercent > 0 
-    ? `$${FEATURED_PRICE_USD.toFixed(0)} (${discountPercent}% holder discount!)` 
+  const FEATURED_PRICE_DISPLAY = isHolder 
+    ? `$${FEATURED_PRICE_USD.toFixed(0)} (20% holder discount!)` 
     : `$${BASE_FEATURED_PRICE_USD}`;
   
   // Fetch ETH price
@@ -83,15 +83,12 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
         .then(res => res.json())
         .then(data => {
           setHolderBenefits(data);
-          setHolderTier(data.tier || 'NONE');
         })
         .catch(() => {
           setHolderBenefits(null);
-          setHolderTier('NONE');
         });
     } else {
       setHolderBenefits(null);
-      setHolderTier('NONE');
     }
   }, [address]);
 
@@ -476,9 +473,9 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
                     {FEATURED_PRICE_DISPLAY} 
                     {ethPriceLoading ? ' (Loading...)' : FEATURED_PRICE_ETH ? ` (~${FEATURED_PRICE_ETH.toFixed(6)} ETH)` : ' (Price unavailable)'} - Payment required
                   </div>
-                  {discountPercent > 0 && (
+                  {isHolder && (
                     <div className="text-[9px] text-green-400 mt-1 font-bold">
-                      🎉 {holderTier} HOLDER: {discountPercent}% OFF (was ${BASE_FEATURED_PRICE_USD})
+                      🎉 30M+ HOLDER: 20% OFF (was ${BASE_FEATURED_PRICE_USD})
                     </div>
                   )}
                   <div className="text-[9px] text-yellow-400 mt-1 font-bold">
@@ -491,29 +488,15 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
               </label>
             </div>
             
-            {/* Holder discount tiers info */}
+            {/* Holder discount info */}
             <div className="mt-3 p-3 border border-white/30 bg-white/5">
-              <div className="text-[10px] tracking-[0.2em] text-gray-400 mb-2">💎 $SEEN HOLDER DISCOUNTS</div>
-              <div className="grid grid-cols-3 gap-2 text-[9px]">
-                <div className={`p-2 border ${holderTier === 'WHALE' ? 'border-yellow-400 bg-yellow-400/10' : 'border-white/20'}`}>
-                  <div className="font-bold text-yellow-400">WHALE</div>
-                  <div className="text-gray-500">30M+ $SEEN</div>
-                  <div className="text-green-400">30% OFF</div>
-                </div>
-                <div className={`p-2 border ${holderTier === 'DOLPHIN' ? 'border-blue-400 bg-blue-400/10' : 'border-white/20'}`}>
-                  <div className="font-bold text-blue-400">DOLPHIN</div>
-                  <div className="text-gray-500">10M+ $SEEN</div>
-                  <div className="text-green-400">20% OFF</div>
-                </div>
-                <div className={`p-2 border ${holderTier === 'HOLDER' ? 'border-purple-400 bg-purple-400/10' : 'border-white/20'}`}>
-                  <div className="font-bold text-purple-400">HOLDER</div>
-                  <div className="text-gray-500">1M+ $SEEN</div>
-                  <div className="text-green-400">10% OFF</div>
-                </div>
+              <div className="text-[10px] tracking-[0.2em] text-gray-400 mb-1">💎 $SEEN HOLDER DISCOUNT</div>
+              <div className="text-[9px] text-gray-500">
+                Hold 30M+ $SEEN for 20% off featured pricing
               </div>
-              {holderTier !== 'NONE' && (
-                <div className="mt-2 text-[9px] text-green-400">
-                  ✓ Your tier: {holderTier} ({holderBenefits?.balance?.toLocaleString()} $SEEN)
+              {isHolder && (
+                <div className="mt-1 text-[9px] text-green-400">
+                  ✓ You qualify! ({holderBenefits?.balance?.toLocaleString()} $SEEN)
                 </div>
               )}
             </div>

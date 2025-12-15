@@ -2,7 +2,7 @@
 import { getRedisClient } from '../../../lib/redis';
 import { getFeaturedProject } from '../../../lib/projects';
 import { fetchUserByFid } from '../../../lib/neynar';
-import { getTokenBalance, HOLDER_TIERS } from '../../../lib/token-balance';
+import { getTokenBalance, HOLDER_THRESHOLD } from '../../../lib/token-balance';
 import { createWalletClient, createPublicClient, http, parseUnits } from 'viem';
 import { base } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
@@ -103,20 +103,20 @@ export default async function handler(req, res) {
     const TEST_BYPASS_FID = 342433;
     const isBypassEnabled = parseInt(fid) === TEST_BYPASS_FID;
     
-    // Check holder tier for claim multiplier benefits
-    let holderTier = HOLDER_TIERS.NONE;
+    // Check if holder (30M+) for 2x claim benefit
+    let isHolder = false;
     let maxClaims = 1;
     
     if (walletAddress) {
       try {
-        const { tier } = await getTokenBalance(walletAddress);
-        holderTier = tier;
-        // Whales (30M+) get 2 claims per featured project
-        if (tier.label === 'WHALE') {
+        const { isHolder: holderStatus } = await getTokenBalance(walletAddress);
+        isHolder = holderStatus;
+        // Holders with 30M+ get 2 claims per featured project
+        if (isHolder) {
           maxClaims = WHALE_CLAIM_LIMIT;
         }
-      } catch (tierError) {
-        console.error('Error checking holder tier:', tierError);
+      } catch (balanceError) {
+        console.error('Error checking holder status:', balanceError);
         // Continue with default (1 claim)
       }
     }
@@ -126,17 +126,16 @@ export default async function handler(req, res) {
     
     // Check if already at max claims for this rotation
     if (currentClaimCount >= maxClaims && !isBypassEnabled) {
-      const isWhale = holderTier.label === 'WHALE';
       return res.status(400).json({ 
-        error: isWhale 
-          ? `Already claimed ${maxClaims}x for this featured project (whale benefit used)`
+        error: isHolder 
+          ? `Already claimed ${maxClaims}x for this featured project (30M+ holder benefit used)`
           : 'Already claimed for this featured project rotation',
         featuredProjectId,
         featuredAt: featuredAt.toISOString(),
         expirationTime: expirationTime.toISOString(),
         claimCount: currentClaimCount,
         maxClaims,
-        holderTier: holderTier.label,
+        isHolder,
       });
     }
 
@@ -291,8 +290,8 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
-        message: holderTier.label === 'WHALE' 
-          ? `Tokens sent successfully! (Claim ${newClaimCount}/${maxClaims} - Whale benefit)`
+        message: isHolder 
+          ? `Tokens sent successfully! (Claim ${newClaimCount}/${maxClaims} - 30M+ holder benefit)`
           : 'Tokens sent successfully',
         expirationTime: expirationTime.toISOString(),
         featuredProjectId,
@@ -301,7 +300,7 @@ export default async function handler(req, res) {
         amount: TOKEN_AMOUNT,
         claimCount: newClaimCount,
         maxClaims,
-        holderTier: holderTier.label,
+        isHolder,
         canClaimAgain: newClaimCount < maxClaims,
       });
     } catch (txError) {

@@ -1,7 +1,7 @@
 // API route to check claim status (tied to featured project)
 import { getRedisClient } from '../../../lib/redis';
 import { getFeaturedProject } from '../../../lib/projects';
-import { getTokenBalance, HOLDER_TIERS } from '../../../lib/token-balance';
+import { getTokenBalance, HOLDER_THRESHOLD } from '../../../lib/token-balance';
 
 const WHALE_CLAIM_LIMIT = 2; // Whales (30M+) can claim 2x daily
 
@@ -40,19 +40,19 @@ export default async function handler(req, res) {
     const now = new Date();
     const expired = now > expirationTime;
     
-    // Check holder tier for claim multiplier
-    let holderTier = HOLDER_TIERS.NONE;
+    // Check if holder (30M+) for 2x claim benefit
+    let isHolder = false;
     let maxClaims = 1;
     
     if (walletAddress) {
       try {
-        const { tier } = await getTokenBalance(walletAddress);
-        holderTier = tier;
-        if (tier.label === 'WHALE') {
+        const { isHolder: holderStatus } = await getTokenBalance(walletAddress);
+        isHolder = holderStatus;
+        if (isHolder) {
           maxClaims = WHALE_CLAIM_LIMIT;
         }
-      } catch (tierError) {
-        console.error('Error checking holder tier:', tierError);
+      } catch (balanceError) {
+        console.error('Error checking holder status:', balanceError);
       }
     }
     
@@ -79,11 +79,8 @@ export default async function handler(req, res) {
       featuredAt: featuredAt.toISOString(),
       expirationTime: expirationTime.toISOString(),
       timeRemaining: expired ? 0 : Math.max(0, expirationTime - now),
-      holderTier: holderTier.label,
-      holderBenefits: {
-        claimMultiplier: holderTier.claimMultiplier,
-        featuredDiscount: Math.round(holderTier.featuredDiscount * 100),
-      },
+      isHolder,
+      holderThreshold: HOLDER_THRESHOLD,
     });
   } catch (error) {
     console.error('Error checking claim status:', error);
