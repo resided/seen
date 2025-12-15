@@ -31,7 +31,7 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
   });
   
   // Featured submission pricing (configurable)
-  const FEATURED_PRICE_USD = 45; // USD price
+  const FEATURED_PRICE_USD = 111; // USD price
   const [ethPrice, setEthPrice] = useState(null);
   const [ethPriceLoading, setEthPriceLoading] = useState(true);
   // Treasury address should be fetched from API or environment
