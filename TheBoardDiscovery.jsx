@@ -1866,9 +1866,9 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
           txHash: claimTxData
         }),
       })
-        .then(res => res.json())
-        .then(data => {
-          if (res.ok) {
+        .then(res => res.json().then(data => ({ ok: res.ok, data })))
+        .then(({ ok, data }) => {
+          if (ok && data.success) {
             setClaimed(true);
             if (data.txHash) {
               setMessage(`CLAIMED! YOUR TX: ${data.txHash.slice(0, 10)}... TOKENS SENT.`);
