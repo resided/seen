@@ -273,9 +273,12 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
           }
         } catch (error) {
           console.error('Error fetching builder profile:', error);
-          // Fallback - will use FID format if we can't get username
-          if (app.builderFid) {
-            setCreatorProfileUrl(`https://farcaster.xyz/profiles/${app.builderFid}`);
+          // Fallback - prefer username if we have builder text, otherwise fid
+          if (app.builder) {
+            const username = app.builder.replace(/^@/, '');
+            setCreatorProfileUrl(`https://warpcast.com/${encodeURIComponent(username)}`);
+          } else if (app.builderFid) {
+            setCreatorProfileUrl(`https://warpcast.com/~/profiles/${app.builderFid}`);
           }
         }
       } else {
@@ -419,7 +422,16 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
           <div className="flex-1">
             {creatorProfileUrl || builderData?.username || app.builderFid ? (
               <a
-                href={creatorProfileUrl || (builderData?.username ? `https://farcaster.xyz/${builderData.username}` : `https://farcaster.xyz/profiles/${app.builderFid}`)}
+                href={
+                  creatorProfileUrl ||
+                  (builderData?.username
+                    ? `https://warpcast.com/${encodeURIComponent(builderData.username.replace(/^@/, ''))}`
+                    : app.builder
+                    ? `https://warpcast.com/${encodeURIComponent(app.builder.replace(/^@/, ''))}`
+                    : app.builderFid
+                    ? `https://warpcast.com/~/profiles/${app.builderFid}`
+                    : '#')
+                }
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-sm font-bold hover:underline block"
@@ -467,7 +479,11 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
 
                   // Build profile URL
                   const profileUrl = creatorProfileUrl || 
-                    (targetUsername ? `https://farcaster.xyz/${targetUsername}` : `https://farcaster.xyz/profiles/${targetFid}`);
+                    (targetUsername
+                      ? `https://warpcast.com/${encodeURIComponent(targetUsername.replace(/^@/, ''))}`
+                      : targetFid
+                      ? `https://warpcast.com/~/profiles/${targetFid}`
+                      : '#');
 
                   // Try to use Farcaster SDK to open profile (where user can follow)
                   try {
@@ -886,8 +902,10 @@ const LiveChat = ({ messages, onSend, isInFarcaster = false }) => {
     
     // Use username for URL if available, otherwise fallback to FID
     const profileUrl = msg.username 
-      ? `https://farcaster.xyz/${msg.username}`
-      : `https://farcaster.xyz/profiles/${msg.fid}`;
+      ? `https://warpcast.com/${encodeURIComponent(msg.username.replace(/^@/, ''))}`
+      : msg.fid
+      ? `https://warpcast.com/~/profiles/${msg.fid}`
+      : '#';
     
     try {
       if (isInFarcaster && sdk.actions?.openUrl) {
