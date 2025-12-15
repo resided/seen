@@ -926,10 +926,10 @@ const LiveChat = ({ messages, onSend, isInFarcaster = false }) => {
   const chatRef = useRef(null);
   const messagesEndRef = useRef(null);
   
-  // Auto-scroll to bottom when new messages arrive
+  // Auto-scroll chat container to bottom when new messages arrive (without scrolling whole page)
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (chatRef.current) {
+      chatRef.current.scrollTop = chatRef.current.scrollHeight;
     }
   }, [messages]);
   
@@ -992,7 +992,14 @@ const LiveChat = ({ messages, onSend, isInFarcaster = false }) => {
           <div className="w-2 h-2 bg-white animate-pulse" />
           <span className="text-[10px] tracking-[0.3em]">LIVE CHAT</span>
         </div>
-        <span className="text-[10px] tracking-[0.2em] text-gray-500">{messages.length} MESSAGES</span>
+        <div className="text-right">
+          <span className="block text-[10px] tracking-[0.2em] text-gray-500">
+            {messages.length} MESSAGES
+          </span>
+          <span className="block text-[9px] tracking-[0.2em] text-gray-600">
+            ONCHAIN MESSAGE • TOP SUPPORTERS MAY RECEIVE TOKENS
+          </span>
+        </div>
       </div>
       
       {/* Messages */}
@@ -2478,8 +2485,9 @@ export default function Seen() {
       const messageUsername = userInfo?.username || null; // Store username separately for profile URLs
       const messageFid = userInfo?.fid || 0;
       const messageVerified = userInfo?.verified || false;
-      
-      // Send message to API
+
+      // Optionally: hook in an onchain 0-ETH tx here before sending chat
+      // For now we just send the message to the API
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
