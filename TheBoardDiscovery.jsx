@@ -608,7 +608,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
                 : 'opacity-50 cursor-not-allowed'
             }`}
           >
-            OPEN MINI APP
+            &gt;&gt; OPEN MINI APP &lt;&lt;
           </button>
           <button 
             onClick={() => {
