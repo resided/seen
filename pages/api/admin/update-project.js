@@ -146,27 +146,16 @@ export default async function handler(req, res) {
           // Get current window counter (if any)
           const currentWindowCount = parseInt(await redis.get(clicksKey) || '0');
           
-          // When manually setting stats, we want to set the window counter to match the new total
-          // Calculate the difference between stored stats and window counter to maintain consistency
-          // If window counter is 0 or doesn't exist, set it directly to the new total
-          // Otherwise, adjust by the difference to preserve any clicks that happened since last update
-          let newWindowCount;
-          if (currentWindowCount === 0) {
-            // If no window counter exists, set it to the new total directly
-            newWindowCount = newTotal;
-          } else {
-            // Calculate how much the total changed and adjust window counter accordingly
-            const totalDifference = newTotal - currentStoredTotal;
-            newWindowCount = Math.max(0, currentWindowCount + totalDifference);
-          }
-          
-          await redis.set(clicksKey, newWindowCount.toString());
+          // When manually setting stats in admin, set the window counter to the exact value entered
+          // This ensures the displayed number matches what the admin set
+          // Future clicks/views will increment from this base value
+          await redis.set(clicksKey, newTotal.toString());
           
           // Set expiration: 48 hours for featured (to cover full 24h window + buffer), 2 days for others
           const expiration = currentProject?.status === 'featured' ? 48 * 60 * 60 : 2 * 24 * 60 * 60;
           await redis.expire(clicksKey, expiration);
           
-          console.log(`Updated clicks: stored=${currentStoredTotal}→${newTotal}, window counter=${currentWindowCount}→${newWindowCount}, windowKey=${windowKey}`);
+          console.log(`Updated clicks: stored=${currentStoredTotal}→${newTotal}, window counter=${currentWindowCount}→${newTotal}, windowKey=${windowKey}`);
         }
       } catch (redisError) {
         console.error('Error syncing Redis window counter:', redisError);
@@ -198,27 +187,16 @@ export default async function handler(req, res) {
           // Get current window counter (if any)
           const currentWindowCount = parseInt(await redis.get(viewsKey) || '0');
           
-          // When manually setting stats, we want to set the window counter to match the new total
-          // Calculate the difference between stored stats and window counter to maintain consistency
-          // If window counter is 0 or doesn't exist, set it directly to the new total
-          // Otherwise, adjust by the difference to preserve any views that happened since last update
-          let newWindowCount;
-          if (currentWindowCount === 0) {
-            // If no window counter exists, set it to the new total directly
-            newWindowCount = newTotal;
-          } else {
-            // Calculate how much the total changed and adjust window counter accordingly
-            const totalDifference = newTotal - currentStoredTotal;
-            newWindowCount = Math.max(0, currentWindowCount + totalDifference);
-          }
-          
-          await redis.set(viewsKey, newWindowCount.toString());
+          // When manually setting stats in admin, set the window counter to the exact value entered
+          // This ensures the displayed number matches what the admin set
+          // Future clicks/views will increment from this base value
+          await redis.set(viewsKey, newTotal.toString());
           
           // Set expiration: 48 hours for featured (to cover full 24h window + buffer), 2 days for others
           const expiration = currentProject?.status === 'featured' ? 48 * 60 * 60 : 2 * 24 * 60 * 60;
           await redis.expire(viewsKey, expiration);
           
-          console.log(`Updated views: stored=${currentStoredTotal}→${newTotal}, window counter=${currentWindowCount}→${newWindowCount}, windowKey=${windowKey}`);
+          console.log(`Updated views: stored=${currentStoredTotal}→${newTotal}, window counter=${currentWindowCount}→${newTotal}, windowKey=${windowKey}`);
         }
       } catch (redisError) {
         console.error('Error syncing Redis window counter:', redisError);
