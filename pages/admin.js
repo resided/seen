@@ -31,6 +31,7 @@ export default function Admin() {
     description: '',
     builder: '',
     builderFid: '',
+    tokenName: '',
     category: 'main',
     status: 'active',
     miniapp: '',
@@ -49,6 +50,7 @@ export default function Admin() {
     description: '',
     builder: '',
     builderFid: '',
+    tokenName: '',
     category: 'main',
     miniapp: '',
     website: '',
@@ -271,6 +273,7 @@ export default function Admin() {
           description: freshProject.description || '',
           builder: freshProject.builder || '',
           builderFid: freshProject.builderFid || '',
+          tokenName: freshProject.tokenName || '',
           category: freshProject.category || 'main',
           status: freshProject.status || 'active',
           miniapp: freshProject.links?.miniapp || '',
@@ -288,6 +291,7 @@ export default function Admin() {
           description: project.description || '',
           builder: project.builder || '',
           builderFid: project.builderFid || '',
+          tokenName: project.tokenName || '',
           category: project.category || 'main',
           status: project.status || 'active',
           miniapp: project.links?.miniapp || '',
@@ -1102,6 +1106,34 @@ export default function Admin() {
                       placeholder="SHORT TAGLINE"
                     />
                   </div>
+                  <div>
+                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                      TOKEN NAME (OPTIONAL)
+                    </label>
+                    <input
+                      type="text"
+                      name="tokenName"
+                      value={editFormData.tokenName}
+                      onChange={handleEditFormChange}
+                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                      placeholder="$TOKEN"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                    TAGLINE *
+                  </label>
+                  <input
+                    type="text"
+                    name="tagline"
+                    value={editFormData.tagline}
+                    onChange={handleEditFormChange}
+                    required
+                    className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                    placeholder="SHORT TAGLINE"
+                  />
                 </div>
 
                 <div>
@@ -1524,6 +1556,34 @@ export default function Admin() {
                       placeholder="SHORT TAGLINE"
                     />
                   </div>
+                  <div>
+                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                      TOKEN NAME (OPTIONAL)
+                    </label>
+                    <input
+                      type="text"
+                      name="tokenName"
+                      value={createFormData.tokenName}
+                      onChange={handleCreateFormChange}
+                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                      placeholder="$TOKEN"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                    TAGLINE *
+                  </label>
+                  <input
+                    type="text"
+                    name="tagline"
+                    value={createFormData.tagline}
+                    onChange={handleCreateFormChange}
+                    required
+                    className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                    placeholder="SHORT TAGLINE"
+                  />
                 </div>
 
                 <div>

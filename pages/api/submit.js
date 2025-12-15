@@ -128,6 +128,7 @@ export default async function handler(req, res) {
       description,
       builder,
       builderFid: builderFid || 0,
+      tokenName: tokenName || '',
       category: category.toLowerCase(),
       submissionType: submissionType || 'queue',
       paymentAmount: paymentAmount || 0,

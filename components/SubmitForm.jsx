@@ -10,6 +10,7 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
     description: '',
     builder: '',
     builderFid: '',
+    tokenName: '',
     category: 'defi', // Default to defi for free queue (no main/featured category)
     miniapp: '',
     website: '',
@@ -339,6 +340,20 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
               required
               className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
               placeholder="YOUR PROJECT NAME"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+              TOKEN NAME (OPTIONAL)
+            </label>
+            <input
+              type="text"
+              name="tokenName"
+              value={formData.tokenName}
+              onChange={handleChange}
+              className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+              placeholder="$TOKEN"
             />
           </div>
 
