@@ -2948,23 +2948,43 @@ export default function Seen() {
                   <div className="text-[10px] tracking-[0.3em] text-gray-500 mb-2">GET MORE $SEEN</div>
                   <button
                     onClick={async () => {
-                      const swapUrl = 'https://app.uniswap.org/swap?outputCurrency=0x82a56d595ccdfa3a1dc6eef28d5f0a870f162b07&chain=base';
-                      if (isInFarcaster && sdk.actions?.openUrl) {
+                      const tokenAddress = '0x82a56d595ccdfa3a1dc6eef28d5f0a870f162b07';
+                      
+                      if (isInFarcaster && sdk.experimental?.openSwap) {
+                        // Use Farcaster's native swap modal
                         try {
-                          await sdk.actions.openUrl({ url: swapUrl });
-                        } catch (error) {
-                          window.open(swapUrl, '_blank', 'noopener,noreferrer');
+                          await sdk.experimental.openSwap({
+                            sellToken: 'ETH',
+                            buyToken: tokenAddress,
+                            chain: 'base',
+                          });
+                          return;
+                        } catch (e) {
+                          console.log('openSwap not available, trying alternatives');
                         }
-                      } else {
-                        window.open(swapUrl, '_blank', 'noopener,noreferrer');
                       }
+                      
+                      // Try using Warpcast swap URL format (opens in-app)
+                      if (isInFarcaster) {
+                        const warpcastSwapUrl = `https://warpcast.com/~/swap?token=${tokenAddress}&chain=base`;
+                        try {
+                          await sdk.actions.openUrl({ url: warpcastSwapUrl });
+                          return;
+                        } catch (e) {
+                          console.log('Warpcast swap URL failed');
+                        }
+                      }
+                      
+                      // Fallback to Uniswap
+                      const swapUrl = `https://app.uniswap.org/swap?outputCurrency=${tokenAddress}&chain=base`;
+                      window.open(swapUrl, '_blank', 'noopener,noreferrer');
                     }}
                     className="w-full py-3 bg-white text-black font-black text-sm tracking-[0.2em] hover:bg-gray-200 transition-all"
                   >
                     SWAP TO $SEEN
                   </button>
                   <div className="text-[9px] text-gray-600 mt-2">
-                    OPENS UNISWAP ON BASE
+                    SWAP ETH FOR $SEEN ON BASE
                   </div>
                 </div>
               </div>
