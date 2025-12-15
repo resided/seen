@@ -487,6 +487,9 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
               <option value="nft" disabled={formData.submissionType === 'featured'}>
                 NFT
               </option>
+              <option value="tokens" disabled={formData.submissionType === 'featured'}>
+                TOKENS
+              </option>
             </select>
             {formData.submissionType === 'featured' && formData.category !== 'featured' && (
               <div className="text-[9px] text-red-400 mt-1">

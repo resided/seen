@@ -1199,6 +1199,7 @@ export default function Admin() {
                       <option value="games">GAMES</option>
                       <option value="tools">TOOLS</option>
                       <option value="nft">NFT</option>
+                      <option value="tokens">TOKENS</option>
                     </select>
                   </div>
                   <div>
@@ -1649,6 +1650,7 @@ export default function Admin() {
                       <option value="games">GAMES</option>
                       <option value="tools">TOOLS</option>
                       <option value="nft">NFT</option>
+                      <option value="tokens">TOKENS</option>
                     </select>
                   </div>
                   <div>
