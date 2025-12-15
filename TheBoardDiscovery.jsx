@@ -47,9 +47,16 @@ const ImageIcon = () => (
   </svg>
 );
 
+const TokenIcon = () => (
+  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM10 4a1 1 0 011 1v1.323l.954.55a1 1 0 01-1 1.732L10 8.054l-.954.55a1 1 0 11-1-1.731L9 6.323V5a1 1 0 011-1zm0 6a1 1 0 011 1v3a1 1 0 11-2 0v-3a1 1 0 011-1z" clipRule="evenodd" />
+  </svg>
+);
+
 const CATEGORIES = [
   { id: 'main', label: 'FEATURED', icon: StarIcon },
   { id: 'defi', label: 'DEFI', icon: ChartIcon },
+  { id: 'tokens', label: 'TOKENS', icon: TokenIcon },
   { id: 'social', label: 'SOCIAL', icon: UsersIcon },
   { id: 'games', label: 'GAMES', icon: GamepadIcon },
   { id: 'tools', label: 'TOOLS', icon: WrenchIcon },
