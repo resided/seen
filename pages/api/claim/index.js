@@ -44,9 +44,21 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Wallet address is required for claiming' });
     }
 
-    // Check Neynar user score
+    // Check if user is a 30M+ holder first (holders bypass Neynar score requirement)
+    let isHolder = false;
+    if (walletAddress) {
+      try {
+        const { isHolder: holderStatus } = await getTokenBalance(walletAddress);
+        isHolder = holderStatus;
+      } catch (balanceError) {
+        console.error('Error checking holder status for Neynar bypass:', balanceError);
+        // Continue to check Neynar score if we can't verify holder status
+      }
+    }
+
+    // Check Neynar user score (30M+ holders bypass this requirement)
     const apiKey = process.env.NEYNAR_API_KEY;
-    if (apiKey) {
+    if (apiKey && !isHolder) { // Only check Neynar score if not a 30M+ holder
       try {
         const user = await fetchUserByFid(parseInt(fid), apiKey);
         if (user) {
@@ -71,6 +83,8 @@ export default async function handler(req, res) {
         // If we can't check the score, we'll allow claim but log the error
         // You might want to change this to reject if score checking is critical
       }
+    } else if (isHolder) {
+      console.log(`30M+ holder ${fid} bypassing Neynar score requirement`);
     }
 
     const redis = await getRedisClient();
@@ -111,22 +125,10 @@ export default async function handler(req, res) {
     const TEST_BYPASS_FID = 342433;
     const isBypassEnabled = parseInt(fid) === TEST_BYPASS_FID;
     
-    // Check if holder (30M+) for 2x claim benefit
-    let isHolder = false;
+    // Set maxClaims based on holder status (already checked above for Neynar bypass)
     let maxClaims = 1;
-    
-    if (walletAddress) {
-      try {
-        const { isHolder: holderStatus } = await getTokenBalance(walletAddress);
-        isHolder = holderStatus;
-        // Holders with 30M+ get 2 claims per featured project
-        if (isHolder) {
-          maxClaims = WHALE_CLAIM_LIMIT;
-        }
-      } catch (balanceError) {
-        console.error('Error checking holder status:', balanceError);
-        // Continue with default (1 claim)
-      }
+    if (isHolder) {
+      maxClaims = WHALE_CLAIM_LIMIT; // Holders with 30M+ get 2 claims per featured project
     }
     
     // Log claim attempt for debugging
