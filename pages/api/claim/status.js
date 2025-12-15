@@ -8,7 +8,7 @@ const WHALE_CLAIM_LIMIT = 2; // Whales (30M+) can claim 2x daily
 // DONUT token bonus configuration
 const DONUT_MAX_SUPPLY = 1000; // Maximum 1,000 DONUT tokens to give out
 const DONUT_COUNT_KEY = 'donut:count:given'; // Redis key to track DONUT tokens given
-const DONUT_BONUS_SEEN_AMOUNT = '50000'; // 50,000 SEEN when DONUT is available
+// DONUT is just an add-on - doesn't change SEEN amount (always 80k per claim)
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -99,8 +99,8 @@ export default async function handler(req, res) {
       donutAvailable, // Whether DONUT bonus is still available for this user
       donutRemaining, // How many DONUT tokens remain globally
       userHasDonut: !!userHasDonut, // Whether this user has already received a DONUT
-      // 30M+ holders get 160k SEEN when DONUT is available, regular users get 50k
-      donutBonusSeenAmount: donutAvailable ? (isHolder ? '160000' : DONUT_BONUS_SEEN_AMOUNT) : null, // SEEN amount if DONUT available
+      // SEEN amount is always 80k per claim - DONUT is just an add-on
+      donutBonusSeenAmount: TOKEN_AMOUNT, // Always 80,000 SEEN per claim
     });
   } catch (error) {
     console.error('Error checking claim status:', error);

@@ -25,7 +25,7 @@ const DONUT_TOKEN_CONTRACT = '0xAE4a37d554C6D6F3E398546d8566B25052e0169C'; // DO
 const DONUT_TOKEN_AMOUNT = '1'; // 1 DONUT per person
 const DONUT_TOKEN_DECIMALS = 18; // Standard ERC20 decimals
 const DONUT_MAX_SUPPLY = 1000; // Maximum 1,000 DONUT tokens to give out
-const DONUT_BONUS_SEEN_AMOUNT = '50000'; // 50,000 SEEN when DONUT is available
+// DONUT is just an add-on - doesn't change SEEN amount (always 80k per claim)
 const DONUT_COUNT_KEY = 'donut:count:given'; // Redis key to track DONUT tokens given
 
 export default async function handler(req, res) {
@@ -329,26 +329,11 @@ export default async function handler(req, res) {
       
       // If user already had DONUT, nothing to do (lock result was null)
       
-      // Determine amounts: 
-      // - Claim 1 (30M+ holder, DONUT available): 160,000 SEEN + 1 DONUT
-      // - Claim 2 (30M+ holder, already got DONUT): 80,000 SEEN (regular amount, no DONUT)
-      // - Regular users (DONUT available): 50,000 SEEN + 1 DONUT
-      // - Regular users (DONUT not available): 80,000 SEEN (regular amount)
-      let seenAmount;
-      if (donutAvailable) {
-        // User is eligible for DONUT bonus
-        if (isHolder) {
-          // 30M+ holders get 160k SEEN + 1 DONUT on first claim
-          seenAmount = '160000';
-        } else {
-          // Regular users get 50k SEEN + 1 DONUT
-          seenAmount = DONUT_BONUS_SEEN_AMOUNT;
-        }
-      } else {
-        // User not eligible for DONUT (already got it or exhausted) - regular amount for everyone
-        // 30M+ holders get 80k on second claim, regular users get 80k if DONUT exhausted
-        seenAmount = TOKEN_AMOUNT;
-      }
+      // SEEN amount is ALWAYS 80,000 per claim - no exceptions
+      // - Regular users: 1 claim = 80,000 SEEN
+      // - 30M+ holders: 2 claims = 2 x 80,000 = 160,000 SEEN total (but each TX is 80k)
+      // DONUT is just an add-on: 1 DONUT per person, once only, while supply lasts
+      const seenAmount = TOKEN_AMOUNT; // Always 80,000
       const seenAmountWei = parseUnits(seenAmount, TOKEN_DECIMALS);
       
       console.log('Sending tokens:', {
