@@ -1817,28 +1817,36 @@ const CategoryRankings = ({ category, ethPrice, isInFarcaster = false, isConnect
 // ============================================
 
 // ============================================
-// SWAP BUTTON - In-app swap to $SEEN using Farcaster wallet
+// SWAP BUTTON - In-app swap to $SEEN using Farcaster wallet swapToken
 // ============================================
 const SEEN_TOKEN_ADDRESS = '0x82a56d595ccdfa3a1dc6eef28d5f0a870f162b07';
+const BASE_ETH_CAIP19 = 'eip155:8453/native';
+const SEEN_CAIP19 = `eip155:8453/erc20:${SEEN_TOKEN_ADDRESS.toLowerCase()}`;
 
-const SwapButton = ({ isInFarcaster = false, isConnected = false }) => {
+const SwapButton = ({ isInFarcaster = false }) => {
   const handleSwap = async () => {
-    // Use Matcha/0x swap frame URL - opens swap modal in Farcaster
-    const matchaSwapUrl = `https://matcha.xyz/tokens/base/${SEEN_TOKEN_ADDRESS}?sellChain=8453&buyChain=8453`;
-    
-    // Alternative: Uniswap interface URL
-    const uniswapUrl = `https://app.uniswap.org/swap?outputCurrency=${SEEN_TOKEN_ADDRESS}&chain=base&inputCurrency=ETH`;
-    
-    if (isInFarcaster && sdk.actions?.openUrl) {
-      try {
-        // Open swap URL in Farcaster's in-app browser
-        await sdk.actions.openUrl({ url: matchaSwapUrl });
-      } catch (error) {
-        console.error('Error opening swap:', error);
-        window.open(uniswapUrl, '_blank');
+    const fallbackUrl = `https://app.uniswap.org/swap?outputCurrency=${SEEN_TOKEN_ADDRESS}&chain=base&inputCurrency=ETH`;
+
+    try {
+      // Prefer Farcaster's native swapToken action if available
+      if (isInFarcaster && sdk.actions?.swapToken) {
+        await sdk.actions.swapToken({
+          sellToken: BASE_ETH_CAIP19,
+          buyToken: SEEN_CAIP19,
+        });
+        return;
       }
-    } else {
-      window.open(uniswapUrl, '_blank');
+
+      // Fallback: open DEX URL in-app (or browser)
+      if (isInFarcaster && sdk.actions?.openUrl) {
+        await sdk.actions.openUrl({ url: fallbackUrl });
+      } else {
+        window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
+      }
+    } catch (error) {
+      console.error('Error triggering swap:', error);
+      // Last-resort fallback
+      window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -1853,7 +1861,7 @@ const SwapButton = ({ isInFarcaster = false, isConnected = false }) => {
           SWAP TO $SEEN
         </button>
         <div className="text-[9px] text-gray-600 mt-2">
-          SWAP ETH FOR $SEEN ON BASE
+          SWAP ETH FOR $SEEN USING FARCASTER WALLET
         </div>
       </div>
     </div>
