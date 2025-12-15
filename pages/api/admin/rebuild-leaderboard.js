@@ -1,5 +1,5 @@
-// Admin API to rebuild chat leaderboard from actual messages
-import { rebuildLeaderboard } from '../../../lib/chat';
+// Admin API to clear chat leaderboard - start fresh from 0
+import { clearLeaderboard } from '../../../lib/chat';
 import { parse } from 'cookie';
 
 const ADMIN_FID = 342433;
@@ -29,23 +29,22 @@ export default async function handler(req, res) {
   }
 
   try {
-    const result = await rebuildLeaderboard();
+    const result = await clearLeaderboard();
     
     if (result.success) {
       return res.status(200).json({
         success: true,
-        message: 'Leaderboard rebuilt successfully',
-        counts: result.counts,
+        message: 'Leaderboard cleared - counts will start fresh from 0',
       });
     } else {
       return res.status(500).json({
         success: false,
-        error: result.error || 'Failed to rebuild leaderboard',
+        error: result.error || 'Failed to clear leaderboard',
       });
     }
   } catch (error) {
-    console.error('Error rebuilding leaderboard:', error);
-    return res.status(500).json({ error: 'Failed to rebuild leaderboard' });
+    console.error('Error clearing leaderboard:', error);
+    return res.status(500).json({ error: 'Failed to clear leaderboard' });
   }
 }
 
