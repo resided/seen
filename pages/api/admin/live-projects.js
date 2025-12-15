@@ -1,5 +1,5 @@
 // API route to get all live projects (featured + queued) for admin panel
-import { getAllProjects } from '../../../lib/projects';
+import { getAllProjects, getProjectStatsToday } from '../../../lib/projects';
 import { parse } from 'cookie';
 
 const ADMIN_FID = 342433; // Admin FID
@@ -46,9 +46,23 @@ export default async function handler(req, res) {
       return new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0);
     });
 
+    // Attach window stats (24h from featuredAt for featured, calendar day otherwise) to mirror miniapp
+    const projectsWithWindowStats = await Promise.all(
+      liveProjects.map(async (p) => {
+        const windowStats = await getProjectStatsToday(
+          p.id,
+          p.status === 'featured' ? p.featuredAt : null
+        );
+        return {
+          ...p,
+          windowStats,
+        };
+      })
+    );
+
     return res.status(200).json({
       success: true,
-      projects: liveProjects,
+      projects: projectsWithWindowStats,
     });
   } catch (error) {
     console.error('Error fetching live projects:', error);

@@ -1367,11 +1367,9 @@ export default function Admin() {
                         <p className="text-xs text-gray-500 mb-2">{project.description?.substring(0, 100)}...</p>
                         <div className="text-xs text-gray-600">
                           <span>Builder: {project.builder}</span>
-                          {project.stats && (
-                            <span className="ml-4">
-                              Views: {project.stats.views || 0} | Clicks: {project.stats.clicks || 0} | Tips: {project.stats.tips || 0}
-                            </span>
-                          )}
+                          <span className="ml-4">
+                            Views: {(project.windowStats?.views ?? project.stats?.views ?? 0)} | Clicks: {(project.windowStats?.clicks ?? project.stats?.clicks ?? 0)} | Tips: {project.stats?.tips || 0}
+                          </span>
                         </div>
                         {project.status === 'featured' && project.featuredAt && (
                           <FeaturedTimer project={project} onUpdate={fetchLiveProjects} userFid={userFid} />
@@ -1386,7 +1384,8 @@ export default function Admin() {
                         </button>
                         <button
                           onClick={() => {
-                            const newClicks = prompt(`Update clicks for ${project.name}:\nCurrent: ${project.stats?.clicks || 0}\nEnter new value:`, project.stats?.clicks || 0);
+                            const currentClicks = project.windowStats?.clicks ?? project.stats?.clicks ?? 0;
+                            const newClicks = prompt(`Update clicks for ${project.name}:\nCurrent (window): ${currentClicks}\nEnter new value:`, currentClicks);
                             if (newClicks !== null && !isNaN(newClicks)) {
                               handleQuickStatsUpdate(project.id, 'clicks', parseInt(newClicks));
                             }
@@ -1449,11 +1448,9 @@ export default function Admin() {
                           <p className="text-xs text-gray-500 mb-2">{project.description?.substring(0, 100)}...</p>
                           <div className="text-xs text-gray-600">
                             <span>Builder: {project.builder}</span>
-                            {project.stats && (
-                              <span className="ml-4">
-                                Views: {project.stats.views || 0} | Clicks: {project.stats.clicks || 0} | Tips: {project.stats.tips || 0}
-                              </span>
-                            )}
+                            <span className="ml-4">
+                              Views: {(project.windowStats?.views ?? project.stats?.views ?? 0)} | Clicks: {(project.windowStats?.clicks ?? project.stats?.clicks ?? 0)} | Tips: {project.stats?.tips || 0}
+                            </span>
                           </div>
                         </div>
                         <div className="flex gap-2">
