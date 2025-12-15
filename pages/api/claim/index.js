@@ -129,15 +129,42 @@ export default async function handler(req, res) {
       }
     }
     
+    // Log claim attempt for debugging
+    console.log('Claim attempt:', {
+      fid,
+      walletAddress: walletAddress?.slice(0, 10) + '...',
+      featuredProjectId,
+      featuredAtTimestamp,
+      isHolder,
+      maxClaims
+    });
+    
     // ATOMIC CHECK: Check claim count for this featured rotation
     // Use INCR to atomically increment and get the new value
     // If it was 0, it becomes 1 (first claim). If it was already >= maxClaims, we'll check after.
     const newClaimCount = await redis.incr(claimCountKey);
     
+    console.log('Claim count check:', {
+      fid,
+      newClaimCount,
+      maxClaims,
+      isBypassEnabled,
+      willAllow: newClaimCount <= maxClaims || isBypassEnabled
+    });
+    
     // If incrementing pushed us over max, decrement back and reject
+    // Logic: maxClaims=2 means user can claim when count is 1 or 2, but not 3+
+    // So we reject if newClaimCount > maxClaims
     if (newClaimCount > maxClaims && !isBypassEnabled) {
       // Rollback the increment
       await redis.decr(claimCountKey);
+      console.warn('Claim rejected - exceeded max:', {
+        fid,
+        newClaimCount,
+        maxClaims,
+        featuredProjectId,
+        featuredAtTimestamp
+      });
       return res.status(400).json({ 
         error: isHolder 
           ? `Already claimed ${maxClaims}x for this featured project (30M+ holder benefit used)`
