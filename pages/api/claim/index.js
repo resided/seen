@@ -330,13 +330,16 @@ export default async function handler(req, res) {
       // If user already had DONUT, nothing to do (lock result was null)
       
       // Determine amounts: 
-      // - If DONUT available: regular users get 50k SEEN + 1 DONUT, 30M+ holders get 100k SEEN + 1 DONUT
-      // - If DONUT not available: regular amount (80k SEEN)
+      // - If DONUT available (user eligible for DONUT): regular users get 50k SEEN + 1 DONUT, 30M+ holders get 100k SEEN + 1 DONUT
+      // - If DONUT not available to user (already got it or exhausted): regular amount (80k SEEN) for everyone, even 30M+ holders
+      // - 30M+ holders only get 100k SEEN when they're getting the DONUT bonus, otherwise regular 80k
       let seenAmount;
       if (donutAvailable) {
-        // 30M+ holders get 2x SEEN amount when DONUT is available (100k instead of 50k)
+        // User is eligible for DONUT bonus - 30M+ holders get 2x SEEN amount (100k), regular users get 50k
         seenAmount = isHolder ? (parseInt(DONUT_BONUS_SEEN_AMOUNT) * 2).toString() : DONUT_BONUS_SEEN_AMOUNT;
       } else {
+        // User not eligible for DONUT (already got it or exhausted) - regular amount for everyone, including 30M+ holders
+        // This means 30M+ holders get 100k only on first claim (with DONUT), then 80k on second claim
         seenAmount = TOKEN_AMOUNT;
       }
       const seenAmountWei = parseUnits(seenAmount, TOKEN_DECIMALS);
