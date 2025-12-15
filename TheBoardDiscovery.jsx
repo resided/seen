@@ -1258,18 +1258,14 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
             {project.builder && (
               <div className="text-[11px] text-gray-400 mb-2">
                 BUILDER:{' '}
-                {project.builderFid ? (
-                  <a
-                    href={`https://farcaster.xyz/profiles/${project.builderFid}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-white font-semibold underline hover:text-gray-300"
-                  >
-                    {project.builder}
-                  </a>
-                ) : (
-                  <span className="text-white font-semibold">{project.builder}</span>
-                )}
+                <a
+                  href={`https://warpcast.com/${encodeURIComponent(project.builder.replace(/^@/, ''))}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-white font-semibold underline hover:text-gray-300"
+                >
+                  {project.builder}
+                </a>
                 {project.builderFid ? (
                   <span className="ml-1 text-gray-500">(FID {project.builderFid})</span>
                 ) : null}
@@ -1285,18 +1281,14 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
                     {project.builder && (
                       <div className="text-[10px] text-gray-500 mb-2">
                         BUILDER:{' '}
-                        {project.builderFid ? (
-                          <a
-                            href={`https://farcaster.xyz/profiles/${project.builderFid}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-white font-semibold underline hover:text-gray-300"
-                          >
-                            {project.builder}
-                          </a>
-                        ) : (
-                          <span className="text-white font-semibold">{project.builder}</span>
-                        )}
+                        <a
+                          href={`https://warpcast.com/${encodeURIComponent(project.builder.replace(/^@/, ''))}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-white font-semibold underline hover:text-gray-300"
+                        >
+                          {project.builder}
+                        </a>
                         {project.builderFid ? (
                           <span className="ml-1 text-gray-500">(FID {project.builderFid})</span>
                         ) : null}
