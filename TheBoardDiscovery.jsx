@@ -1093,6 +1093,52 @@ const LiveChat = ({ messages, onSend, isInFarcaster = false }) => {
 };
 
 // ============================================
+// CHAT LEADERBOARD
+// ============================================
+const ChatLeaderboard = ({ leaderboard = [] }) => {
+  if (leaderboard.length === 0) {
+    return (
+      <div className="border border-white/30 p-3 flex flex-col h-[400px]">
+        <div className="border-b border-white/30 pb-2 mb-2">
+          <span className="text-[10px] tracking-[0.3em] text-gray-500">TOP CHATTERS</span>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <span className="text-[10px] text-gray-600 tracking-wider">NO MESSAGES YET</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border border-white p-3 flex flex-col h-[400px]">
+      <div className="border-b border-white pb-2 mb-2 flex items-center justify-between">
+        <span className="text-[10px] tracking-[0.3em]">TOP CHATTERS</span>
+        <span className="text-[9px] text-gray-500">🏆</span>
+      </div>
+      <div className="flex-1 overflow-y-auto space-y-2">
+        {leaderboard.map((entry, index) => (
+          <div 
+            key={entry.fid} 
+            className={`flex items-center gap-2 p-2 ${index === 0 ? 'bg-white/10' : ''}`}
+          >
+            <span className={`text-[10px] font-bold w-4 ${index === 0 ? 'text-yellow-400' : index === 1 ? 'text-gray-300' : index === 2 ? 'text-amber-600' : 'text-gray-500'}`}>
+              {index + 1}
+            </span>
+            <div className="flex-1 min-w-0">
+              <div className="text-[10px] tracking-wider truncate">
+                {entry.user}
+                {entry.verified && <span className="ml-1 text-gray-500">✓</span>}
+              </div>
+            </div>
+            <span className="text-[10px] text-gray-400 font-mono">{entry.messageCount}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ============================================
 // SUBMIT CTA
 // ============================================
 const SubmitSection = ({ onSubmit, isInFarcaster = false, isMiniappInstalled = false }) => (
@@ -2185,6 +2231,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
 export default function Seen() {
   const [category, setCategory] = useState('main');
   const [messages, setMessages] = useState([]);
+  const [chatLeaderboard, setChatLeaderboard] = useState([]);
   const [time, setTime] = useState(new Date());
   const [featuredApp, setFeaturedApp] = useState(null);
   const [queue, setQueue] = useState([]);
@@ -2438,6 +2485,26 @@ export default function Seen() {
     
     fetchMessages();
   }, []);
+
+  // Fetch chat leaderboard
+  const fetchLeaderboard = async () => {
+    try {
+      const response = await fetch('/api/chat/leaderboard?limit=10');
+      if (response.ok) {
+        const data = await response.json();
+        setChatLeaderboard(data.leaderboard || []);
+      }
+    } catch (error) {
+      console.error('Error fetching chat leaderboard:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchLeaderboard();
+    // Refresh leaderboard every 30 seconds
+    const interval = setInterval(fetchLeaderboard, 30000);
+    return () => clearInterval(interval);
+  }, []);
   
   // Poll for new messages every 3 seconds (only when tab is visible)
   useEffect(() => {
@@ -2557,6 +2624,8 @@ export default function Seen() {
         if (data.message.timestamp) {
           setLastMessageTimestamp(data.message.timestamp);
         }
+        // Refresh leaderboard after sending a message
+        fetchLeaderboard();
       } else {
         // Handle API errors (like blocked content)
         const errorData = await response.json().catch(() => ({ error: 'Failed to send message' }));
@@ -2715,15 +2784,23 @@ export default function Seen() {
               />
             </div>
             
-            {/* Right: Chat + Queue */}
+            {/* Right: Chat + Leaderboard + Queue */}
             <div className="space-y-6">
-              {chatLoading ? (
-                <div className="border border-white p-6 text-center">
-                  <div className="text-sm text-gray-500">LOADING CHAT...</div>
+              {/* Chat and Leaderboard side by side */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2">
+                  {chatLoading ? (
+                    <div className="border border-white p-6 text-center h-[400px] flex items-center justify-center">
+                      <div className="text-sm text-gray-500">LOADING CHAT...</div>
+                    </div>
+                  ) : (
+                    <LiveChat messages={messages} onSend={handleSendMessage} isInFarcaster={isInFarcaster} />
+                  )}
                 </div>
-              ) : (
-                <LiveChat messages={messages} onSend={handleSendMessage} isInFarcaster={isInFarcaster} />
-              )}
+                <div className="col-span-1">
+                  <ChatLeaderboard leaderboard={chatLeaderboard} />
+                </div>
+              </div>
               {/* Follow Reside Box */}
               <div className="border border-white p-4 text-center">
                 <div className="text-sm font-black tracking-[0.2em] mb-2">FOLLOW RESIDE</div>
