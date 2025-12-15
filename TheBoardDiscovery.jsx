@@ -1974,7 +1974,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
       fetch('/api/claim/status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fid: userFid }),
+        body: JSON.stringify({ fid: userFid, walletAddress: address }),
       })
         .then(res => res.json())
         .then(data => {
@@ -2012,7 +2012,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
         document.removeEventListener('visibilitychange', handleVisibilityChange);
       };
     }
-  }, [userFid]);
+  }, [userFid, address]);
 
   // When claim transaction is confirmed, send txHash to API
   useEffect(() => {
@@ -2030,11 +2030,17 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
         .then(res => res.json().then(data => ({ ok: res.ok, data })))
         .then(({ ok, data }) => {
           if (ok && data.success) {
-            setClaimed(true);
-            if (data.txHash) {
-              setMessage(`CLAIMED! YOUR TX: ${data.txHash.slice(0, 10)}... TOKENS SENT.`);
+            // For 30M+ holders, check if they can claim again
+            if (data.canClaimAgain) {
+              setClaimed(false); // Can still claim more
+              setMessage(data.message || `CLAIMED! (${data.claimCount}/${data.maxClaims}) CLAIM AGAIN!`);
             } else {
-              setMessage(data.message || 'CLAIMED! TOKENS SENT TO YOUR WALLET');
+              setClaimed(true); // Fully claimed
+              if (data.txHash) {
+                setMessage(`CLAIMED! YOUR TX: ${data.txHash.slice(0, 10)}... TOKENS SENT.`);
+              } else {
+                setMessage(data.message || 'CLAIMED! TOKENS SENT TO YOUR WALLET');
+              }
             }
             if (data.expirationTime) {
               setExpirationTime(new Date(data.expirationTime));
