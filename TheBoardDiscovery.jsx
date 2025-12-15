@@ -566,7 +566,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
         )}
 
         {/* Actions */}
-        <div className="grid grid-cols-2 gap-[1px] bg-white">
+        <div className="flex flex-col gap-[1px] bg-white">
           <button 
             onClick={async () => {
               if (!isInFarcaster || !app.links?.miniapp) return;
@@ -602,7 +602,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
               }
             }}
             disabled={!isInFarcaster}
-            className={`bg-black py-4 font-bold text-sm tracking-[0.2em] transition-all ${
+            className={`bg-black py-4 font-bold text-sm tracking-[0.2em] transition-all w-full ${
               isInFarcaster 
                 ? 'hover:bg-white hover:text-black' 
                 : 'opacity-50 cursor-not-allowed'
@@ -639,7 +639,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
               !builderData?.walletAddress ? 'Builder needs a Farcaster wallet' :
               'Tip the builder'
             }
-            className="bg-black py-4 font-bold text-sm tracking-[0.2em] transition-all hover:bg-white hover:text-black"
+            className="bg-black py-4 font-bold text-sm tracking-[0.2em] transition-all hover:bg-white hover:text-black w-full"
           >
             TIP BUILDER
           </button>
