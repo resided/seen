@@ -1,5 +1,5 @@
 // API route to approve or reject submissions (admin only)
-import { approveProject, rejectProject, approveAndFeatureProject } from '../../../lib/projects'
+import { approveProject, rejectProject, approveAndFeatureProject, scheduleFeaturedProject } from '../../../lib/projects'
 import { parse } from 'cookie';
 import { checkRateLimit, getClientIP } from '../../../lib/rate-limit';
 
@@ -52,10 +52,10 @@ export default async function handler(req, res) {
   res.setHeader('X-RateLimit-Remaining', rateLimit.remaining);
   res.setHeader('X-RateLimit-Reset', Math.ceil(rateLimit.resetAt / 1000));
 
-  const { projectId, action } = req.body;
+  const { projectId, action, scheduledDate } = req.body;
 
   try {
-    console.log('Approve API called:', { projectId, action, type: typeof projectId });
+    console.log('Approve API called:', { projectId, action, type: typeof projectId, scheduledDate });
 
     if (!projectId || !action) {
       return res.status(400).json({ error: 'Missing projectId or action' })
@@ -82,6 +82,20 @@ export default async function handler(req, res) {
         message: 'Project approved and featured immediately',
         project
       })
+    } else if (action === 'schedule') {
+      // Schedule project to be featured at a specific date/time
+      if (!scheduledDate) {
+        return res.status(400).json({ error: 'Missing scheduledDate for schedule action' })
+      }
+      const project = await scheduleFeaturedProject(projectId, scheduledDate)
+      if (!project) {
+        return res.status(404).json({ error: 'Project not found' })
+      }
+      res.status(200).json({
+        success: true,
+        message: `Project scheduled to be featured on ${new Date(scheduledDate).toLocaleString()}`,
+        project
+      })
     } else if (action === 'reject') {
       const project = await rejectProject(projectId)
       if (!project) {
@@ -93,7 +107,7 @@ export default async function handler(req, res) {
         project
       })
     } else {
-      return res.status(400).json({ error: 'Invalid action. Use "approve" or "reject"' })
+      return res.status(400).json({ error: 'Invalid action. Use "approve", "feature", "schedule", or "reject"' })
     }
   } catch (error) {
     console.error('Error processing submission:', error)

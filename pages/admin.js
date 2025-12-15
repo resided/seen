@@ -502,6 +502,72 @@ export default function Admin() {
     }
   };
 
+  const handleSchedule = async (projectId) => {
+    if (!projectId) {
+      setMessage('ERROR: Invalid project ID');
+      return;
+    }
+    
+    // Prompt for date/time
+    const dateInput = prompt('Enter date/time to feature this project (YYYY-MM-DD HH:MM format, 24-hour):\nExample: 2025-12-15 14:00');
+    if (!dateInput) return;
+    
+    // Parse date input
+    let scheduledDate;
+    try {
+      // Try parsing as "YYYY-MM-DD HH:MM"
+      const [datePart, timePart] = dateInput.trim().split(' ');
+      if (!datePart || !timePart) {
+        throw new Error('Invalid format');
+      }
+      const [year, month, day] = datePart.split('-');
+      const [hour, minute] = timePart.split(':');
+      scheduledDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute) || 0);
+      
+      if (isNaN(scheduledDate.getTime())) {
+        throw new Error('Invalid date');
+      }
+      
+      // Check if date is in the future
+      if (scheduledDate <= new Date()) {
+        if (!confirm('Scheduled date is in the past. Schedule anyway?')) {
+          return;
+        }
+      }
+    } catch (error) {
+      setMessage('ERROR: Invalid date format. Use YYYY-MM-DD HH:MM');
+      return;
+    }
+
+    try {
+      console.log('Scheduling project:', projectId, 'for', scheduledDate.toISOString());
+      const response = await fetch('/api/admin/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          projectId: String(projectId), 
+          action: 'schedule', 
+          scheduledDate: scheduledDate.toISOString(),
+          fid: userFid || null 
+        }),
+        credentials: 'include',
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setMessage(`Project ${projectId} scheduled to be featured on ${scheduledDate.toLocaleString()}!`);
+        fetchSubmissions(); // Refresh list
+        fetchLiveProjects(); // Refresh live projects
+      } else {
+        setMessage(data.error || 'Failed to schedule project');
+        console.error('Schedule error:', data);
+      }
+    } catch (error) {
+      console.error('Error scheduling project:', error);
+      setMessage('Error scheduling project: ' + error.message);
+    }
+  };
+
   const handleRefund = async (projectId) => {
     if (!projectId) {
       setMessage('ERROR: Invalid project ID');
@@ -1978,6 +2044,21 @@ export default function Admin() {
                       className="px-6 py-2 bg-yellow-500 text-black font-bold hover:bg-yellow-400 transition-all cursor-pointer"
                     >
                       FEATURE NOW
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (submission?.id) {
+                          handleSchedule(submission.id);
+                        } else {
+                          setMessage('ERROR: Missing submission ID');
+                        }
+                      }}
+                      className="px-6 py-2 bg-blue-500 text-white font-bold hover:bg-blue-400 transition-all cursor-pointer"
+                    >
+                      SCHEDULE
                     </button>
                     {submission.paymentAmount > 0 && !submission.refunded && submission.submitterWalletAddress && (
                       <button
