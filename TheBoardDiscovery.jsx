@@ -2177,6 +2177,13 @@ export default function Seen() {
   const [ethPrice, setEthPrice] = useState(null);
   const [ethPriceLoading, setEthPriceLoading] = useState(true);
   
+  // Ensure page starts at top on initial load
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo(0, 0);
+    }
+  }, []);
+
   // Fetch ETH price in main component so it's available everywhere
   useEffect(() => {
     const fetchEthPrice = async () => {
