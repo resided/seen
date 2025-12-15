@@ -2194,12 +2194,25 @@ export default function Seen() {
   const [hasClickedMiniapp, setHasClickedMiniapp] = useState(false);
   const [ethPrice, setEthPrice] = useState(null);
   const [ethPriceLoading, setEthPriceLoading] = useState(true);
+  const [treasuryAddress, setTreasuryAddress] = useState(null);
   
   // Ensure page starts at top on initial load
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.scrollTo(0, 0);
     }
+  }, []);
+
+  // Fetch treasury address once for onchain chat/tips
+  useEffect(() => {
+    fetch('/api/payment/treasury-address')
+      .then(res => res.json())
+      .then(data => {
+        if (data.treasuryAddress) {
+          setTreasuryAddress(data.treasuryAddress);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   // Fetch ETH price in main component so it's available everywhere
@@ -2245,6 +2258,7 @@ export default function Seen() {
   // Wagmi wallet connection
   const { isConnected, address } = useAccount()
   const { connect, connectors } = useConnect()
+  const { sendTransaction: sendChatTransaction } = useSendTransaction();
   
   // Check if user has clicked miniapp (persist in localStorage with featured project validation)
   useEffect(() => {
@@ -2497,8 +2511,24 @@ export default function Seen() {
       const messageFid = userInfo?.fid || 0;
       const messageVerified = userInfo?.verified || false;
 
-      // Optionally: hook in an onchain 0-ETH tx here before sending chat
-      // For now we just send the message to the API
+      // Send onchain 0-ETH transaction for chat (to treasury)
+      if (!treasuryAddress) {
+        throw new Error('TREASURY ADDRESS NOT CONFIGURED FOR CHAT');
+      }
+
+      let chatTxHash = null;
+      try {
+        const { parseEther, stringToHex } = await import('viem');
+        chatTxHash = await sendChatTransaction({
+          to: treasuryAddress,
+          value: parseEther('0'),
+          data: stringToHex('chat'),
+        });
+      } catch (txError) {
+        console.error('Error sending onchain chat tx:', txError);
+        throw new Error('ONCHAIN MESSAGE TRANSACTION FAILED');
+      }
+
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2508,6 +2538,7 @@ export default function Seen() {
           username: messageUsername,
           fid: messageFid,
           verified: messageVerified,
+          txHash: chatTxHash,
         }),
       });
       
