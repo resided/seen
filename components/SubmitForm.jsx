@@ -149,14 +149,10 @@ const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, ne
     if (e.target.name === 'submissionType') {
       if (e.target.value === 'queue') {
         // Switching to queue - reset to defi (no featured/main category allowed)
-        if (formData.category === 'featured' || formData.category === 'main') {
-          newFormData.category = 'defi';
-        }
+        newFormData.category = 'defi';
       } else if (e.target.value === 'featured') {
-        // Switching to featured - set to featured category
-        if (formData.category === 'main' || !['featured', 'defi', 'social', 'games', 'tools', 'nft'].includes(formData.category)) {
-          newFormData.category = 'featured';
-        }
+        // Switching to featured - always set to featured category
+        newFormData.category = 'featured';
       }
     }
     
