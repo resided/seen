@@ -129,11 +129,15 @@ export default async function handler(req, res) {
       }
     }
     
-    // Check claim count for this featured rotation
-    const currentClaimCount = parseInt(await redis.get(claimCountKey) || '0');
+    // ATOMIC CHECK: Check claim count for this featured rotation
+    // Use INCR to atomically increment and get the new value
+    // If it was 0, it becomes 1 (first claim). If it was already >= maxClaims, we'll check after.
+    const newClaimCount = await redis.incr(claimCountKey);
     
-    // Check if already at max claims for this rotation
-    if (currentClaimCount >= maxClaims && !isBypassEnabled) {
+    // If incrementing pushed us over max, decrement back and reject
+    if (newClaimCount > maxClaims && !isBypassEnabled) {
+      // Rollback the increment
+      await redis.decr(claimCountKey);
       return res.status(400).json({ 
         error: isHolder 
           ? `Already claimed ${maxClaims}x for this featured project (30M+ holder benefit used)`
@@ -141,11 +145,15 @@ export default async function handler(req, res) {
         featuredProjectId,
         featuredAt: featuredAt.toISOString(),
         expirationTime: expirationTime.toISOString(),
-        claimCount: currentClaimCount,
+        claimCount: newClaimCount - 1, // Show actual count before our increment
         maxClaims,
         isHolder,
       });
     }
+    
+    // Set expiration on the claim count key
+    const ttl = Math.max(0, Math.floor((expirationTime - now) / 1000));
+    await redis.expire(claimCountKey, ttl);
 
     // If no token contract configured, return token details for client-side transaction
     if (!TOKEN_CONTRACT || !TREASURY_PRIVATE_KEY) {
@@ -170,6 +178,16 @@ export default async function handler(req, res) {
     if (REQUIRE_USER_TX && !isBypassEnabled) {
       if (!txHash) {
         return res.status(400).json({ error: 'Transaction hash required for claiming' });
+      }
+
+      // PREVENT REPLAY ATTACK: Check if this txHash was already used
+      const txHashKey = `claim:txhash:${txHash.toLowerCase()}`;
+      const txHashUsed = await redis.get(txHashKey);
+      if (txHashUsed) {
+        return res.status(400).json({ 
+          error: 'This transaction hash has already been used for a claim',
+          replay: true
+        });
       }
 
       try {
@@ -212,6 +230,10 @@ export default async function handler(req, res) {
     }
 
     // Send tokens from treasury wallet
+    // Declare variables outside try block for rollback access
+    const userDonutKey = `donut:user:${fid}`;
+    let userCanGetDonut = false;
+    
     try {
       // Validate private key format
       if (!TREASURY_PRIVATE_KEY || !TREASURY_PRIVATE_KEY.startsWith('0x')) {
@@ -241,14 +263,20 @@ export default async function handler(req, res) {
         transport: http(),
       });
 
-      // Check DONUT availability (global count and per-user)
+      // ATOMIC CHECK: Check DONUT availability (global count and per-user)
+      // Use SET with NX to atomically check and mark user as having received DONUT
+      const userDonutLockResult = await redis.set(userDonutKey, '1', { NX: true }); // SET if Not eXists (atomic)
+      // Returns "OK" if key was set (user didn't have DONUT), null if key already exists (user already has DONUT)
+      userCanGetDonut = userDonutLockResult === 'OK';
+      
+      // Check global DONUT count
       const donutCountGiven = parseInt(await redis.get(DONUT_COUNT_KEY) || '0');
       const donutGlobalAvailable = donutCountGiven < DONUT_MAX_SUPPLY;
       
-      // Check if this user has already received a DONUT (1 per user max, even for 30M+ holders)
-      const userDonutKey = `donut:user:${fid}`;
-      const userHasDonut = await redis.get(userDonutKey);
-      const donutAvailable = donutGlobalAvailable && !userHasDonut;
+      // User can get DONUT if: global available AND we just marked them (they didn't have it before)
+      const donutAvailable = donutGlobalAvailable && userCanGetDonut;
+      
+      // If user already had DONUT, nothing to do (lock result was null)
       
       // Determine amounts: if DONUT available, send 50k SEEN + 1 DONUT, otherwise regular amount
       const seenAmount = donutAvailable ? DONUT_BONUS_SEEN_AMOUNT : TOKEN_AMOUNT;
@@ -285,11 +313,12 @@ export default async function handler(req, res) {
           args: [walletAddress, donutAmountWei],
         });
         
-        // Mark this user as having received DONUT (persistent, doesn't expire)
-        await redis.set(userDonutKey, '1');
-        
         // Increment global DONUT count (persistent, doesn't expire)
+        // User is already marked via SETNX above
         await redis.incr(DONUT_COUNT_KEY);
+      } else if (userCanGetDonut && !donutGlobalAvailable) {
+        // Race condition: user got lock but DONUT ran out - release the lock
+        await redis.del(userDonutKey);
       }
 
       // Use SEEN hash as primary hash (for backward compatibility)
@@ -298,15 +327,16 @@ export default async function handler(req, res) {
       // Calculate TTL: time until expiration (expires when featured project changes)
       const ttl = Math.max(0, Math.floor((expirationTime - now) / 1000));
       
-      // Increment claim count (for whale 2x benefit tracking)
-      const newClaimCount = await redis.incr(claimCountKey);
-      await redis.expire(claimCountKey, ttl);
-      
       // Record the claim with transaction hash (expires when featured project changes)
       await redis.setEx(claimKey, ttl, newClaimCount.toString());
       // If txHash was provided (user transaction), use that, otherwise use treasury tx hash
       const userTxHash = txHash || hash;
       await redis.setEx(`claim:tx:${featuredProjectId}:${featuredAtTimestamp}:${fid}:${newClaimCount}`, ttl, userTxHash);
+      
+      // PREVENT REPLAY: Mark txHash as used (persistent, never expires to prevent replay attacks)
+      if (txHash) {
+        await redis.set(`claim:txhash:${txHash.toLowerCase()}`, '1');
+      }
 
       // Track a click when user successfully claims (they opened the miniapp to claim)
       try {
@@ -365,6 +395,18 @@ export default async function handler(req, res) {
         decimals: TOKEN_DECIMALS,
         recipient: walletAddress,
       });
+
+      // ROLLBACK: If token sending failed, rollback the claim count increment
+      try {
+        await redis.decr(claimCountKey);
+        // Also rollback DONUT user lock if we set it
+        if (userCanGetDonut) {
+          await redis.del(userDonutKey);
+        }
+        // If we incremented global DONUT count, rollback (but we only increment after successful send, so this shouldn't happen)
+      } catch (rollbackError) {
+        console.error('Error rolling back claim:', rollbackError);
+      }
 
       // Provide more specific error messages
       let errorMessage = 'Failed to send tokens';
