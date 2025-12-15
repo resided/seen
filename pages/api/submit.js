@@ -17,6 +17,7 @@ export default async function handler(req, res) {
       description,
       builder,
       builderFid,
+      tokenName,
       category,
       submissionType,
       paymentAmount,
