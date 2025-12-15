@@ -1056,13 +1056,13 @@ const LiveChat = ({ messages, onSend, isInFarcaster = false }) => {
       </div>
       
       {/* Input */}
-      <div className="border-t border-white p-3 shrink-0">
+      <div className="border-t border-white p-2 shrink-0">
         {error && (
-          <div className="mb-2 text-[10px] text-red-400 tracking-wider">
+          <div className="mb-1 text-[9px] text-red-400 tracking-wider">
             {error}
           </div>
         )}
-        <div className="flex gap-2">
+        <div className="flex items-center border border-white/50 bg-black">
           <input
             type="text"
             value={input}
@@ -1070,7 +1070,7 @@ const LiveChat = ({ messages, onSend, isInFarcaster = false }) => {
             onKeyDown={handleKeyDown}
             placeholder={isInFarcaster ? "SAY SOMETHING..." : "READ-ONLY MODE"}
             disabled={!isInFarcaster}
-            className={`flex-1 bg-transparent text-sm tracking-wider outline-none placeholder:text-gray-600 uppercase ${
+            className={`flex-1 bg-transparent text-xs tracking-wider outline-none placeholder:text-gray-600 uppercase px-2 py-2 ${
               !isInFarcaster ? 'opacity-50 cursor-not-allowed' : ''
             }`}
             maxLength={100}
@@ -1078,7 +1078,7 @@ const LiveChat = ({ messages, onSend, isInFarcaster = false }) => {
           <button 
             onClick={handleSend}
             disabled={!isInFarcaster}
-            className={`text-[10px] tracking-[0.2em] px-4 py-2 font-bold transition-all ${
+            className={`text-[9px] tracking-[0.15em] px-3 py-2 font-bold transition-all shrink-0 ${
               isInFarcaster 
                 ? 'bg-white text-black hover:bg-gray-200' 
                 : 'bg-gray-600 text-gray-400 cursor-not-allowed'
@@ -1093,44 +1093,30 @@ const LiveChat = ({ messages, onSend, isInFarcaster = false }) => {
 };
 
 // ============================================
-// CHAT LEADERBOARD
+// CHAT LEADERBOARD (Horizontal/Compact)
 // ============================================
 const ChatLeaderboard = ({ leaderboard = [] }) => {
   if (leaderboard.length === 0) {
-    return (
-      <div className="border border-white/30 p-3 flex flex-col h-[400px]">
-        <div className="border-b border-white/30 pb-2 mb-2">
-          <span className="text-[10px] tracking-[0.3em] text-gray-500">TOP CHATTERS</span>
-        </div>
-        <div className="flex-1 flex items-center justify-center">
-          <span className="text-[10px] text-gray-600 tracking-wider">NO MESSAGES YET</span>
-        </div>
-      </div>
-    );
+    return null; // Don't show anything if no messages yet
   }
 
   return (
-    <div className="border border-white p-3 flex flex-col h-[400px]">
-      <div className="border-b border-white pb-2 mb-2 flex items-center justify-between">
-        <span className="text-[10px] tracking-[0.3em]">TOP CHATTERS</span>
-        <span className="text-[9px] text-gray-500">🏆</span>
-      </div>
-      <div className="flex-1 overflow-y-auto space-y-2">
-        {leaderboard.map((entry, index) => (
+    <div className="border border-white/50 p-2">
+      <div className="flex items-center gap-3 overflow-x-auto">
+        <span className="text-[9px] tracking-[0.2em] text-gray-500 shrink-0">🏆 TOP</span>
+        {leaderboard.slice(0, 5).map((entry, index) => (
           <div 
             key={entry.fid} 
-            className={`flex items-center gap-2 p-2 ${index === 0 ? 'bg-white/10' : ''}`}
+            className="flex items-center gap-1 shrink-0"
           >
-            <span className={`text-[10px] font-bold w-4 ${index === 0 ? 'text-yellow-400' : index === 1 ? 'text-gray-300' : index === 2 ? 'text-amber-600' : 'text-gray-500'}`}>
-              {index + 1}
+            <span className={`text-[9px] font-bold ${index === 0 ? 'text-yellow-400' : index === 1 ? 'text-gray-300' : index === 2 ? 'text-amber-600' : 'text-gray-500'}`}>
+              {index + 1}.
             </span>
-            <div className="flex-1 min-w-0">
-              <div className="text-[10px] tracking-wider truncate">
-                {entry.user}
-                {entry.verified && <span className="ml-1 text-gray-500">✓</span>}
-              </div>
-            </div>
-            <span className="text-[10px] text-gray-400 font-mono">{entry.messageCount}</span>
+            <span className="text-[9px] tracking-wider truncate max-w-[60px]">
+              {entry.user}
+              {entry.verified && <span className="ml-0.5 text-gray-500">✓</span>}
+            </span>
+            <span className="text-[9px] text-gray-500 font-mono">({entry.messageCount})</span>
           </div>
         ))}
       </div>
@@ -2786,20 +2772,17 @@ export default function Seen() {
             
             {/* Right: Chat + Leaderboard + Queue */}
             <div className="space-y-6">
-              {/* Chat and Leaderboard side by side */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-2">
-                  {chatLoading ? (
-                    <div className="border border-white p-6 text-center h-[400px] flex items-center justify-center">
-                      <div className="text-sm text-gray-500">LOADING CHAT...</div>
-                    </div>
-                  ) : (
-                    <LiveChat messages={messages} onSend={handleSendMessage} isInFarcaster={isInFarcaster} />
-                  )}
-                </div>
-                <div className="col-span-1">
-                  <ChatLeaderboard leaderboard={chatLeaderboard} />
-                </div>
+              {/* Chat */}
+              <div className="space-y-2">
+                {chatLoading ? (
+                  <div className="border border-white p-6 text-center">
+                    <div className="text-sm text-gray-500">LOADING CHAT...</div>
+                  </div>
+                ) : (
+                  <LiveChat messages={messages} onSend={handleSendMessage} isInFarcaster={isInFarcaster} />
+                )}
+                {/* Leaderboard below chat - only shows if there are messages */}
+                <ChatLeaderboard leaderboard={chatLeaderboard} />
               </div>
               {/* Follow Reside Box */}
               <div className="border border-white p-4 text-center">
