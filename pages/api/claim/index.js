@@ -190,10 +190,22 @@ export default async function handler(req, res) {
 
       // Track a click when user successfully claims (they opened the miniapp to claim)
       try {
-        const today = new Date().toISOString().split('T')[0];
-        const clickKey = `clicks:project:${featuredProjectId}:${today}`;
+        // Use window key based on featuredAt for featured projects (24-hour window)
+        let windowKey;
+        if (featuredProject?.featuredAt) {
+          const featuredDate = new Date(featuredProject.featuredAt);
+          windowKey = Math.floor(featuredDate.getTime() / 1000).toString();
+        } else {
+          // Fallback to calendar date if no featuredAt
+          windowKey = new Date().toISOString().split('T')[0];
+        }
+        
+        const clickKey = `clicks:project:${featuredProjectId}:${windowKey}`;
         await redis.incr(clickKey);
-        await redis.expire(clickKey, 2 * 24 * 60 * 60);
+        
+        // Set expiration: 48 hours for featured (to cover full 24h window + buffer), 2 days for others
+        const expiration = featuredProject?.featuredAt ? 48 * 60 * 60 : 2 * 24 * 60 * 60;
+        await redis.expire(clickKey, expiration);
       } catch (clickError) {
         console.error('Error tracking click for claim:', clickError);
         // Don't fail the claim if click tracking fails
