@@ -121,16 +121,21 @@ export default async function handler(req, res) {
     } while (cursor !== 0);
 
     // Delete all claim keys for this featured project
-    if (keys.length > 0) {
-      await redis.del(keys);
-    }
-    
-    if (txKeys.length > 0) {
-      await redis.del(txKeys);
-    }
-    
-    if (countKeys.length > 0) {
-      await redis.del(countKeys);
+    try {
+      if (keys.length > 0) {
+        await redis.del(keys);
+      }
+      
+      if (txKeys.length > 0) {
+        await redis.del(txKeys);
+      }
+      
+      if (countKeys.length > 0) {
+        await redis.del(countKeys);
+      }
+    } catch (delError) {
+      console.error('Error deleting keys:', delError);
+      throw new Error(`Failed to delete keys: ${delError.message}`);
     }
 
     // Optionally reset DONUT data (if resetDonut is true)
@@ -155,8 +160,13 @@ export default async function handler(req, res) {
       } while (cursor !== 0);
       
       if (donutUserKeys.length > 0) {
-        await redis.del(donutUserKeys);
-        donutUsersReset = donutUserKeys.length;
+        try {
+          await redis.del(donutUserKeys);
+          donutUsersReset = donutUserKeys.length;
+        } catch (donutDelError) {
+          console.error('Error deleting DONUT user keys:', donutDelError);
+          throw new Error(`Failed to delete DONUT user keys: ${donutDelError.message}`);
+        }
       }
     }
 
@@ -179,7 +189,16 @@ export default async function handler(req, res) {
       featuredAt: featuredAt.toISOString(),
     });
   } catch (error) {
-    console.error('Error resetting claims:', error);
-    return res.status(500).json({ error: 'Failed to reset claims' });
+    console.error('Error resetting claims:', {
+      error: error,
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    return res.status(500).json({ 
+      error: 'Failed to reset claims',
+      details: error.message || 'Unknown error occurred',
+      type: error.name || 'Error'
+    });
   }
 }
