@@ -95,10 +95,14 @@ export default async function handler(req, res) {
     const featuredAtTimestamp = Math.floor(featuredAt.getTime() / 1000); // Unix timestamp in seconds
     const claimKey = `claim:featured:${featuredProjectId}:${featuredAtTimestamp}:${fid}`;
     
+    // TODO: REMOVE THIS AFTER TESTING - Bypass for testing (FID 342433)
+    const TEST_BYPASS_FID = 342433;
+    const isBypassEnabled = parseInt(fid) === TEST_BYPASS_FID;
+    
     // Check if already claimed for this specific featured rotation
     // Always check regardless of txHash to prevent double-claiming
     const alreadyClaimed = await redis.exists(claimKey);
-    if (alreadyClaimed) {
+    if (alreadyClaimed && !isBypassEnabled) {
       return res.status(400).json({ 
         error: 'Already claimed for this featured project rotation',
         featuredProjectId,

@@ -43,8 +43,12 @@ export default async function handler(req, res) {
     const claimKey = `claim:featured:${featuredProjectId}:${featuredAtTimestamp}:${fid}`;
     const claimed = await redis.exists(claimKey);
 
+    // TODO: REMOVE THIS AFTER TESTING - Bypass for testing (FID 342433)
+    const TEST_BYPASS_FID = 342433;
+    const isBypassEnabled = parseInt(fid) === TEST_BYPASS_FID;
+
     return res.status(200).json({
-      claimed: claimed === 1,
+      claimed: isBypassEnabled ? false : claimed === 1,
       expired,
       featuredProjectId,
       featuredAt: featuredAt.toISOString(),
