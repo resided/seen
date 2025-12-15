@@ -140,7 +140,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
       setCustomTipAmountUsd(usdValue);
     }
   }, [showTipModal, ethPrice, customTipAmount, customTipAmountUsd]);
-
+  
   // Fetch builder data when modal opens if not already loaded
   useEffect(() => {
     if (showTipModal && !builderData && app.builderFid) {
@@ -203,18 +203,18 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
 
       // Fetch today's stats
       const fetchStats = () => {
-        fetch(`/api/projects/stats?projectId=${app.id}`)
-          .then(res => res.json())
-          .then(data => {
-            if (data.stats) {
-              setLiveStats({
-                views: data.stats.views || app.stats?.views || 0,
-                clicks: data.stats.clicks || app.stats?.clicks || 0,
-                tips: app.stats?.tips || 0,
-              });
-            }
-          })
-          .catch(() => {});
+      fetch(`/api/projects/stats?projectId=${app.id}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.stats) {
+            setLiveStats({
+              views: data.stats.views || app.stats?.views || 0,
+              clicks: data.stats.clicks || app.stats?.clicks || 0,
+              tips: app.stats?.tips || 0,
+            });
+          }
+        })
+        .catch(() => {});
       };
       
       // Fetch immediately
@@ -636,7 +636,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
               !isInFarcaster ? 'Open in Farcaster to tip' :
               !isConnected ? 'Connect wallet to tip' :
               !builderData ? 'Loading builder info...' :
-              !builderData?.walletAddress || !builderData?.verified ? 'Builder needs verified Farcaster wallet' :
+              !builderData?.walletAddress ? 'Builder needs a Farcaster wallet' :
               'Tip the builder'
             }
             className="bg-black py-4 font-bold text-sm tracking-[0.2em] transition-all hover:bg-white hover:text-black"
@@ -869,8 +869,8 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
                         to: recipientAddress,
                         value: parseEther(customTipAmount),
                         data: stringToHex('tip'), // Add "tip" as transaction data
-                      });
-
+                        });
+                        
                       // Wait for transaction confirmation before tracking
                       setTipMessage('WAITING FOR CONFIRMATION...');
                     } catch (error) {
@@ -1562,8 +1562,8 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
                       return;
                     }
                     
-                    if (!builderData?.walletAddress || !builderData?.verified) {
-                      setTipMessage('BUILDER NEEDS VERIFIED FARCASTER WALLET');
+                    if (!builderData?.walletAddress) {
+                      setTipMessage('BUILDER NEEDS FARCASTER WALLET');
                       setTimeout(() => setTipMessage(''), 3000);
                       return;
                     }
@@ -1633,7 +1633,7 @@ const CategoryRankings = ({ category, ethPrice, isInFarcaster = false, isConnect
         const data = await response.json();
         if (isMounted) {
           if (data && data.rankings && Array.isArray(data.rankings)) {
-            setRankings(data.rankings);
+          setRankings(data.rankings);
           } else {
             setRankings([]);
           }
@@ -1645,7 +1645,7 @@ const CategoryRankings = ({ category, ethPrice, isInFarcaster = false, isConnect
         }
       } finally {
         if (isMounted) {
-          setLoading(false);
+        setLoading(false);
         }
       }
     };
@@ -1733,10 +1733,10 @@ const CategoryRankings = ({ category, ethPrice, isInFarcaster = false, isConnect
         }).filter(Boolean) : (
           <div className="border border-white p-6 text-center">
             <div className="text-sm text-gray-500">NO PROJECTS FOUND</div>
-          </div>
-        )}
-      </div>
-      
+                    </div>
+                  )}
+                </div>
+                
       {/* Scroll Indicator */}
       <div className="mt-8 text-center">
         <div className="text-2xl font-black tracking-tight mb-2 flex items-center justify-center gap-2">
@@ -1744,9 +1744,9 @@ const CategoryRankings = ({ category, ethPrice, isInFarcaster = false, isConnect
           <svg className="w-6 h-6 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
           </svg>
-        </div>
-      </div>
-    </div>
+                  </div>
+                  </div>
+                </div>
   );
 };
 
@@ -1758,13 +1758,13 @@ const FAQ = () => {
 
   return (
     <div className="border border-white">
-      <button
+                  <button
         onClick={() => setIsOpen(!isOpen)}
         className="w-full p-3 border-b border-white flex items-center justify-between hover:bg-white/5 transition-all"
-      >
+                  >
         <span className="text-[10px] tracking-[0.3em] font-bold">FAQ</span>
         <span className="text-lg">{isOpen ? '−' : '+'}</span>
-      </button>
+                  </button>
       {isOpen && (
         <div className="p-6 space-y-4 text-sm">
           <div>
@@ -1773,7 +1773,7 @@ const FAQ = () => {
               SEEN. is a discovery platform for Farcaster Mini Apps. We help builders get their projects seen by the Farcaster community. 
               Featured projects are highlighted for 24 hours, and users can discover, interact with, and tip builders directly.
             </p>
-          </div>
+              </div>
           
           <div>
             <h3 className="text-lg font-black mb-2 tracking-tight">HOW IT WORKS</h3>
@@ -1784,7 +1784,7 @@ const FAQ = () => {
               <li>Claim $SEEN tokens for checking out featured apps</li>
               <li>Submit your own project for free or pay for a featured slot</li>
             </ul>
-          </div>
+            </div>
 
           <div className="p-4 border border-red-500/50 bg-red-500/10">
             <h3 className="text-base font-black mb-2 text-red-400 tracking-tight">⚠ IMPORTANT DISCLAIMER</h3>
@@ -1805,7 +1805,7 @@ const FAQ = () => {
               <strong>NO LIABILITY:</strong> SEEN. and its operators are not responsible for any losses, damages, or issues arising from your use of any Mini Apps discovered through this platform. 
               You are solely responsible for your interactions with third-party Mini Apps. Always exercise due diligence and use caution when engaging with blockchain applications.
             </p>
-          </div>
+      </div>
         </div>
       )}
     </div>
@@ -1845,15 +1845,15 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
     // Check claim status (tied to featured project)
     if (userFid) {
       const checkStatus = () => {
-        fetch('/api/claim/status', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fid: userFid }),
-        })
-          .then(res => res.json())
-          .then(data => {
-            if (data.claimed) {
-              setClaimed(true);
+      fetch('/api/claim/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fid: userFid }),
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.claimed) {
+            setClaimed(true);
             }
             if (data.expired) {
               setExpired(true);
@@ -1861,9 +1861,9 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
             }
             if (data.expirationTime) {
               setExpirationTime(new Date(data.expirationTime));
-            }
-          })
-          .catch(() => {});
+          }
+        })
+        .catch(() => {});
       };
       
       checkStatus();
@@ -2054,7 +2054,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
           <>
             <div className="text-4xl mb-2 text-red-400">✗</div>
             <div className="text-sm font-bold mb-2 text-red-400">CLAIM EXPIRED</div>
-            <div className="text-[10px] tracking-[0.2em] text-gray-500">
+              <div className="text-[10px] tracking-[0.2em] text-gray-500">
               WAIT FOR NEXT FEATURED PROJECT
             </div>
           </>
@@ -2269,7 +2269,7 @@ export default function Seen() {
             try {
               // Try to call ready() - if it works, miniapp is likely installed
               await sdk.actions.ready();
-              setIsMiniappInstalled(true);
+            setIsMiniappInstalled(true);
               setShowInstallPrompt(false);
             } catch (readyError) {
               // If ready() fails, miniapp might not be installed
@@ -2290,7 +2290,7 @@ export default function Seen() {
           // Try to check if miniapp is installed by attempting SDK actions
           try {
             await sdk.actions.ready();
-            setIsMiniappInstalled(true);
+          setIsMiniappInstalled(true);
             setShowInstallPrompt(false);
           } catch (readyError) {
             setIsMiniappInstalled(false);
@@ -2578,8 +2578,8 @@ export default function Seen() {
             {CATEGORIES.map(cat => {
               const IconComponent = cat.icon;
               return (
-                <button
-                  key={cat.id}
+              <button
+                key={cat.id}
                   onClick={(e) => {
                     e.preventDefault();
                     try {
@@ -2589,14 +2589,14 @@ export default function Seen() {
                     }
                   }}
                   className={`px-6 py-3 text-xs font-bold tracking-[0.2em] transition-all border-r border-white last:border-r-0 whitespace-nowrap flex items-center gap-2 ${
-                    category === cat.id 
-                      ? 'bg-white text-black' 
-                      : 'bg-black text-white hover:bg-white/10'
-                  }`}
-                >
+                  category === cat.id 
+                    ? 'bg-white text-black' 
+                    : 'bg-black text-white hover:bg-white/10'
+                }`}
+              >
                   <IconComponent />
-                  {cat.label}
-                </button>
+                {cat.label}
+              </button>
               );
             })}
           </div>
