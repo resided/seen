@@ -2076,18 +2076,18 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
       };
       
       checkStatus();
-      // Check every 30 seconds to catch expiration (only when tab is visible)
+      // Check every 15 seconds to catch expiration and DONUT count updates (only when tab is visible)
       let interval;
       const handleVisibilityChange = () => {
         if (document.hidden) {
           if (interval) clearInterval(interval);
         } else {
           checkStatus(); // Check immediately when tab becomes visible
-          interval = setInterval(checkStatus, 30000);
+          interval = setInterval(checkStatus, 15000); // Update every 15 seconds for live DONUT tracking
         }
       };
       
-      interval = setInterval(checkStatus, 30000);
+      interval = setInterval(checkStatus, 15000); // Update every 15 seconds for live DONUT tracking
       document.addEventListener('visibilitychange', handleVisibilityChange);
       
       return () => {
@@ -2131,6 +2131,30 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
             }
             if (data.donutRemaining !== undefined) {
               setDonutRemaining(data.donutRemaining);
+            }
+            
+            // Immediately refresh status after claim to get updated DONUT count
+            if (data.success) {
+              setTimeout(() => {
+                fetch('/api/claim/status', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ fid: userFid, walletAddress: address }),
+                })
+                  .then(res => res.json())
+                  .then(statusData => {
+                    if (statusData.donutRemaining !== undefined) {
+                      setDonutRemaining(statusData.donutRemaining);
+                    }
+                    if (statusData.donutAvailable !== undefined) {
+                      setDonutAvailable(statusData.donutAvailable);
+                    }
+                    if (statusData.userHasDonut !== undefined) {
+                      setUserHasDonut(statusData.userHasDonut);
+                    }
+                  })
+                  .catch(() => {});
+              }, 2000); // Wait 2 seconds for Redis to update
             }
             
             // For 30M+ holders, check if they can claim again
@@ -2345,16 +2369,30 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
                 EXPIRES IN {getTimeUntilExpiration()}
               </div>
             )}
-            {donutAvailable && !userHasDonut && (
-              <div className="text-[10px] tracking-[0.2em] text-yellow-400 mb-2 font-bold">
-                BONUS: 1 DONUT + {donutBonusSeenAmount || '50,000'} $SEEN ({donutRemaining} LEFT)
+            {/* Live DONUT counter - always visible */}
+            <div className="border border-yellow-400/50 bg-yellow-400/10 p-2 mb-3">
+              <div className="text-[10px] tracking-[0.2em] text-yellow-400 font-bold mb-1">
+                DONUT BONUS TRACKER
               </div>
-            )}
-            {userHasDonut && (
-              <div className="text-[10px] tracking-[0.2em] text-gray-500 mb-2">
-                YOU ALREADY RECEIVED YOUR DONUT BONUS
+              <div className="text-xs font-black text-yellow-300">
+                {donutRemaining} / 1,000 REMAINING
               </div>
-            )}
+              {donutAvailable && !userHasDonut && (
+                <div className="text-[9px] tracking-[0.15em] text-yellow-400/80 mt-1">
+                  YOU QUALIFY: 1 DONUT + {donutBonusSeenAmount || '50,000'} $SEEN
+                </div>
+              )}
+              {userHasDonut && (
+                <div className="text-[9px] tracking-[0.15em] text-gray-400 mt-1">
+                  YOU ALREADY RECEIVED YOUR DONUT
+                </div>
+              )}
+              {!donutAvailable && donutRemaining === 0 && (
+                <div className="text-[9px] tracking-[0.15em] text-gray-400 mt-1">
+                  DONUT BONUS EXHAUSTED - REGULAR CLAIMS ONLY
+                </div>
+              )}
+            </div>
             <div className="text-[10px] tracking-[0.2em] text-gray-400 mb-2">
               30M+ $SEEN HOLDERS GET 2X DAILY CLAIMS
             </div>
