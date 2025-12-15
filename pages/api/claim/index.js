@@ -241,9 +241,14 @@ export default async function handler(req, res) {
         transport: http(),
       });
 
-      // Check DONUT availability
+      // Check DONUT availability (global count and per-user)
       const donutCountGiven = parseInt(await redis.get(DONUT_COUNT_KEY) || '0');
-      const donutAvailable = donutCountGiven < DONUT_MAX_SUPPLY;
+      const donutGlobalAvailable = donutCountGiven < DONUT_MAX_SUPPLY;
+      
+      // Check if this user has already received a DONUT (1 per user max, even for 30M+ holders)
+      const userDonutKey = `donut:user:${fid}`;
+      const userHasDonut = await redis.get(userDonutKey);
+      const donutAvailable = donutGlobalAvailable && !userHasDonut;
       
       // Determine amounts: if DONUT available, send 50k SEEN + 1 DONUT, otherwise regular amount
       const seenAmount = donutAvailable ? DONUT_BONUS_SEEN_AMOUNT : TOKEN_AMOUNT;
@@ -269,7 +274,7 @@ export default async function handler(req, res) {
         args: [walletAddress, seenAmountWei],
       });
 
-      // Send DONUT token if available
+      // Send DONUT token if available (1 per user max)
       let donutHash = null;
       if (donutAvailable) {
         const donutAmountWei = parseUnits(DONUT_TOKEN_AMOUNT, DONUT_TOKEN_DECIMALS);
@@ -280,7 +285,10 @@ export default async function handler(req, res) {
           args: [walletAddress, donutAmountWei],
         });
         
-        // Increment DONUT count (persistent, doesn't expire)
+        // Mark this user as having received DONUT (persistent, doesn't expire)
+        await redis.set(userDonutKey, '1');
+        
+        // Increment global DONUT count (persistent, doesn't expire)
         await redis.incr(DONUT_COUNT_KEY);
       }
 

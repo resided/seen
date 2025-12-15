@@ -70,9 +70,14 @@ export default async function handler(req, res) {
     const fullyClaimed = claimCount >= maxClaims;
     const canClaimAgain = claimCount < maxClaims && !expired;
 
-    // Check DONUT availability
+    // Check DONUT availability (global and per-user)
     const donutCountGiven = parseInt(await redis.get(DONUT_COUNT_KEY) || '0');
-    const donutAvailable = donutCountGiven < DONUT_MAX_SUPPLY;
+    const donutGlobalAvailable = donutCountGiven < DONUT_MAX_SUPPLY;
+    
+    // Check if this user has already received a DONUT (1 per user max)
+    const userDonutKey = `donut:user:${fid}`;
+    const userHasDonut = await redis.get(userDonutKey);
+    const donutAvailable = donutGlobalAvailable && !userHasDonut;
     const donutRemaining = Math.max(0, DONUT_MAX_SUPPLY - donutCountGiven);
 
     // TODO: REMOVE THIS AFTER TESTING - Bypass for testing (FID 342433)
@@ -91,8 +96,9 @@ export default async function handler(req, res) {
       timeRemaining: expired ? 0 : Math.max(0, expirationTime - now),
       isHolder,
       holderThreshold: HOLDER_THRESHOLD,
-      donutAvailable, // Whether DONUT bonus is still available
-      donutRemaining, // How many DONUT tokens remain
+      donutAvailable, // Whether DONUT bonus is still available for this user
+      donutRemaining, // How many DONUT tokens remain globally
+      userHasDonut: !!userHasDonut, // Whether this user has already received a DONUT
       donutBonusSeenAmount: donutAvailable ? DONUT_BONUS_SEEN_AMOUNT : null, // SEEN amount if DONUT available
     });
   } catch (error) {

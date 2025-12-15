@@ -2008,6 +2008,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
   const [donutAvailable, setDonutAvailable] = useState(false);
   const [donutRemaining, setDonutRemaining] = useState(0);
   const [donutBonusSeenAmount, setDonutBonusSeenAmount] = useState(null);
+  const [userHasDonut, setUserHasDonut] = useState(false);
   const { address } = useAccount();
   const { sendTransaction, data: claimTxData } = useSendTransaction();
   const { isLoading: isClaimTxConfirming, isSuccess: isClaimTxConfirmed } = useWaitForTransactionReceipt({
@@ -2067,6 +2068,9 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
           if (data.donutBonusSeenAmount !== undefined) {
             setDonutBonusSeenAmount(data.donutBonusSeenAmount);
           }
+          if (data.userHasDonut !== undefined) {
+            setUserHasDonut(data.userHasDonut);
+          }
         })
         .catch(() => {});
       };
@@ -2120,6 +2124,10 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
             // Update DONUT info from response
             if (data.donutIncluded !== undefined) {
               setDonutAvailable(data.donutIncluded);
+              // If user received DONUT, mark them as having it
+              if (data.donutIncluded) {
+                setUserHasDonut(true);
+              }
             }
             if (data.donutRemaining !== undefined) {
               setDonutRemaining(data.donutRemaining);
@@ -2337,9 +2345,14 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
                 EXPIRES IN {getTimeUntilExpiration()}
               </div>
             )}
-            {donutAvailable && (
+            {donutAvailable && !userHasDonut && (
               <div className="text-[10px] tracking-[0.2em] text-yellow-400 mb-2 font-bold">
                 BONUS: 1 DONUT + {donutBonusSeenAmount || '50,000'} $SEEN ({donutRemaining} LEFT)
+              </div>
+            )}
+            {userHasDonut && (
+              <div className="text-[10px] tracking-[0.2em] text-gray-500 mb-2">
+                YOU ALREADY RECEIVED YOUR DONUT BONUS
               </div>
             )}
             <div className="text-[10px] tracking-[0.2em] text-gray-400 mb-2">
