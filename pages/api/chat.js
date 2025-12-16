@@ -7,16 +7,9 @@ export default async function handler(req, res) {
     // Fetch messages
     const { since } = req.query;
     
-    // Rate limiting: 300 requests per IP per minute (allows multiple polling clients)
-    const { checkRateLimit, getClientIP } = await import('../../lib/rate-limit');
-    const clientIP = getClientIP(req);
-    const rateLimit = await checkRateLimit(`chat:get:${clientIP}`, 300, 60000);
-    if (!rateLimit.allowed) {
-      return res.status(429).json({ 
-        error: 'Too many requests. Please slow down.',
-        retryAfter: Math.ceil((rateLimit.resetAt - Date.now()) / 1000)
-      });
-    }
+    // Rate limiting disabled for GET - read operations are cheap and 
+    // Farcaster miniapps share IPs through their infrastructure
+    // POST is still rate limited to prevent spam
     
     try {
       let messages;
