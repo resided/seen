@@ -1927,7 +1927,7 @@ export default function Admin() {
               </div>
             ) : (
               <div className="space-y-4">
-                {liveProjects.map((project) => (
+                {[...liveProjects].sort((a, b) => a.name.localeCompare(b.name)).map((project) => (
                   <div key={project.id} className="border border-white p-4">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
@@ -2030,7 +2030,7 @@ export default function Admin() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {archivedProjects.map((project) => (
+                  {[...archivedProjects].sort((a, b) => a.name.localeCompare(b.name)).map((project) => (
                     <div key={project.id} className="border border-gray-600 p-4 opacity-75">
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
@@ -2394,7 +2394,7 @@ export default function Admin() {
             </div>
           ) : (
             <div className="space-y-4">
-              {submissions.map((submission) => (
+              {[...submissions].sort((a, b) => a.name.localeCompare(b.name)).map((submission) => (
                 <div
                   key={submission.id}
                   className="border border-white p-6"
