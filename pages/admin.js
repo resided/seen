@@ -25,6 +25,10 @@ export default function Admin() {
   const [updating, setUpdating] = useState(false);
   const [ethPrice, setEthPrice] = useState(null);
   const [tipsUsdDisplay, setTipsUsdDisplay] = useState({ edit: '', create: '' }); // Store USD values for display
+  const [claimsDisabled, setClaimsDisabled] = useState(null); // null = loading, true/false = state
+  const [currentFeatured, setCurrentFeatured] = useState(null);
+  const [claimStats, setClaimStats] = useState(null);
+  const [loadingStats, setLoadingStats] = useState(false);
   const [editFormData, setEditFormData] = useState({
     name: '',
     tagline: '',
@@ -911,6 +915,109 @@ export default function Admin() {
     }
   };
 
+  // Automation functions
+  const fetchCurrentFeatured = async () => {
+    try {
+      const response = await fetch('/api/featured-project', {
+        method: 'GET',
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setCurrentFeatured(data.project);
+      }
+    } catch (error) {
+      console.error('Error fetching featured project:', error);
+    }
+  };
+
+  const fetchClaimStats = async () => {
+    setLoadingStats(true);
+    try {
+      const response = await fetch('/api/admin/claim-stats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fid: userFid || null }),
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setClaimStats(data);
+      } else {
+        setMessage('Failed to fetch claim stats');
+      }
+    } catch (error) {
+      console.error('Error fetching claim stats:', error);
+      setMessage('Error fetching claim stats');
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
+  const handleQuickSetFeatured = async (projectId) => {
+    if (!confirm(`Set project ${projectId} as featured? This will move current featured to queued.`)) {
+      return;
+    }
+    try {
+      const response = await fetch('/api/admin/update-project', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          projectId, 
+          status: 'featured',
+          fid: userFid || null 
+        }),
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setMessage(`Project ${projectId} set as featured! Claims reset automatically.`);
+        fetchLiveProjects();
+        fetchCurrentFeatured();
+      } else {
+        setMessage(data.error || 'Failed to set featured project');
+      }
+    } catch (error) {
+      setMessage('Error setting featured project');
+    }
+  };
+
+  const handleClearOldClaims = async () => {
+    if (!confirm('Clear all expired claim data? This will remove old claim locks and counters that have expired.')) {
+      return;
+    }
+    const confirmation = prompt('Type CLEAR to confirm:');
+    if (confirmation !== 'CLEAR') {
+      if (confirmation !== null) {
+        setMessage('Confirmation failed. You must type "CLEAR" exactly.');
+      }
+      return;
+    }
+    try {
+      const response = await fetch('/api/admin/clear-old-claims', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: 'CLEAR', fid: userFid || null }),
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setMessage(data.message || 'Old claim data cleared successfully');
+      } else {
+        setMessage(data.error || 'Failed to clear old claims');
+      }
+    } catch (error) {
+      setMessage('Error clearing old claims');
+    }
+  };
+
+  // Fetch current featured on load
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchCurrentFeatured();
+    }
+  }, [isAuthenticated]);
+
   const handleArchive = async (projectId, archive = true) => {
     const action = archive ? 'archive' : 'unarchive';
     const confirmMsg = archive 
@@ -1139,7 +1246,7 @@ export default function Admin() {
                 <p className="text-xs text-gray-600 mt-1">Authenticated as FID: {userFid}</p>
               )}
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-3 flex-wrap">
               <button
                 onClick={() => setShowCreateForm(!showCreateForm)}
                 className="px-4 py-2 bg-yellow-500 text-black font-bold hover:bg-yellow-400 transition-all"
@@ -1149,9 +1256,28 @@ export default function Admin() {
               <button
                 onClick={handleResetClaims}
                 className="px-4 py-2 bg-red-600 text-white font-bold hover:bg-red-500 transition-all"
-                title="Reset all daily claims for today"
+                title="Reset all daily claims for current featured project"
               >
                 RESET CLAIMS
+              </button>
+              <button
+                onClick={fetchClaimStats}
+                className="px-4 py-2 bg-blue-600 text-white font-bold hover:bg-blue-500 transition-all"
+                disabled={loadingStats}
+              >
+                {loadingStats ? 'LOADING...' : 'VIEW CLAIM STATS'}
+              </button>
+              <button
+                onClick={fetchCurrentFeatured}
+                className="px-4 py-2 bg-green-600 text-white font-bold hover:bg-green-500 transition-all"
+              >
+                REFRESH FEATURED
+              </button>
+              <button
+                onClick={handleClearOldClaims}
+                className="px-4 py-2 bg-orange-600 text-white font-bold hover:bg-orange-500 transition-all"
+              >
+                CLEAR OLD CLAIMS
               </button>
               <button
                 onClick={handleLogout}
@@ -1186,6 +1312,71 @@ export default function Admin() {
               </button>
             </div>
           )}
+
+          {/* Automation Dashboard */}
+          <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Current Featured Project */}
+            <div className="border border-white p-4">
+              <h2 className="text-lg font-black mb-3">CURRENT FEATURED PROJECT</h2>
+              {currentFeatured ? (
+                <div className="space-y-2">
+                  <div className="text-sm">
+                    <span className="text-gray-500">Name:</span> <span className="font-bold">{currentFeatured.name}</span>
+                  </div>
+                  <div className="text-sm">
+                    <span className="text-gray-500">ID:</span> <span className="font-mono">{currentFeatured.id}</span>
+                  </div>
+                  {currentFeatured.featuredAt && (
+                    <div className="text-sm">
+                      <span className="text-gray-500">Featured At:</span> <span className="font-mono text-xs">{new Date(currentFeatured.featuredAt).toLocaleString()}</span>
+                    </div>
+                  )}
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      onClick={() => handleEdit(currentFeatured)}
+                      className="px-3 py-1 text-xs border border-white hover:bg-white hover:text-black transition-all"
+                    >
+                      EDIT
+                    </button>
+                    <button
+                      onClick={() => handleQuickSetFeatured(currentFeatured.id)}
+                      className="px-3 py-1 text-xs bg-green-600 text-white hover:bg-green-500 transition-all"
+                      disabled={currentFeatured.status === 'featured'}
+                    >
+                      {currentFeatured.status === 'featured' ? 'CURRENTLY FEATURED' : 'SET FEATURED'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500">No featured project</div>
+              )}
+            </div>
+
+            {/* Claim Stats */}
+            <div className="border border-white p-4">
+              <h2 className="text-lg font-black mb-3">CLAIM STATISTICS</h2>
+              {claimStats ? (
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <span className="text-gray-500">Total Claims:</span> <span className="font-bold">{claimStats.totalClaims || 0}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Unique Wallets:</span> <span className="font-bold">{claimStats.uniqueWallets || 0}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">30M+ Holder Claims:</span> <span className="font-bold">{claimStats.holderClaims || 0}</span>
+                  </div>
+                  {claimStats.featuredProject && (
+                    <div className="mt-2 pt-2 border-t border-white/20">
+                      <div className="text-xs text-gray-500">Featured: {claimStats.featuredProject.name} (ID: {claimStats.featuredProject.id})</div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500">Click "VIEW CLAIM STATS" to load</div>
+              )}
+            </div>
+          </div>
 
           {/* Edit Project Modal */}
           {editingProject && (
@@ -1598,6 +1789,15 @@ export default function Admin() {
                             title="Reset stats window (sets new featuredAt timestamp)"
                           >
                             RESET STATS
+                          </button>
+                        )}
+                        {project.status !== 'featured' && (
+                          <button
+                            onClick={() => handleQuickSetFeatured(project.id)}
+                            className="px-4 py-2 bg-yellow-600 text-white font-bold hover:bg-yellow-500 transition-all text-xs"
+                            title="Set as featured project (resets claims automatically)"
+                          >
+                            SET FEATURED
                           </button>
                         )}
                         <button
