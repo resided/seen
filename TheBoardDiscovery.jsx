@@ -2280,12 +2280,48 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
     return () => clearInterval(interval);
   }, [expirationTime]);
 
+  // MAINTENANCE MODE - set to true to show maintenance message
+  const MAINTENANCE_MODE = true;
+
   return (
     <div className="border border-white">
       <div className="border-b border-white p-3">
         <span className="text-[10px] tracking-[0.3em]">FEATURED CLAIM</span>
       </div>
       <div className="p-6 text-center space-y-4">
+        {MAINTENANCE_MODE ? (
+          <>
+            <div className="mb-4 flex items-center justify-center">
+              <div className="w-16 h-16 border-2 border-gray-500 flex items-center justify-center relative opacity-50">
+                <div className="absolute inset-0 border-2 border-gray-500" style={{ transform: 'rotate(45deg)' }}></div>
+                <div className="text-2xl font-black relative z-10">⏳</div>
+              </div>
+            </div>
+            <div className="text-sm font-bold mb-2 text-gray-300">MAINTENANCE IN PROGRESS</div>
+            <div className="text-[10px] tracking-[0.2em] text-gray-500 mb-4">
+              CLAIMS TEMPORARILY PAUSED
+            </div>
+            <div className="text-[10px] tracking-[0.2em] text-gray-400 mb-4 leading-relaxed">
+              WE'RE MAKING IMPROVEMENTS TO THE CLAIM SYSTEM.<br/>
+              BACK UP SHORTLY.
+            </div>
+            <div className="border border-gray-600 bg-gray-800/50 p-3 mb-4">
+              <div className="text-[10px] tracking-[0.2em] text-gray-300 mb-1">
+                💬 EARN WHILE YOU WAIT
+              </div>
+              <div className="text-[9px] tracking-[0.15em] text-gray-400">
+                SEND MESSAGES IN LIVE CHAT FOR REWARDS WHEN CLAIMS ARE BACK
+              </div>
+            </div>
+            <button
+              disabled={true}
+              className="w-full py-3 font-black text-sm tracking-[0.2em] bg-gray-700 text-gray-500 cursor-not-allowed"
+            >
+              CLAIMS PAUSED
+            </button>
+          </>
+        ) : (
+          <>
         {message && (
           <div className={`text-[10px] tracking-[0.2em] ${
             message.includes('CLAIMED') ? 'text-green-400' : 
@@ -2464,6 +2500,8 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
                 </button>
               </div>
             )}
+          </>
+        )}
           </>
         )}
       </div>
