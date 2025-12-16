@@ -441,36 +441,36 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
   return (
     <div className="border border-white">
       {/* Header bar */}
-      <div className="border-b border-white px-3 py-2 flex items-center justify-between">
+      <div className="border-b border-white px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="text-[8px] tracking-[0.2em] text-gray-500">TODAY'S FEATURED</div>
+          <div className="text-[9px] tracking-[0.2em] text-gray-500">TODAY'S FEATURED</div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           {/* Treasury Balance */}
           <div className="text-right">
-            <div className="font-mono text-[10px]">
+            <div className="font-mono text-xs">
               {treasuryBalance ? formatBalance(treasuryBalance) : '...'}
             </div>
-            <div className="text-[7px] tracking-[0.2em] text-gray-500">TREASURY</div>
+            <div className="text-[8px] tracking-[0.2em] text-gray-500">TREASURY</div>
           </div>
           {/* Countdown */}
           <div className="text-right">
-            <div className="font-mono text-[10px]">
+            <div className="font-mono text-xs">
               {String(countdown.h).padStart(2, '0')}:{String(countdown.m).padStart(2, '0')}:{String(countdown.s).padStart(2, '0')}
             </div>
-            <div className="text-[7px] tracking-[0.2em] text-gray-500">UNTIL NEXT</div>
+            <div className="text-[8px] tracking-[0.2em] text-gray-500">UNTIL NEXT</div>
           </div>
         </div>
       </div>
 
       {/* Main content */}
-      <div className="p-3">
+      <div className="p-4">
         {/* App name */}
-        <h1 className="text-xl sm:text-2xl font-black tracking-[-0.03em] mb-0.5">{app.name}</h1>
-        <p className="text-[10px] tracking-widest text-gray-500 mb-2">{app.tagline}</p>
+        <h1 className="text-2xl font-black tracking-[-0.03em] mb-1">{app.name}</h1>
+        <p className="text-xs tracking-widest text-gray-500 mb-3">{app.tagline}</p>
         
         {/* Description - full text for paid featured spot */}
-        <p className="text-xs leading-relaxed text-gray-400 mb-3">
+        <p className="text-sm leading-relaxed text-gray-400 mb-4">
           {app.description}
         </p>
 
@@ -665,18 +665,18 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
         </div>
 
         {/* Stats */}
-        <div className="flex justify-around mb-3">
+        <div className="flex justify-around mb-4">
           <div className="text-center">
-            <div className="text-lg font-black">{formatNumber(liveStats.views || app.stats?.views || 0)}</div>
-            <div className="text-[7px] tracking-[0.2em] text-gray-500">VIEWS</div>
+            <div className="text-xl font-black">{formatNumber(liveStats.views || app.stats?.views || 0)}</div>
+            <div className="text-[8px] tracking-[0.2em] text-gray-500">VIEWS</div>
           </div>
           <div className="text-center">
-            <div className="text-lg font-black">{formatNumber(liveStats.clicks || app.stats?.clicks || 0)}</div>
-            <div className="text-[7px] tracking-[0.2em] text-gray-500">CLICKS</div>
+            <div className="text-xl font-black">{formatNumber(liveStats.clicks || app.stats?.clicks || 0)}</div>
+            <div className="text-[8px] tracking-[0.2em] text-gray-500">CLICKS</div>
           </div>
           <div className="text-center">
-            <div className="text-lg font-black">{formatTipsUsd(liveStats.tips || app.stats?.tips || 0, ethPrice)}</div>
-            <div className="text-[7px] tracking-[0.2em] text-gray-500">TIPPED</div>
+            <div className="text-xl font-black">{formatTipsUsd(liveStats.tips || app.stats?.tips || 0, ethPrice)}</div>
+            <div className="text-[8px] tracking-[0.2em] text-gray-500">TIPPED</div>
           </div>
         </div>
 
@@ -728,7 +728,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
               }
             }}
             disabled={!isInFarcaster}
-            className={`bg-black py-2 font-bold text-[10px] tracking-[0.2em] transition-all w-full ${
+            className={`bg-black py-3 font-bold text-xs tracking-[0.2em] transition-all w-full ${
               isInFarcaster 
                 ? 'hover:bg-white hover:text-black' 
                 : 'opacity-50 cursor-not-allowed'
@@ -765,7 +765,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
               !builderData?.walletAddress ? 'Builder needs a Farcaster wallet' :
               'Tip the builder'
             }
-            className="bg-black py-2 font-bold text-[10px] tracking-[0.2em] transition-all hover:bg-white hover:text-black w-full"
+            className="bg-black py-3 font-bold text-xs tracking-[0.2em] transition-all hover:bg-white hover:text-black w-full"
           >
             TIP BUILDER
           </button>
