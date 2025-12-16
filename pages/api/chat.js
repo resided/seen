@@ -21,13 +21,9 @@ export default async function handler(req, res) {
     try {
       let messages;
       if (since) {
-        // Validate since is a valid timestamp
-        const sinceNum = parseInt(since);
-        if (isNaN(sinceNum) || sinceNum < 0 || sinceNum > Date.now()) {
-          return res.status(400).json({ error: 'Invalid timestamp' });
-        }
         // Get messages since a specific timestamp (for polling)
-        messages = await getChatMessagesSince(sinceNum);
+        // since can be ISO timestamp string or number - getChatMessagesSince handles both
+        messages = await getChatMessagesSince(since);
       } else {
         // Get all messages
         messages = await getChatMessages(100);
