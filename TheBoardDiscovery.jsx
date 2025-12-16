@@ -608,15 +608,15 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-2 mb-6">
-          <div className="text-center">
+          <div className="flex flex-col items-center justify-center text-center">
             <div className="text-3xl font-black">{formatNumber(liveStats.views || app.stats?.views || 0)}</div>
             <div className="text-[9px] tracking-[0.3em] text-gray-500 mt-1">VIEWS</div>
           </div>
-          <div className="text-center">
+          <div className="flex flex-col items-center justify-center text-center">
             <div className="text-3xl font-black">{formatNumber(liveStats.clicks || app.stats?.clicks || 0)}</div>
             <div className="text-[9px] tracking-[0.3em] text-gray-500 mt-1">CLICKS</div>
           </div>
-          <div className="text-center">
+          <div className="flex flex-col items-center justify-center text-center">
             <div className="text-3xl font-black">{formatTipsUsd(liveStats.tips || app.stats?.tips || 0, ethPrice)}</div>
             <div className="text-[9px] tracking-[0.3em] text-gray-500 mt-1">TIPPED</div>
             <div className="text-[8px] tracking-[0.2em] text-gray-500 mt-0.5">GOES TO CREATOR</div>
