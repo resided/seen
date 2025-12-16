@@ -3049,7 +3049,7 @@ export default function Seen() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-black text-white max-w-full overflow-x-hidden">
       {/* Read-only banner for web users */}
       {!isInFarcaster && (
         <div className="border-b border-yellow-500 bg-yellow-500/10 px-4 py-2">
