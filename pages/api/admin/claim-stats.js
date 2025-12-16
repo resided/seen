@@ -55,19 +55,35 @@ export default async function handler(req, res) {
     const featuredAtTimestamp = Math.floor(featuredAt.getTime() / 1000);
 
     // Count total claims for this rotation
-    // Use scanIterator to avoid cursor handling bugs
+    // redis.scan() returns [cursor, keys] tuple - use exact same pattern as reset-claims.js
     const claimPattern = `claim:featured:${featuredProjectId}:${featuredAtTimestamp}:*`;
     const claimKeys = [];
-    for await (const key of redis.scanIterator({ MATCH: claimPattern, COUNT: 100 })) {
-      claimKeys.push(key);
-    }
+    let cursor = 0;
+    do {
+      const [nextCursor, foundKeys] = await redis.scan(cursor, {
+        MATCH: claimPattern,
+        COUNT: 100
+      });
+      cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
+      if (foundKeys && foundKeys.length > 0) {
+        claimKeys.push(...foundKeys);
+      }
+    } while (cursor !== 0);
 
     // Count unique wallets
     const walletPattern = `claim:wallet:${featuredProjectId}:${featuredAtTimestamp}:*`;
     const walletKeys = [];
-    for await (const key of redis.scanIterator({ MATCH: walletPattern, COUNT: 100 })) {
-      walletKeys.push(key);
-    }
+    cursor = 0;
+    do {
+      const [nextCursor, foundKeys] = await redis.scan(cursor, {
+        MATCH: walletPattern,
+        COUNT: 100
+      });
+      cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
+      if (foundKeys && foundKeys.length > 0) {
+        walletKeys.push(...foundKeys);
+      }
+    } while (cursor !== 0);
 
     // Count holder claims (claims > 1 per wallet)
     let holderClaims = 0;
