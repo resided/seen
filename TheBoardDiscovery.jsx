@@ -1916,9 +1916,6 @@ const CategoryRankings = ({ category, ethPrice, isInFarcaster = false, isConnect
 };
 
 // ============================================
-// FAQ COMPONENT
-// ============================================
-
 // ============================================
 // SWAP BUTTON - In-app swap to $SEEN using Farcaster wallet swapToken
 // ============================================
@@ -2030,65 +2027,6 @@ const TokenBenefits = () => {
               </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-const FAQ = () => {
-  const [isOpen, setIsOpen] = useState(false);
-
-  return (
-    <div className="border border-white">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full p-3 border-b border-white flex items-center justify-between hover:bg-white/5 transition-all"
-                  >
-        <span className="text-[10px] tracking-[0.3em] font-bold">FAQ</span>
-        <span className="text-lg">{isOpen ? '−' : '+'}</span>
-                  </button>
-      {isOpen && (
-        <div className="p-6 space-y-4 text-sm">
-          <div>
-            <h3 className="text-lg font-black mb-2 tracking-tight">ABOUT SEEN.</h3>
-            <p className="text-gray-400 leading-relaxed">
-              SEEN. is a discovery platform for Farcaster Mini Apps. We help builders get their projects seen by the Farcaster community. 
-              Featured projects are highlighted for 24 hours, and users can discover, interact with, and tip builders directly.
-            </p>
-              </div>
-          
-          <div>
-            <h3 className="text-lg font-black mb-2 tracking-tight">HOW IT WORKS</h3>
-            <ul className="text-gray-400 space-y-2 list-disc list-inside leading-relaxed">
-              <li>Browse featured Mini Apps and category rankings</li>
-              <li>Click "OPEN" to interact with Mini Apps</li>
-              <li>Tip builders directly (tips go to their verified Farcaster wallet)</li>
-              <li>Claim $SEEN tokens for checking out featured apps</li>
-              <li>Submit your own project for free or pay for a featured slot</li>
-            </ul>
-            </div>
-
-          <div className="p-4 border border-red-500/50 bg-red-500/10">
-            <h3 className="text-base font-black mb-2 text-red-400 tracking-tight">⚠ IMPORTANT DISCLAIMER</h3>
-            <p className="text-xs text-red-300 leading-relaxed mb-2">
-              <strong>USE AT YOUR OWN RISK:</strong> SEEN. is a discovery platform only. We do not endorse, verify, or guarantee any Mini Apps listed on this platform.
-            </p>
-            <p className="text-xs text-red-300 leading-relaxed mb-2">
-              <strong>DO YOUR OWN RESEARCH:</strong> Before interacting with any Mini App, you should:
-            </p>
-            <ul className="text-xs text-red-300 space-y-1 list-disc list-inside ml-2 mb-2">
-              <li>Research the project and its creators independently</li>
-              <li>Verify smart contract addresses and security audits</li>
-              <li>Understand the risks associated with blockchain interactions</li>
-              <li>Never share private keys or seed phrases</li>
-              <li>Be cautious with transactions and token approvals</li>
-            </ul>
-            <p className="text-xs text-red-300 leading-relaxed">
-              <strong>NO LIABILITY:</strong> SEEN. and its operators are not responsible for any losses, damages, or issues arising from your use of any Mini Apps discovered through this platform. 
-              You are solely responsible for your interactions with third-party Mini Apps. Always exercise due diligence and use caution when engaging with blockchain applications.
-            </p>
-      </div>
         </div>
       )}
     </div>
@@ -3234,8 +3172,16 @@ export default function Seen() {
               {/* Swap to $SEEN */}
               <SwapButton isInFarcaster={isInFarcaster} isConnected={isConnected} />
               
-              {/* FAQ Section */}
-              <FAQ />
+              {/* FAQ Link */}
+              <div className="border border-white">
+                <a
+                  href="/faq"
+                  className="w-full p-3 border-b border-white flex items-center justify-between hover:bg-white/5 transition-all block"
+                >
+                  <span className="text-[10px] tracking-[0.3em] font-bold">FAQ</span>
+                  <span className="text-lg">→</span>
+                </a>
+              </div>
             </div>
           </div>
         ) : (
