@@ -1240,39 +1240,36 @@ const ChatLeaderboard = ({ leaderboard = [] }) => {
 // SUBMIT CTA
 // ============================================
 const SubmitSection = ({ onSubmit, isInFarcaster = false, isMiniappInstalled = false }) => (
-  <div className="border border-white p-6 text-center">
-    <h3 className="text-xl font-black tracking-tight mb-2">GET A PAID FEATURE</h3>
-    <p className="text-sm text-gray-500 tracking-wider mb-4">
-      STRUGGLING TO GET SEEN? SUBMIT YOUR PROJECT FOR TOMORROW'S SPOTLIGHT.
+  <div className="border border-white p-4 text-center">
+    <h3 className="text-lg font-black tracking-tight mb-1">GET A PAID FEATURE</h3>
+    <p className="text-[10px] text-gray-500 tracking-wider mb-3">
+      SUBMIT YOUR PROJECT FOR TOMORROW'S SPOTLIGHT
     </p>
-    <div className="flex flex-wrap justify-center gap-4 mb-6">
-      <div className="text-center min-w-[80px]">
-        <div className="text-xl font-black">MAX</div>
-        <div className="text-[9px] tracking-[0.2em] text-gray-500">EXPOSURE</div>
+    <div className="flex justify-around mb-4">
+      <div className="text-center">
+        <div className="text-base font-black">MAX</div>
+        <div className="text-[8px] tracking-[0.15em] text-gray-500">EXPOSURE</div>
       </div>
-      <div className="text-center min-w-[80px]">
-        <div className="text-xl font-black">24HR</div>
-        <div className="text-[9px] tracking-[0.2em] text-gray-500">FEATURED SLOT</div>
+      <div className="text-center">
+        <div className="text-base font-black">24HR</div>
+        <div className="text-[8px] tracking-[0.15em] text-gray-500">FEATURED</div>
       </div>
-      <div className="text-center min-w-[80px]">
-        <div className="text-xl font-black">TOP</div>
-        <div className="text-[9px] tracking-[0.2em] text-gray-500">VISIBILITY</div>
+      <div className="text-center">
+        <div className="text-base font-black">TOP</div>
+        <div className="text-[8px] tracking-[0.15em] text-gray-500">VISIBILITY</div>
       </div>
     </div>
     {!isMiniappInstalled && isInFarcaster && (
-      <div className="mb-4 p-4 border border-yellow-500 bg-yellow-500/10">
-        <p className="text-sm text-yellow-400 mb-2">
-          ⚠️ ADD THIS MINI APP TO SUBMIT PROJECTS
-        </p>
-        <p className="text-xs text-yellow-500">
-          You must add this miniapp to your Farcaster account before submitting.
+      <div className="mb-3 p-3 border border-yellow-500 bg-yellow-500/10">
+        <p className="text-[10px] text-yellow-400">
+          ⚠️ ADD THIS MINI APP TO SUBMIT
         </p>
       </div>
     )}
     <button 
       onClick={onSubmit}
       disabled={!isInFarcaster || !isMiniappInstalled}
-      className={`w-full py-4 font-black text-sm tracking-[0.3em] transition-all ${
+      className={`w-full py-3 font-black text-xs tracking-[0.2em] transition-all ${
         isInFarcaster && isMiniappInstalled
           ? 'bg-white text-black hover:bg-gray-200' 
           : 'bg-gray-600 text-gray-400 cursor-not-allowed'
@@ -3158,8 +3155,8 @@ export default function Seen() {
       <main className="flex-1 overflow-y-auto overflow-x-hidden">
         <div className="max-w-4xl mx-auto px-3 py-3">
         {category === 'main' ? (
-          <div className="grid lg:grid-cols-[1fr,300px] gap-4">
-            {/* Left: Featured + Submit */}
+          <>
+            {/* Featured + Submit */}
             <div className="space-y-4">
               {loading ? (
                 <div className="border border-white p-6 text-center">
@@ -3198,8 +3195,8 @@ export default function Seen() {
               />
             </div>
             
-            {/* Right: Chat + Leaderboard + Queue */}
-            <div className="space-y-4">
+            {/* Chat + Leaderboard + More */}
+            <div className="space-y-4 mt-4">
               {/* Chat */}
               <div className="space-y-2">
                 {chatLoading ? (
@@ -3262,7 +3259,7 @@ export default function Seen() {
                 </a>
               </div>
             </div>
-          </div>
+          </>
         ) : (
           <CategoryRankings category={category} ethPrice={ethPrice} isInFarcaster={isInFarcaster} isConnected={isConnected} />
         )}
