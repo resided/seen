@@ -55,34 +55,35 @@ export default async function handler(req, res) {
     const featuredAtTimestamp = Math.floor(featuredAt.getTime() / 1000);
 
     // Count total claims for this rotation
+    // redis.scan() returns [cursor, keys] tuple in node-redis v5
     const claimPattern = `claim:featured:${featuredProjectId}:${featuredAtTimestamp}:*`;
     const claimKeys = [];
-    let cursor = 0; // Start with 0
+    let cursor = 0;
     do {
-      const result = await redis.scan(cursor, {
+      const [nextCursor, foundKeys] = await redis.scan(cursor, {
         MATCH: claimPattern,
         COUNT: 100
       });
-      // node-redis v4+ returns { cursor: number, keys: string[] }
-      cursor = result.cursor;
-      if (result.keys && result.keys.length > 0) {
-        claimKeys.push(...result.keys);
+      // Cursor might be string "0" or number 0, convert to number for comparison
+      cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
+      if (foundKeys && foundKeys.length > 0) {
+        claimKeys.push(...foundKeys);
       }
     } while (cursor !== 0);
 
     // Count unique wallets
     const walletPattern = `claim:wallet:${featuredProjectId}:${featuredAtTimestamp}:*`;
     const walletKeys = [];
-    cursor = 0; // Start with 0
+    cursor = 0;
     do {
-      const result = await redis.scan(cursor, {
+      const [nextCursor, foundKeys] = await redis.scan(cursor, {
         MATCH: walletPattern,
         COUNT: 100
       });
-      // node-redis v4+ returns { cursor: number, keys: string[] }
-      cursor = result.cursor;
-      if (result.keys && result.keys.length > 0) {
-        walletKeys.push(...result.keys);
+      // Cursor might be string "0" or number 0, convert to number for comparison
+      cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
+      if (foundKeys && foundKeys.length > 0) {
+        walletKeys.push(...foundKeys);
       }
     } while (cursor !== 0);
 
