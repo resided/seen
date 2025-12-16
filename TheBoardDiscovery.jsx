@@ -665,16 +665,16 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-2 mb-6">
-          <div className="flex flex-col items-center justify-center text-center">
+        <div className="flex flex-wrap justify-center gap-4 mb-6">
+          <div className="flex flex-col items-center justify-center text-center min-w-[80px]">
             <div className="text-3xl font-black">{formatNumber(liveStats.views || app.stats?.views || 0)}</div>
             <div className="text-[9px] tracking-[0.3em] text-gray-500 mt-1">VIEWS</div>
           </div>
-          <div className="flex flex-col items-center justify-center text-center">
+          <div className="flex flex-col items-center justify-center text-center min-w-[80px]">
             <div className="text-3xl font-black">{formatNumber(liveStats.clicks || app.stats?.clicks || 0)}</div>
             <div className="text-[9px] tracking-[0.3em] text-gray-500 mt-1">CLICKS</div>
           </div>
-          <div className="flex flex-col items-center justify-center text-center">
+          <div className="flex flex-col items-center justify-center text-center min-w-[80px]">
             <div className="text-3xl font-black">{formatTipsUsd(liveStats.tips || app.stats?.tips || 0, ethPrice)}</div>
             <div className="text-[9px] tracking-[0.3em] text-gray-500 mt-1">TIPPED</div>
             <div className="text-[8px] tracking-[0.2em] text-gray-500 mt-0.5">GOES TO CREATOR</div>
@@ -1253,17 +1253,17 @@ const SubmitSection = ({ onSubmit, isInFarcaster = false, isMiniappInstalled = f
     <p className="text-sm text-gray-500 tracking-wider mb-4">
       STRUGGLING TO GET SEEN? SUBMIT YOUR PROJECT FOR TOMORROW'S SPOTLIGHT.
     </p>
-    <div className="grid grid-cols-3 gap-4 mb-6 text-left">
-      <div>
-        <div className="text-2xl font-black">MAX</div>
+    <div className="flex flex-wrap justify-center gap-4 mb-6">
+      <div className="text-center min-w-[80px]">
+        <div className="text-xl font-black">MAX</div>
         <div className="text-[9px] tracking-[0.2em] text-gray-500">EXPOSURE</div>
       </div>
-      <div>
-        <div className="text-2xl font-black">24HR</div>
+      <div className="text-center min-w-[80px]">
+        <div className="text-xl font-black">24HR</div>
         <div className="text-[9px] tracking-[0.2em] text-gray-500">FEATURED SLOT</div>
       </div>
-      <div>
-        <div className="text-2xl font-black">TOP</div>
+      <div className="text-center min-w-[80px]">
+        <div className="text-xl font-black">TOP</div>
         <div className="text-[9px] tracking-[0.2em] text-gray-500">VISIBILITY</div>
       </div>
     </div>
@@ -3049,7 +3049,7 @@ export default function Seen() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white max-w-full overflow-x-hidden">
+    <div className="min-h-screen bg-black text-white w-full max-w-[100vw] overflow-x-hidden box-border">
       {/* Read-only banner for web users */}
       {!isInFarcaster && (
         <div className="border-b border-yellow-500 bg-yellow-500/10 px-4 py-2">
