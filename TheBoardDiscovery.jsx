@@ -441,36 +441,36 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
   return (
     <div className="border border-white">
       {/* Header bar */}
-      <div className="border-b border-white p-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="text-[10px] tracking-[0.3em] text-gray-500">TODAY'S FEATURED</div>
+      <div className="border-b border-white p-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="text-[9px] tracking-[0.2em] text-gray-500">TODAY'S FEATURED</div>
         </div>
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-3">
           {/* Treasury Balance */}
           <div className="text-right">
-            <div className="font-mono text-sm">
-              {treasuryBalance ? formatBalance(treasuryBalance) : '...'} $SEEN
+            <div className="font-mono text-xs">
+              {treasuryBalance ? formatBalance(treasuryBalance) : '...'}
             </div>
-            <div className="text-[9px] tracking-[0.3em] text-gray-500">TREASURY</div>
+            <div className="text-[8px] tracking-[0.2em] text-gray-500">TREASURY</div>
           </div>
           {/* Countdown */}
           <div className="text-right">
-            <div className="font-mono text-sm">
+            <div className="font-mono text-xs">
               {String(countdown.h).padStart(2, '0')}:{String(countdown.m).padStart(2, '0')}:{String(countdown.s).padStart(2, '0')}
             </div>
-            <div className="text-[9px] tracking-[0.3em] text-gray-500">UNTIL NEXT</div>
+            <div className="text-[8px] tracking-[0.2em] text-gray-500">UNTIL NEXT</div>
           </div>
         </div>
       </div>
 
       {/* Main content */}
-      <div className="p-6">
+      <div className="p-4">
         {/* App name */}
-        <h1 className="text-5xl font-black tracking-[-0.03em] mb-2">{app.name}</h1>
-        <p className="text-sm tracking-widest text-gray-500 mb-6">{app.tagline}</p>
+        <h1 className="text-2xl sm:text-3xl font-black tracking-[-0.03em] mb-1">{app.name}</h1>
+        <p className="text-xs tracking-widest text-gray-500 mb-4">{app.tagline}</p>
         
         {/* Description */}
-        <p className="text-sm leading-relaxed text-gray-400 mb-6 max-w-md">
+        <p className="text-xs leading-relaxed text-gray-400 mb-4">
           {app.description}
         </p>
 
@@ -519,7 +519,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
         )}
 
         {/* Builder */}
-        <div className="flex items-center gap-3 mb-6 pb-6 border-b border-white/20">
+        <div className="flex items-center gap-2 mb-4 pb-4 border-b border-white/20">
           <div className="w-10 h-10 bg-white text-black flex items-center justify-center font-black text-sm relative overflow-hidden rounded-full border border-white shrink-0">
             {builderData?.pfpUrl ? (
               <>
@@ -665,19 +665,18 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
         </div>
 
         {/* Stats */}
-        <div className="flex flex-wrap justify-center gap-4 mb-6">
-          <div className="flex flex-col items-center justify-center text-center min-w-[80px]">
-            <div className="text-3xl font-black">{formatNumber(liveStats.views || app.stats?.views || 0)}</div>
-            <div className="text-[9px] tracking-[0.3em] text-gray-500 mt-1">VIEWS</div>
+        <div className="flex justify-around mb-4">
+          <div className="text-center">
+            <div className="text-xl font-black">{formatNumber(liveStats.views || app.stats?.views || 0)}</div>
+            <div className="text-[8px] tracking-[0.2em] text-gray-500">VIEWS</div>
           </div>
-          <div className="flex flex-col items-center justify-center text-center min-w-[80px]">
-            <div className="text-3xl font-black">{formatNumber(liveStats.clicks || app.stats?.clicks || 0)}</div>
-            <div className="text-[9px] tracking-[0.3em] text-gray-500 mt-1">CLICKS</div>
+          <div className="text-center">
+            <div className="text-xl font-black">{formatNumber(liveStats.clicks || app.stats?.clicks || 0)}</div>
+            <div className="text-[8px] tracking-[0.2em] text-gray-500">CLICKS</div>
           </div>
-          <div className="flex flex-col items-center justify-center text-center min-w-[80px]">
-            <div className="text-3xl font-black">{formatTipsUsd(liveStats.tips || app.stats?.tips || 0, ethPrice)}</div>
-            <div className="text-[9px] tracking-[0.3em] text-gray-500 mt-1">TIPPED</div>
-            <div className="text-[8px] tracking-[0.2em] text-gray-500 mt-0.5">GOES TO CREATOR</div>
+          <div className="text-center">
+            <div className="text-xl font-black">{formatTipsUsd(liveStats.tips || app.stats?.tips || 0, ethPrice)}</div>
+            <div className="text-[8px] tracking-[0.2em] text-gray-500">TIPPED</div>
           </div>
         </div>
 
@@ -729,7 +728,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
               }
             }}
             disabled={!isInFarcaster}
-            className={`bg-black py-4 font-bold text-sm tracking-[0.2em] transition-all w-full ${
+            className={`bg-black py-3 font-bold text-xs tracking-[0.2em] transition-all w-full ${
               isInFarcaster 
                 ? 'hover:bg-white hover:text-black' 
                 : 'opacity-50 cursor-not-allowed'
@@ -766,7 +765,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
               !builderData?.walletAddress ? 'Builder needs a Farcaster wallet' :
               'Tip the builder'
             }
-            className="bg-black py-4 font-bold text-sm tracking-[0.2em] transition-all hover:bg-white hover:text-black w-full"
+            className="bg-black py-3 font-bold text-xs tracking-[0.2em] transition-all hover:bg-white hover:text-black w-full"
           >
             TIP BUILDER
           </button>
