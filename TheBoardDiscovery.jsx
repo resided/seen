@@ -416,6 +416,42 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
           {app.description}
         </p>
 
+        {/* Token Contract Address (for token submissions) */}
+        {app.tokenContractAddress && app.category === 'tokens' && (
+          <div className="mb-6">
+            <div className="text-[10px] tracking-[0.2em] text-gray-500 mb-2">TOKEN CONTRACT</div>
+            <button
+              onClick={async () => {
+                if (!isInFarcaster) return;
+                
+                try {
+                  // Open contract address in Farcaster wallet
+                  // Use basescan URL which Farcaster wallet can handle
+                  const contractUrl = `https://basescan.org/address/${app.tokenContractAddress}`;
+                  
+                  if (sdk.actions?.openUrl) {
+                    await sdk.actions.openUrl({ url: contractUrl });
+                  } else {
+                    window.open(contractUrl, '_blank', 'noopener,noreferrer');
+                  }
+                } catch (error) {
+                  console.error('Error opening contract address:', error);
+                  // Fallback to opening in new tab
+                  window.open(`https://basescan.org/address/${app.tokenContractAddress}`, '_blank', 'noopener,noreferrer');
+                }
+              }}
+              className="text-xs font-mono text-white hover:text-gray-300 border border-white/50 px-3 py-2 hover:bg-white/10 transition-all break-all text-left"
+            >
+              {app.tokenContractAddress}
+            </button>
+            {app.tokenName && (
+              <div className="text-[10px] text-gray-500 mt-1">
+                {app.tokenName}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Builder */}
         <div className="flex items-center gap-3 mb-6 pb-6 border-b border-white/20">
           <div className="w-10 h-10 bg-white text-black flex items-center justify-center font-black text-sm relative overflow-hidden rounded-full border border-white shrink-0">
