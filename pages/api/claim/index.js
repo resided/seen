@@ -129,9 +129,8 @@ export default async function handler(req, res) {
     // SECURITY: Also track by wallet address to prevent FID spoofing
     const walletClaimCountKey = `claim:wallet:${featuredProjectId}:${featuredAtTimestamp}:${walletAddress.toLowerCase()}`;
     
-    // TODO: REMOVE THIS AFTER TESTING - Bypass for testing (FID 342433)
-    const TEST_BYPASS_FID = 342433;
-    const isBypassEnabled = parseInt(fid) === TEST_BYPASS_FID;
+    // SECURITY: Test bypass removed - no FID gets special treatment
+    const isBypassEnabled = false;
     
     // Set maxClaims based on holder status (already checked above for Neynar bypass)
     let maxClaims = 1;
@@ -262,15 +261,20 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Transaction hash required for claiming' });
       }
 
-      // PREVENT REPLAY ATTACK: Check if this txHash was already used
+      // PREVENT REPLAY ATTACK: Atomically check AND lock this txHash using SETNX
+      // This prevents race conditions where multiple requests check before any marks as used
       const txHashKey = `claim:txhash:${txHash.toLowerCase()}`;
-      const txHashUsed = await redis.get(txHashKey);
-      if (txHashUsed) {
+      const txHashLockResult = await redis.set(txHashKey, 'pending', { NX: true });
+      
+      // If SETNX returns null, key already exists = txHash already used
+      if (txHashLockResult !== 'OK') {
         return res.status(400).json({ 
           error: 'This transaction hash has already been used for a claim',
           replay: true
         });
       }
+      
+      // txHash is now atomically locked - will be marked as 'used' on success, or deleted on failure
 
       try {
         const publicClient = createPublicClient({
@@ -388,6 +392,10 @@ export default async function handler(req, res) {
         if (userCanGetDonut) {
           await redis.del(userDonutKey);
         }
+        // Release txHash lock so user can retry
+        if (txHash) {
+          await redis.del(`claim:txhash:${txHash.toLowerCase()}`);
+        }
         return res.status(400).json({ 
           error: 'Featured project changed during claim. Please try again.',
           featuredProjectChanged: true
@@ -433,9 +441,10 @@ export default async function handler(req, res) {
       const userTxHash = txHash || hash;
       await redis.setEx(`claim:tx:${featuredProjectId}:${featuredAtTimestamp}:${fid}:${newClaimCount}`, ttl, userTxHash);
       
-      // PREVENT REPLAY: Mark txHash as used (persistent, never expires to prevent replay attacks)
+      // Mark txHash as permanently used (was locked as 'pending' earlier, now mark as 'used')
+      // This is persistent and never expires to prevent replay attacks
       if (txHash) {
-        await redis.set(`claim:txhash:${txHash.toLowerCase()}`, '1');
+        await redis.set(`claim:txhash:${txHash.toLowerCase()}`, 'used');
       }
 
       // Track a click when user successfully claims (they opened the miniapp to claim)
@@ -503,6 +512,10 @@ export default async function handler(req, res) {
         // Also rollback DONUT user lock if we set it
         if (userCanGetDonut) {
           await redis.del(userDonutKey);
+        }
+        // Release txHash lock so user can retry with same txHash
+        if (txHash) {
+          await redis.del(`claim:txhash:${txHash.toLowerCase()}`);
         }
         // If we incremented global DONUT count, rollback (but we only increment after successful send, so this shouldn't happen)
       } catch (rollbackError) {

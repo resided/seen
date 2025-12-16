@@ -81,15 +81,14 @@ export default async function handler(req, res) {
     const donutAvailable = donutGlobalAvailable && !userHasDonut;
     const donutRemaining = Math.max(0, DONUT_MAX_SUPPLY - donutCountGiven);
 
-    // TODO: REMOVE THIS AFTER TESTING - Bypass for testing (FID 342433)
-    const TEST_BYPASS_FID = 342433;
-    const isBypassEnabled = parseInt(fid) === TEST_BYPASS_FID;
+    // SECURITY: Test bypass removed - no FID gets special treatment
+    const isBypassEnabled = false;
 
     return res.status(200).json({
-      claimed: isBypassEnabled ? false : fullyClaimed,
+      claimed: fullyClaimed,
       claimCount,
       maxClaims,
-      canClaimAgain: isBypassEnabled ? true : canClaimAgain,
+      canClaimAgain: canClaimAgain,
       expired,
       featuredProjectId,
       featuredAt: featuredAt.toISOString(),
