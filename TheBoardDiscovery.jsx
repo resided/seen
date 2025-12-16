@@ -661,6 +661,39 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
                 FOLLOW ON X
               </button>
             )}
+            {/* Tip Builder button */}
+            <button 
+              onClick={() => {
+                if (!isInFarcaster) {
+                  setTipMessage('OPEN IN FARCASTER TO TIP');
+                  setTimeout(() => setTipMessage(''), 3000);
+                  return;
+                }
+
+                if (!isConnected) {
+                  setTipMessage('CONNECT WALLET TO TIP');
+                  setTimeout(() => setTipMessage(''), 3000);
+                  return;
+                }
+
+                // Always show modal - validation happens inside modal
+                setShowTipModal(true);
+                if (ethPrice) {
+                  const initialUsd = (parseFloat(customTipAmount) * ethPrice).toFixed(2);
+                  setCustomTipAmountUsd(initialUsd);
+                }
+              }}
+              title={
+                !isInFarcaster ? 'Open in Farcaster to tip' :
+                !isConnected ? 'Connect wallet to tip' :
+                !builderData ? 'Loading builder info...' :
+                !builderData?.walletAddress ? 'Builder needs a Farcaster wallet' :
+                'Tip the builder'
+              }
+              className="text-[10px] tracking-[0.2em] px-3 py-1.5 border border-white hover:bg-white hover:text-black transition-all"
+            >
+              TIP BUILDER
+            </button>
           </div>
         </div>
 
@@ -692,7 +725,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
         )}
 
         {/* Actions */}
-        <div className="flex flex-col gap-[1px] bg-white">
+        <div className="border-2 border-white">
           <button 
             onClick={async () => {
               if (!isInFarcaster || !app.links?.miniapp) return;
@@ -735,39 +768,6 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
             }`}
           >
             &gt;&gt; OPEN MINI APP &lt;&lt;
-          </button>
-          <button 
-            onClick={() => {
-              if (!isInFarcaster) {
-                setTipMessage('OPEN IN FARCASTER TO TIP');
-                setTimeout(() => setTipMessage(''), 3000);
-                return;
-              }
-
-              if (!isConnected) {
-                setTipMessage('CONNECT WALLET TO TIP');
-                setTimeout(() => setTipMessage(''), 3000);
-                return;
-              }
-
-              // Always show modal - validation happens inside modal
-              // If builder data is still loading, try to fetch it when modal opens
-              setShowTipModal(true);
-              if (ethPrice) {
-                const initialUsd = (parseFloat(customTipAmount) * ethPrice).toFixed(2);
-                setCustomTipAmountUsd(initialUsd);
-              }
-            }}
-            title={
-              !isInFarcaster ? 'Open in Farcaster to tip' :
-              !isConnected ? 'Connect wallet to tip' :
-              !builderData ? 'Loading builder info...' :
-              !builderData?.walletAddress ? 'Builder needs a Farcaster wallet' :
-              'Tip the builder'
-            }
-            className="bg-black py-3 font-bold text-xs tracking-[0.2em] transition-all hover:bg-white hover:text-black w-full"
-          >
-            TIP BUILDER
           </button>
         </div>
 
