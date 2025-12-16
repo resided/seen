@@ -35,78 +35,27 @@ const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDispl
     hash: paymentTxHash || txData,
   });
   
-  // SEEN token contract address (Base network)
-  const SEEN_TOKEN_CONTRACT = '0x82a56d595cCDFa3A1dc6eEf28d5F0A870f162B07';
-  const SEEN_TOKEN_DECIMALS = 18;
+  // USDC token contract address (Base network) - for featured submission payments
+  const USDC_TOKEN_CONTRACT = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
+  const USDC_TOKEN_DECIMALS = 6; // USDC has 6 decimals
   
-  // Featured submission pricing (configurable)
-  const BASE_FEATURED_PRICE_USD = 111; // Base USD price
-  const [seenPrice, setSeenPrice] = useState(null);
-  const [seenPriceLoading, setSeenPriceLoading] = useState(true);
+  // Featured submission pricing in USDC
+  const BASE_FEATURED_PRICE = 111; // $111 USDC base price
   // Treasury address should be fetched from API or environment
   const [treasuryAddress, setTreasuryAddress] = useState(null);
   
-  // Holder benefits for discount (30M+ = 20% off)
+  // Holder benefits for discount (30M+ SEEN holders = 20% off)
   const [holderBenefits, setHolderBenefits] = useState(null);
   const isHolder = holderBenefits?.isHolder || false;
   
-  // Calculate discounted price for 30M+ holders (20% off)
+  // Calculate discounted price for 30M+ SEEN holders (20% off)
   const discountPercent = isHolder ? 20 : 0;
-  const FEATURED_PRICE_USD = BASE_FEATURED_PRICE_USD * (1 - discountPercent / 100);
+  const FEATURED_PRICE_USDC = BASE_FEATURED_PRICE * (1 - discountPercent / 100);
   
-  // Calculate $SEEN amount from USD price
-  const FEATURED_PRICE_SEEN = seenPrice ? (FEATURED_PRICE_USD / seenPrice) : null;
+  // Display text
   const FEATURED_PRICE_DISPLAY = isHolder 
-    ? `$${FEATURED_PRICE_USD.toFixed(0)} (20% holder discount!)` 
-    : `$${BASE_FEATURED_PRICE_USD}`;
-  
-  // Fetch $SEEN price
-  // NOTE: You may need to add SEEN token to CoinGecko or use a DEX aggregator API
-  // For now, this tries CoinGecko first, then falls back to a reasonable default
-  useEffect(() => {
-    const fetchSeenPrice = async () => {
-      try {
-        // Try CoinGecko first (if SEEN is listed there)
-        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=seen&vs_currencies=usd');
-        if (response.ok) {
-          const data = await response.json();
-          if (data.seen?.usd) {
-            setSeenPrice(data.seen.usd);
-            return;
-          }
-        }
-        
-        // Fallback: Try to get price from our custom API endpoint
-        try {
-          const customPriceResponse = await fetch('/api/seen-price');
-          if (customPriceResponse.ok) {
-            const priceData = await customPriceResponse.json();
-            if (priceData.price) {
-              setSeenPrice(priceData.price);
-              return;
-            }
-          }
-        } catch (customError) {
-          console.warn('Custom price API not available:', customError);
-        }
-        
-        // Final fallback: use a reasonable default
-        // This should only happen if all price sources fail
-        console.warn('SEEN price not available from any source, using fallback');
-        setSeenPrice(0.001); // Fallback - should be replaced by actual price from API
-      } catch (error) {
-        console.error('Error fetching SEEN price:', error);
-        setSeenPrice(0.001); // Fallback price
-      } finally {
-        setSeenPriceLoading(false);
-      }
-    };
-    
-    fetchSeenPrice();
-    // Refresh price every 30 seconds
-    const interval = setInterval(fetchSeenPrice, 30000);
-    return () => clearInterval(interval);
-  }, []);
+    ? `${FEATURED_PRICE_USDC.toFixed(0)} USDC (20% holder discount!)` 
+    : `${BASE_FEATURED_PRICE} USDC`;
 
   // Fetch holder benefits for discount
   useEffect(() => {
@@ -150,7 +99,7 @@ const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDispl
         setMessage('PAYMENT CONFIRMED! SUBMITTING PROJECT...');
         
         try {
-          const paymentAmount = FEATURED_PRICE_SEEN;
+          const paymentAmount = FEATURED_PRICE_USDC;
           const response = await fetch('/api/submit', {
             method: 'POST',
             headers: {
@@ -265,12 +214,7 @@ const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDispl
     // Calculate payment amount dynamically based on $SEEN price
     let paymentAmount = 0;
     if (formData.submissionType === 'featured') {
-      if (!seenPrice || !FEATURED_PRICE_SEEN) {
-        setMessage('ERROR: $SEEN PRICE NOT LOADED. PLEASE WAIT AND TRY AGAIN.');
-        setSubmitting(false);
-        return;
-      }
-      paymentAmount = FEATURED_PRICE_SEEN;
+      paymentAmount = FEATURED_PRICE_USDC;
     }
 
     // If featured submission, collect payment first
@@ -292,12 +236,13 @@ const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDispl
         setMessage('PROCESSING PAYMENT...');
 
         // Send $SEEN token payment using ERC20 transfer
-        const seenAmountWei = parseUnits(paymentAmount.toFixed(6), SEEN_TOKEN_DECIMALS);
+        // USDC has 6 decimals
+        const usdcAmount = parseUnits(paymentAmount.toFixed(2), USDC_TOKEN_DECIMALS);
         const hash = await writeContract({
-          address: SEEN_TOKEN_CONTRACT,
+          address: USDC_TOKEN_CONTRACT,
           abi: erc20Abi,
           functionName: 'transfer',
-          args: [treasuryAddress, seenAmountWei],
+          args: [treasuryAddress, usdcAmount],
         });
 
         // The hash will be available in txData from useWriteContract
@@ -570,7 +515,7 @@ const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDispl
                   <div className="text-sm font-bold">FEATURED SLOT</div>
                   <div className="text-[10px] text-gray-500">
                     {FEATURED_PRICE_DISPLAY} 
-                    {seenPriceLoading ? ' (Loading...)' : FEATURED_PRICE_SEEN ? ` (~${FEATURED_PRICE_SEEN.toLocaleString(undefined, { maximumFractionDigits: 0 })} $SEEN)` : ' (Price unavailable)'} - Payment required
+                    - Payment in USDC
                   </div>
                   {isHolder && (
                     <div className="text-[9px] text-green-400 mt-1 font-bold">
