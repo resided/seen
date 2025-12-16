@@ -425,19 +425,25 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
                 if (!isInFarcaster) return;
                 
                 try {
-                  // Open contract address in Farcaster wallet
-                  // Use basescan URL which Farcaster wallet can handle
-                  const contractUrl = `https://basescan.org/address/${app.tokenContractAddress}`;
+                  // Open token in Farcaster wallet using deep link
+                  const tokenDeepLink = `farcaster://token/${app.tokenContractAddress}`;
                   
+                  // Try deep link first (opens directly in wallet)
+                  if (sdk.actions?.openUrl) {
+                    await sdk.actions.openUrl({ url: tokenDeepLink });
+                  } else {
+                    // Fallback: try window.location for deep links
+                    window.location.href = tokenDeepLink;
+                  }
+                } catch (error) {
+                  console.error('Error opening token in wallet:', error);
+                  // Fallback to BaseScan if deep link fails
+                  const contractUrl = `https://basescan.org/address/${app.tokenContractAddress}`;
                   if (sdk.actions?.openUrl) {
                     await sdk.actions.openUrl({ url: contractUrl });
                   } else {
                     window.open(contractUrl, '_blank', 'noopener,noreferrer');
                   }
-                } catch (error) {
-                  console.error('Error opening contract address:', error);
-                  // Fallback to opening in new tab
-                  window.open(`https://basescan.org/address/${app.tokenContractAddress}`, '_blank', 'noopener,noreferrer');
                 }
               }}
               className="text-[10px] font-mono text-white hover:text-gray-300 border border-white/50 px-2 py-1.5 hover:bg-white/10 transition-all text-left w-full truncate"
@@ -1414,15 +1420,25 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
                   onClick={async () => {
                     if (!isInFarcaster) return;
                     try {
+                      // Open token in Farcaster wallet using deep link
+                      const tokenDeepLink = `farcaster://token/${project.tokenContractAddress}`;
+                      
+                      // Try deep link first (opens directly in wallet)
+                      if (sdk.actions?.openUrl) {
+                        await sdk.actions.openUrl({ url: tokenDeepLink });
+                      } else {
+                        // Fallback: try window.location for deep links
+                        window.location.href = tokenDeepLink;
+                      }
+                    } catch (error) {
+                      console.error('Error opening token in wallet:', error);
+                      // Fallback to BaseScan if deep link fails
                       const contractUrl = `https://basescan.org/address/${project.tokenContractAddress}`;
                       if (sdk.actions?.openUrl) {
                         await sdk.actions.openUrl({ url: contractUrl });
                       } else {
                         window.open(contractUrl, '_blank', 'noopener,noreferrer');
                       }
-                    } catch (error) {
-                      console.error('Error opening contract address:', error);
-                      window.open(`https://basescan.org/address/${project.tokenContractAddress}`, '_blank', 'noopener,noreferrer');
                     }
                   }}
                   className="text-[10px] font-mono text-white hover:text-gray-300 border border-white/50 px-2 py-1 hover:bg-white/10 transition-all text-left truncate max-w-full"
