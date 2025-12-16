@@ -2292,7 +2292,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
   }, [expirationTime]);
 
   // MAINTENANCE MODE - set to true to show maintenance message
-  const MAINTENANCE_MODE = true;
+  const MAINTENANCE_MODE = false;
 
   return (
     <div className="border border-white">
