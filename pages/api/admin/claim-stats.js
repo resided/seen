@@ -61,9 +61,9 @@ export default async function handler(req, res) {
     let cursor = 0;
     try {
       do {
-        const [nextCursor, foundKeys] = await redis.scan(cursor, {
+        const [nextCursor, foundKeys] = await redis.scan(cursor.toString(), {
           MATCH: claimPattern,
-          COUNT: 100
+          COUNT: '100'
         });
         cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
         if (foundKeys && foundKeys.length > 0) {
