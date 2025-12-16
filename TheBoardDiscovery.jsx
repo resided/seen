@@ -425,25 +425,48 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
                 if (!isInFarcaster) return;
                 
                 try {
-                  // Open token in Farcaster wallet using deep link
-                  const tokenDeepLink = `farcaster://token/${app.tokenContractAddress}`;
+                  // Try multiple formats to open token in Farcaster wallet
+                  const contractAddress = app.tokenContractAddress.toLowerCase();
                   
-                  // Try deep link first (opens directly in wallet)
+                  // Format 1: Try Base wallet deep link format
+                  const baseWalletLink = `base://token/${contractAddress}`;
+                  
+                  // Format 2: Try Farcaster wallet format
+                  const farcasterWalletLink = `farcaster://wallet/token/${contractAddress}`;
+                  
+                  // Format 3: Use BaseScan URL (wallet may intercept and show token view)
+                  const basescanUrl = `https://basescan.org/token/${contractAddress}`;
+                  
+                  // Try Base wallet link first
+                  try {
+                    if (sdk.actions?.openUrl) {
+                      await sdk.actions.openUrl({ url: baseWalletLink });
+                      return;
+                    }
+                  } catch (e) {
+                    console.log('Base wallet link failed, trying Farcaster format');
+                  }
+                  
+                  // Try Farcaster wallet link
+                  try {
+                    if (sdk.actions?.openUrl) {
+                      await sdk.actions.openUrl({ url: farcasterWalletLink });
+                      return;
+                    }
+                  } catch (e) {
+                    console.log('Farcaster wallet link failed, trying BaseScan');
+                  }
+                  
+                  // Fallback to BaseScan (wallet may show token view)
                   if (sdk.actions?.openUrl) {
-                    await sdk.actions.openUrl({ url: tokenDeepLink });
+                    await sdk.actions.openUrl({ url: basescanUrl });
                   } else {
-                    // Fallback: try window.location for deep links
-                    window.location.href = tokenDeepLink;
+                    window.open(basescanUrl, '_blank', 'noopener,noreferrer');
                   }
                 } catch (error) {
-                  console.error('Error opening token in wallet:', error);
-                  // Fallback to BaseScan if deep link fails
-                  const contractUrl = `https://basescan.org/address/${app.tokenContractAddress}`;
-                  if (sdk.actions?.openUrl) {
-                    await sdk.actions.openUrl({ url: contractUrl });
-                  } else {
-                    window.open(contractUrl, '_blank', 'noopener,noreferrer');
-                  }
+                  console.error('Error opening token:', error);
+                  // Final fallback
+                  window.open(`https://basescan.org/token/${app.tokenContractAddress}`, '_blank', 'noopener,noreferrer');
                 }
               }}
               className="text-[10px] font-mono text-white hover:text-gray-300 border border-white/50 px-2 py-1.5 hover:bg-white/10 transition-all text-left w-full truncate"
@@ -1420,25 +1443,48 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
                   onClick={async () => {
                     if (!isInFarcaster) return;
                     try {
-                      // Open token in Farcaster wallet using deep link
-                      const tokenDeepLink = `farcaster://token/${project.tokenContractAddress}`;
+                      // Try multiple formats to open token in Farcaster wallet
+                      const contractAddress = project.tokenContractAddress.toLowerCase();
                       
-                      // Try deep link first (opens directly in wallet)
+                      // Format 1: Try Base wallet deep link format
+                      const baseWalletLink = `base://token/${contractAddress}`;
+                      
+                      // Format 2: Try Farcaster wallet format
+                      const farcasterWalletLink = `farcaster://wallet/token/${contractAddress}`;
+                      
+                      // Format 3: Use BaseScan token URL (wallet may intercept and show token view)
+                      const basescanUrl = `https://basescan.org/token/${contractAddress}`;
+                      
+                      // Try Base wallet link first
+                      try {
+                        if (sdk.actions?.openUrl) {
+                          await sdk.actions.openUrl({ url: baseWalletLink });
+                          return;
+                        }
+                      } catch (e) {
+                        console.log('Base wallet link failed, trying Farcaster format');
+                      }
+                      
+                      // Try Farcaster wallet link
+                      try {
+                        if (sdk.actions?.openUrl) {
+                          await sdk.actions.openUrl({ url: farcasterWalletLink });
+                          return;
+                        }
+                      } catch (e) {
+                        console.log('Farcaster wallet link failed, trying BaseScan');
+                      }
+                      
+                      // Fallback to BaseScan (wallet may show token view)
                       if (sdk.actions?.openUrl) {
-                        await sdk.actions.openUrl({ url: tokenDeepLink });
+                        await sdk.actions.openUrl({ url: basescanUrl });
                       } else {
-                        // Fallback: try window.location for deep links
-                        window.location.href = tokenDeepLink;
+                        window.open(basescanUrl, '_blank', 'noopener,noreferrer');
                       }
                     } catch (error) {
-                      console.error('Error opening token in wallet:', error);
-                      // Fallback to BaseScan if deep link fails
-                      const contractUrl = `https://basescan.org/address/${project.tokenContractAddress}`;
-                      if (sdk.actions?.openUrl) {
-                        await sdk.actions.openUrl({ url: contractUrl });
-                      } else {
-                        window.open(contractUrl, '_blank', 'noopener,noreferrer');
-                      }
+                      console.error('Error opening token:', error);
+                      // Final fallback
+                      window.open(`https://basescan.org/token/${project.tokenContractAddress}`, '_blank', 'noopener,noreferrer');
                     }
                   }}
                   className="text-[10px] font-mono text-white hover:text-gray-300 border border-white/50 px-2 py-1 hover:bg-white/10 transition-all text-left truncate max-w-full"
