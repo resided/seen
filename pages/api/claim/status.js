@@ -6,11 +6,6 @@ import { getTokenBalance, HOLDER_THRESHOLD } from '../../../lib/token-balance';
 const WHALE_CLAIM_LIMIT = 2; // Whales (30M+) can claim 2x daily
 const TOKEN_AMOUNT = process.env.CLAIM_TOKEN_AMOUNT || '80000'; // Amount per claim
 
-// DONUT token bonus configuration
-const DONUT_MAX_SUPPLY = 1000; // Maximum 1,000 DONUT tokens to give out
-const DONUT_COUNT_KEY = 'donut:count:given'; // Redis key to track DONUT tokens given
-// DONUT is just an add-on - doesn't change SEEN amount (always 80k per claim)
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -86,15 +81,37 @@ export default async function handler(req, res) {
     const fullyClaimed = personalClaimCount >= maxClaims && personalCooldownRemaining > 0;
     const canClaimAgain = personalClaimCount < maxClaims || personalCooldownRemaining === 0;
 
-    // Check DONUT availability (global and per-user)
-    const donutCountGiven = parseInt(await redis.get(DONUT_COUNT_KEY) || '0');
-    const donutGlobalAvailable = donutCountGiven < DONUT_MAX_SUPPLY;
+    // Check bonus token availability (generic - configured via admin panel)
+    let bonusTokenConfig = null;
+    let bonusTokenAvailable = false;
+    let bonusTokenRemaining = 0;
+    let userHasBonusToken = false;
     
-    // Check if this user has already received a DONUT (1 per user max)
-    const userDonutKey = `donut:user:${fid}`;
-    const userHasDonut = await redis.get(userDonutKey);
-    const donutAvailable = donutGlobalAvailable && !userHasDonut;
-    const donutRemaining = Math.max(0, DONUT_MAX_SUPPLY - donutCountGiven);
+    try {
+      const bonusConfigJson = await redis.get('bonus:token:config');
+      if (bonusConfigJson) {
+        bonusTokenConfig = JSON.parse(bonusConfigJson);
+        
+        if (bonusTokenConfig && bonusTokenConfig.enabled && bonusTokenConfig.contractAddress) {
+          const bonusTokenCountKey = `bonus:count:given:${bonusTokenConfig.contractAddress.toLowerCase()}`;
+          const bonusCountGiven = parseInt(await redis.get(bonusTokenCountKey) || '0');
+          const maxSupply = parseInt(bonusTokenConfig.maxSupply || '0');
+          
+          bonusTokenRemaining = Math.max(0, maxSupply - bonusCountGiven);
+          const bonusGlobalAvailable = bonusCountGiven < maxSupply;
+          
+          // Check if this user has already received this bonus token (1 per user max)
+          const userBonusKey = walletAddress ? `bonus:user:${walletAddress.toLowerCase()}:${bonusTokenConfig.contractAddress.toLowerCase()}` : null;
+          if (userBonusKey) {
+            userHasBonusToken = !!(await redis.get(userBonusKey));
+          }
+          
+          bonusTokenAvailable = bonusGlobalAvailable && !userHasBonusToken;
+        }
+      }
+    } catch (error) {
+      console.error('Error checking bonus token config:', error);
+    }
 
     // SECURITY: Test bypass removed - no FID gets special treatment
     const isBypassEnabled = false;
@@ -114,11 +131,16 @@ export default async function handler(req, res) {
       personalCooldownEndsAt,
       isHolder,
       holderThreshold: HOLDER_THRESHOLD,
-      donutAvailable, // Whether DONUT bonus is still available for this user
-      donutRemaining, // How many DONUT tokens remain globally
-      userHasDonut: !!userHasDonut, // Whether this user has already received a DONUT
-      // SEEN amount is always 80k per claim - DONUT is just an add-on
-      donutBonusSeenAmount: TOKEN_AMOUNT, // Always 80,000 SEEN per claim
+      // Generic bonus token info (configured via admin panel)
+      bonusTokenAvailable,
+      bonusTokenRemaining,
+      userHasBonusToken,
+      bonusTokenName: bonusTokenConfig?.tokenName || null,
+      bonusTokenAmount: bonusTokenConfig?.amount || null,
+      bonusTokenMaxSupply: bonusTokenConfig?.maxSupply || null,
+      bonusTokenEnabled: bonusTokenConfig?.enabled || false,
+      // SEEN amount per claim
+      seenAmountPerClaim: TOKEN_AMOUNT,
     });
   } catch (error) {
     console.error('Error checking claim status:', error);

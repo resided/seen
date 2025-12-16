@@ -2124,10 +2124,14 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
   const [claimCount, setClaimCount] = useState(0);
   const [maxClaims, setMaxClaims] = useState(1);
   const [isHolder, setIsHolder] = useState(false);
-  const [donutAvailable, setDonutAvailable] = useState(false);
-  const [donutRemaining, setDonutRemaining] = useState(0);
-  const [donutBonusSeenAmount, setDonutBonusSeenAmount] = useState(null);
-  const [userHasDonut, setUserHasDonut] = useState(false);
+  // Generic bonus token state (configured via admin panel)
+  const [bonusTokenAvailable, setBonusTokenAvailable] = useState(false);
+  const [bonusTokenRemaining, setBonusTokenRemaining] = useState(0);
+  const [bonusTokenName, setBonusTokenName] = useState(null);
+  const [bonusTokenAmount, setBonusTokenAmount] = useState(null);
+  const [bonusTokenEnabled, setBonusTokenEnabled] = useState(false);
+  const [userHasBonusToken, setUserHasBonusToken] = useState(false);
+  const [seenAmountPerClaim, setSeenAmountPerClaim] = useState('80000');
   const { address } = useAccount();
   const { sendTransaction, data: claimTxData } = useSendTransaction();
   const { isLoading: isClaimTxConfirming, isSuccess: isClaimTxConfirmed } = useWaitForTransactionReceipt({
@@ -2177,36 +2181,45 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
           if (data.isHolder !== undefined) {
             setIsHolder(data.isHolder);
           }
-          // Track DONUT bonus availability
-          if (data.donutAvailable !== undefined) {
-            setDonutAvailable(data.donutAvailable);
+          // Track bonus token availability (generic - configured via admin)
+          if (data.bonusTokenAvailable !== undefined) {
+            setBonusTokenAvailable(data.bonusTokenAvailable);
           }
-          if (data.donutRemaining !== undefined) {
-            setDonutRemaining(data.donutRemaining);
+          if (data.bonusTokenRemaining !== undefined) {
+            setBonusTokenRemaining(data.bonusTokenRemaining);
           }
-          if (data.donutBonusSeenAmount !== undefined) {
-            setDonutBonusSeenAmount(data.donutBonusSeenAmount);
+          if (data.bonusTokenName !== undefined) {
+            setBonusTokenName(data.bonusTokenName);
           }
-          if (data.userHasDonut !== undefined) {
-            setUserHasDonut(data.userHasDonut);
+          if (data.bonusTokenAmount !== undefined) {
+            setBonusTokenAmount(data.bonusTokenAmount);
+          }
+          if (data.bonusTokenEnabled !== undefined) {
+            setBonusTokenEnabled(data.bonusTokenEnabled);
+          }
+          if (data.userHasBonusToken !== undefined) {
+            setUserHasBonusToken(data.userHasBonusToken);
+          }
+          if (data.seenAmountPerClaim !== undefined) {
+            setSeenAmountPerClaim(data.seenAmountPerClaim);
           }
         })
         .catch(() => {});
       };
       
       checkStatus();
-      // Check every 15 seconds to catch expiration and DONUT count updates (only when tab is visible)
+      // Check every 15 seconds to catch expiration and bonus token count updates (only when tab is visible)
       let interval;
       const handleVisibilityChange = () => {
         if (document.hidden) {
           if (interval) clearInterval(interval);
         } else {
           checkStatus(); // Check immediately when tab becomes visible
-          interval = setInterval(checkStatus, 15000); // Update every 15 seconds for live DONUT tracking
+          interval = setInterval(checkStatus, 15000); // Update every 15 seconds for live bonus token tracking
         }
       };
       
-      interval = setInterval(checkStatus, 15000); // Update every 15 seconds for live DONUT tracking
+      interval = setInterval(checkStatus, 15000); // Update every 15 seconds for live bonus token tracking
       document.addEventListener('visibilitychange', handleVisibilityChange);
       
       return () => {
@@ -2241,19 +2254,13 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
               setMaxClaims(data.maxClaims);
             }
             
-            // Update DONUT info from response
-            if (data.donutIncluded !== undefined) {
-              setDonutAvailable(data.donutIncluded);
-              // If user received DONUT, mark them as having it
-              if (data.donutIncluded) {
-                setUserHasDonut(true);
-              }
-            }
-            if (data.donutRemaining !== undefined) {
-              setDonutRemaining(data.donutRemaining);
+            // Update bonus token info from response
+            if (data.bonusTokenIncluded !== undefined && data.bonusTokenIncluded) {
+              setBonusTokenAvailable(false); // No longer available for this user
+              setUserHasBonusToken(true);
             }
             
-            // Immediately refresh status after claim to get updated DONUT count
+            // Immediately refresh status after claim to get updated bonus token count
             if (data.success) {
               setTimeout(() => {
                 fetch('/api/claim/status', {
@@ -2263,14 +2270,14 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
                 })
                   .then(res => res.json())
                   .then(statusData => {
-                    if (statusData.donutRemaining !== undefined) {
-                      setDonutRemaining(statusData.donutRemaining);
+                    if (statusData.bonusTokenRemaining !== undefined) {
+                      setBonusTokenRemaining(statusData.bonusTokenRemaining);
                     }
-                    if (statusData.donutAvailable !== undefined) {
-                      setDonutAvailable(statusData.donutAvailable);
+                    if (statusData.bonusTokenAvailable !== undefined) {
+                      setBonusTokenAvailable(statusData.bonusTokenAvailable);
                     }
-                    if (statusData.userHasDonut !== undefined) {
-                      setUserHasDonut(statusData.userHasDonut);
+                    if (statusData.userHasBonusToken !== undefined) {
+                      setUserHasBonusToken(statusData.userHasBonusToken);
                     }
                   })
                   .catch(() => {});
@@ -2280,12 +2287,12 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
             // For 30M+ holders, check if they can claim again
             if (data.canClaimAgain) {
               setClaimed(false); // Can still claim more
-              const donutMsg = data.donutIncluded ? ' + 1 DONUT BONUS!' : '';
-              setMessage(`CLAIM ${data.claimCount} COMPLETE! TOKENS SENT${donutMsg}`);
+              const bonusMsg = data.bonusTokenIncluded && data.bonusTokenName ? ` + ${data.bonusTokenAmount || ''} ${data.bonusTokenName} BONUS!` : '';
+              setMessage(`CLAIM ${data.claimCount} COMPLETE! TOKENS SENT${bonusMsg}`);
             } else {
               setClaimed(true); // Fully claimed
-              const donutMsg = data.donutIncluded ? ' + 1 DONUT BONUS!' : '';
-              setMessage(`ALL CLAIMS COMPLETE! TOKENS SENT${donutMsg}`);
+              const bonusMsg = data.bonusTokenIncluded && data.bonusTokenName ? ` + ${data.bonusTokenAmount || ''} ${data.bonusTokenName} BONUS!` : '';
+              setMessage(`ALL CLAIMS COMPLETE! TOKENS SENT${bonusMsg}`);
             }
             if (data.expirationTime) {
               setExpirationTime(new Date(data.expirationTime));
@@ -2525,30 +2532,32 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
                 EXPIRES IN {getTimeUntilExpiration()}
               </div>
             )}
-            {/* Live DONUT counter - always visible */}
-            <div className="border border-yellow-400/50 bg-yellow-400/10 p-2 mb-3">
-              <div className="text-[10px] tracking-[0.2em] text-yellow-400 font-bold mb-1">
-                DONUT BONUS TRACKER
+            {/* Live bonus token counter - only show if bonus token is enabled */}
+            {bonusTokenEnabled && bonusTokenName && (
+              <div className="border border-yellow-400/50 bg-yellow-400/10 p-2 mb-3">
+                <div className="text-[10px] tracking-[0.2em] text-yellow-400 font-bold mb-1">
+                  {bonusTokenName.toUpperCase()} BONUS TRACKER
+                </div>
+                <div className="text-xs font-black text-yellow-300">
+                  {bonusTokenRemaining} REMAINING
+                </div>
+                {bonusTokenAvailable && !userHasBonusToken && (
+                  <div className="text-[9px] tracking-[0.15em] text-yellow-400/80 mt-1">
+                    YOU QUALIFY: {bonusTokenAmount} {bonusTokenName.toUpperCase()} + {seenAmountPerClaim} $SEEN
+                  </div>
+                )}
+                {userHasBonusToken && (
+                  <div className="text-[9px] tracking-[0.15em] text-gray-400 mt-1">
+                    YOU ALREADY RECEIVED YOUR {bonusTokenName.toUpperCase()}
+                  </div>
+                )}
+                {!bonusTokenAvailable && bonusTokenRemaining === 0 && (
+                  <div className="text-[9px] tracking-[0.15em] text-gray-400 mt-1">
+                    {bonusTokenName.toUpperCase()} BONUS EXHAUSTED - REGULAR CLAIMS ONLY
+                  </div>
+                )}
               </div>
-              <div className="text-xs font-black text-yellow-300">
-                {donutRemaining} / 1,000 REMAINING
-              </div>
-              {donutAvailable && !userHasDonut && (
-                <div className="text-[9px] tracking-[0.15em] text-yellow-400/80 mt-1">
-                  YOU QUALIFY: 1 DONUT + {donutBonusSeenAmount || '50,000'} $SEEN
-                </div>
-              )}
-              {userHasDonut && (
-                <div className="text-[9px] tracking-[0.15em] text-gray-400 mt-1">
-                  YOU ALREADY RECEIVED YOUR DONUT
-                </div>
-              )}
-              {!donutAvailable && donutRemaining === 0 && (
-                <div className="text-[9px] tracking-[0.15em] text-gray-400 mt-1">
-                  DONUT BONUS EXHAUSTED - REGULAR CLAIMS ONLY
-                </div>
-              )}
-            </div>
+            )}
             <div className="text-[10px] tracking-[0.2em] text-gray-400 mb-2">
               30M+ $SEEN HOLDERS GET 2X DAILY CLAIMS
             </div>
