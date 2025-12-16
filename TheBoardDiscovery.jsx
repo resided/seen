@@ -132,6 +132,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
   const [showTipModal, setShowTipModal] = useState(false);
   const [customTipAmount, setCustomTipAmount] = useState(''); // Stored as ETH internally
   const [customTipAmountUsd, setCustomTipAmountUsd] = useState(''); // Display value in USD
+  const pendingTipAmount = useRef(null); // Store tip amount when sending to avoid stale closures
   
   // Minimum tip: $0.20 USD (20 cents)
   const MIN_TIP_USD = 0.20;
@@ -383,18 +384,30 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
 
   // Track tip only after transaction is confirmed
   const [tipProcessed, setTipProcessed] = useState(false);
+  const [tipTxSentAt, setTipTxSentAt] = useState(null);
   
   useEffect(() => {
     // Reset processed flag when starting a new tip
     if (tipping && !tipTxData) {
       setTipProcessed(false);
+      setTipTxSentAt(null);
     }
   }, [tipping, tipTxData]);
+
+  // Track when tx hash is received
+  useEffect(() => {
+    if (tipTxData && !tipTxSentAt) {
+      setTipTxSentAt(Date.now());
+    }
+  }, [tipTxData, tipTxSentAt]);
   
   useEffect(() => {
     if (isTipConfirmed && tipTxData && tipping && !tipProcessed) {
       // Transaction confirmed, now track the tip
       setTipProcessed(true); // Prevent double processing
+      
+      // Use the stored tip amount from ref (avoids stale closures)
+      const tipAmountToTrack = pendingTipAmount.current || customTipAmount;
       
       const trackTip = async () => {
         try {
@@ -403,7 +416,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               projectId: app.id,
-              amount: customTipAmount,
+              amount: tipAmountToTrack,
               recipientFid: builderData?.fid || app.builderFid,
             }),
           });
@@ -411,32 +424,46 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
           // Update local stats
           setLiveStats(prev => ({
             ...prev,
-            tips: (parseFloat(prev.tips) || 0) + parseFloat(customTipAmount),
+            tips: (parseFloat(prev.tips) || 0) + parseFloat(tipAmountToTrack),
           }));
 
-          const usdAmount = ethPrice ? (parseFloat(customTipAmount) * ethPrice).toFixed(2) : null;
-          setTipMessage(`TIP SENT! ${parseFloat(customTipAmount).toFixed(6)} ETH${usdAmount ? ` ($${usdAmount})` : ''}`);
+          const usdAmount = ethPrice ? (parseFloat(tipAmountToTrack) * ethPrice).toFixed(2) : null;
+          setTipMessage(`TIP SENT! ${parseFloat(tipAmountToTrack).toFixed(6)} ETH${usdAmount ? ` ($${usdAmount})` : ''}`);
           setTimeout(() => {
             setShowTipModal(false);
             setCustomTipAmount('');
             setCustomTipAmountUsd('');
             setTipMessage('');
             setTipping(false);
+            setTipTxSentAt(null);
+            pendingTipAmount.current = null;
           }, 3000);
         } catch (error) {
           console.error('Error tracking tip:', error);
           setTipMessage('TIP SENT BUT TRACKING FAILED');
           setTipping(false);
+          setTipTxSentAt(null);
+          pendingTipAmount.current = null;
         }
       };
       
       trackTip();
-    } else if (tipTxData && !isTipConfirmed && !isTipConfirming && tipping) {
-      // Transaction was rejected or failed
-      setTipMessage('TRANSACTION CANCELLED OR FAILED');
-      setTipping(false);
     }
-  }, [isTipConfirmed, tipTxData, isTipConfirming, app.id, customTipAmount, builderData?.fid, app.builderFid, ethPrice, tipping, tipProcessed]);
+  }, [isTipConfirmed, tipTxData, app.id, customTipAmount, builderData?.fid, app.builderFid, ethPrice, tipping, tipProcessed]);
+
+  // Handle tip failure - only after waiting at least 3 seconds for confirmation to start
+  useEffect(() => {
+    if (tipTxData && !isTipConfirmed && !isTipConfirming && tipping && tipTxSentAt) {
+      const timeSinceSent = Date.now() - tipTxSentAt;
+      // Only consider it failed if we've been waiting more than 3 seconds and confirmation hasn't started
+      if (timeSinceSent > 3000) {
+        setTipMessage('TRANSACTION CANCELLED OR FAILED');
+        setTipping(false);
+        setTipTxSentAt(null);
+        pendingTipAmount.current = null;
+      }
+    }
+  }, [tipTxData, isTipConfirmed, isTipConfirming, tipping, tipTxSentAt]);
 
   return (
     <div className="border border-white">
@@ -1000,6 +1027,9 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
 
                     setTipping(true);
                     setTipMessage('WAITING FOR TRANSACTION...');
+                    
+                    // Store tip amount in ref to avoid stale closures
+                    pendingTipAmount.current = customTipAmount;
 
                     try {
                       // Send transaction with "tip" in data field
@@ -1015,6 +1045,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
                       console.error('Error sending tip:', error);
                       setTipMessage('TRANSACTION FAILED. PLEASE TRY AGAIN.');
                       setTipping(false);
+                      pendingTipAmount.current = null;
                     }
                   }}
                   disabled={tipping || isTipConfirming || !customTipAmountUsd || parseFloat(customTipAmountUsd) < MIN_TIP_USD || !customTipAmount || parseFloat(customTipAmount) <= 0}
@@ -1328,6 +1359,7 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
     hash: tipTxData,
   });
   const MIN_TIP_USD = 0.20;
+  const pendingTipAmount = useRef(null); // Store tip amount when sending to avoid stale closures
 
   // Fetch builder profile for tipping
   useEffect(() => {
@@ -1373,9 +1405,32 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
   }, [project?.id]);
 
   // Track tip only after transaction is confirmed (ProjectCard)
+  const [tipProcessed, setTipProcessed] = useState(false);
+  const [tipTxSentAt, setTipTxSentAt] = useState(null);
+  
   useEffect(() => {
-    if (isTipConfirmed && tipTxData && !tipping) {
+    // Reset processed flag when starting a new tip
+    if (tipping && !tipTxData) {
+      setTipProcessed(false);
+      setTipTxSentAt(null);
+    }
+  }, [tipping, tipTxData]);
+
+  // Track when tx hash is received
+  useEffect(() => {
+    if (tipTxData && !tipTxSentAt) {
+      setTipTxSentAt(Date.now());
+    }
+  }, [tipTxData, tipTxSentAt]);
+  
+  useEffect(() => {
+    if (isTipConfirmed && tipTxData && tipping && !tipProcessed) {
       // Transaction confirmed, now track the tip
+      setTipProcessed(true); // Prevent double processing
+      
+      // Use the stored tip amount from ref (avoids stale closures)
+      const tipAmountToTrack = pendingTipAmount.current || customTipAmount;
+      
       const trackTip = async () => {
         try {
           await fetch('/api/track-tip', {
@@ -1383,34 +1438,48 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               projectId: project.id,
-              amount: customTipAmount,
+              amount: tipAmountToTrack,
               recipientFid: builderData?.fid || project.builderFid,
             }),
           });
 
-          const usdAmount = ethPrice ? (parseFloat(customTipAmount) * ethPrice).toFixed(2) : null;
-          setTipMessage(`TIP SENT! ${parseFloat(customTipAmount).toFixed(6)} ETH${usdAmount ? ` ($${usdAmount})` : ''}`);
+          const usdAmount = ethPrice ? (parseFloat(tipAmountToTrack) * ethPrice).toFixed(2) : null;
+          setTipMessage(`TIP SENT! ${parseFloat(tipAmountToTrack).toFixed(6)} ETH${usdAmount ? ` ($${usdAmount})` : ''}`);
           setTimeout(() => {
             setShowTipModal(false);
             setCustomTipAmount('');
             setCustomTipAmountUsd('');
             setTipMessage('');
+            setTipping(false);
+            setTipTxSentAt(null);
+            pendingTipAmount.current = null;
           }, 3000);
         } catch (error) {
           console.error('Error tracking tip:', error);
           setTipMessage('TIP SENT BUT TRACKING FAILED');
-        } finally {
           setTipping(false);
+          setTipTxSentAt(null);
+          pendingTipAmount.current = null;
         }
       };
       
       trackTip();
-    } else if (tipTxData && !isTipConfirmed && !isTipConfirming) {
-      // Transaction was rejected or failed
-      setTipMessage('TRANSACTION CANCELLED OR FAILED');
-      setTipping(false);
     }
-  }, [isTipConfirmed, tipTxData, isTipConfirming, project.id, customTipAmount, builderData?.fid, project.builderFid, ethPrice, tipping]);
+  }, [isTipConfirmed, tipTxData, project.id, customTipAmount, builderData?.fid, project.builderFid, ethPrice, tipping, tipProcessed]);
+
+  // Handle tip failure - only after waiting at least 3 seconds for confirmation to start
+  useEffect(() => {
+    if (tipTxData && !isTipConfirmed && !isTipConfirming && tipping && tipTxSentAt) {
+      const timeSinceSent = Date.now() - tipTxSentAt;
+      // Only consider it failed if we've been waiting more than 3 seconds and confirmation hasn't started
+      if (timeSinceSent > 3000) {
+        setTipMessage('TRANSACTION CANCELLED OR FAILED');
+        setTipping(false);
+        setTipTxSentAt(null);
+        pendingTipAmount.current = null;
+      }
+    }
+  }, [tipTxData, isTipConfirmed, isTipConfirming, tipping, tipTxSentAt]);
 
   const handleOpenClick = async () => {
     if (!project.links?.miniapp) return;
@@ -1816,6 +1885,9 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
 
                     setTipping(true);
                     setTipMessage('WAITING FOR TRANSACTION...');
+                    
+                    // Store tip amount in ref to avoid stale closures
+                    pendingTipAmount.current = customTipAmount;
 
                     try {
                       const { parseEther, stringToHex } = await import('viem');
@@ -1831,6 +1903,7 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
                       console.error('Error sending tip:', error);
                       setTipMessage('TRANSACTION FAILED. PLEASE TRY AGAIN.');
                       setTipping(false);
+                      pendingTipAmount.current = null;
                     }
                   }}
                   disabled={tipping || !customTipAmountUsd || parseFloat(customTipAmountUsd) < MIN_TIP_USD || !customTipAmount || parseFloat(customTipAmount) <= 0}
