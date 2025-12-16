@@ -775,9 +775,11 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
         {isInFarcaster && !hasClickedMiniapp && (
           <div className="mt-4 border-2 border-white p-4 bg-black">
             <div className="text-center">
-              <div className="text-[10px] tracking-[0.3em] text-gray-400 mb-2">+ EARN 80,000 $SEEN</div>
-              <div className="text-sm text-white mb-3">
-                Click <span className="font-black">&gt;&gt; OPEN MINI APP &lt;&lt;</span> above, then scroll down to claim
+              <div className="text-xs font-black text-white mb-2">
+                STEP 1: CLICK &gt;&gt; OPEN MINI APP &lt;&lt;
+              </div>
+              <div className="text-[10px] text-gray-400">
+                Then scroll down to Featured Claim to claim $SEEN and any bonus tokens
               </div>
             </div>
           </div>
@@ -788,7 +790,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
           <div className="mt-4 border border-white p-3 bg-black">
             <div className="text-center">
               <div className="text-xs font-black tracking-[0.2em] text-white">
-                STEP 1 COMPLETE — SCROLL DOWN TO CLAIM YOUR 80K $SEEN
+                STEP 1 COMPLETE — SCROLL DOWN TO FEATURED CLAIM
               </div>
             </div>
           </div>
@@ -2562,10 +2564,10 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
             {!hasClickedMiniapp && isInFarcaster && (
               <div className="mb-4 p-4 border-2 border-white bg-white/5 animate-pulse">
                 <div className="text-sm font-black text-white mb-2 tracking-[0.1em] text-center">
-                  SCROLL UP + TAP &gt;&gt; OPEN MINI APP &lt;&lt;
+                  STEP 1: TAP &gt;&gt; OPEN MINI APP &lt;&lt; ABOVE
                 </div>
                 <div className="text-[10px] text-gray-400 text-center">
-                  Then scroll back here to claim your 80,000 $SEEN
+                  Then scroll back here to claim $SEEN and any bonus tokens
                 </div>
               </div>
             )}
