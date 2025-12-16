@@ -777,9 +777,6 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
             <div className="text-xs font-black tracking-[0.2em] text-white mb-2">
               ↑ CLICK THE BUTTON ABOVE ↑
             </div>
-            <div className="text-sm font-black text-white mb-2">
-              &gt;&gt; OPEN MINI APP &lt;&lt;
-            </div>
             <div className="text-[10px] text-gray-400">
               THEN SCROLL DOWN TO CLAIM YOUR TOKENS
             </div>
