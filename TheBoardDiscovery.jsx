@@ -777,10 +777,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
             <div className="text-center">
               <div className="text-[10px] tracking-[0.3em] text-gray-400 mb-2">+ EARN 80,000 $SEEN</div>
               <div className="text-sm text-white mb-3">
-                Click <span className="font-black">"OPEN MINI APP"</span> above, then scroll down to claim your reward
-              </div>
-              <div className="text-[9px] tracking-[0.2em] text-gray-500">
-                TAP THE BUTTON ABOVE
+                Click <span className="font-black">&gt;&gt; OPEN MINI APP &lt;&lt;</span> above, then scroll down to claim
               </div>
             </div>
           </div>
@@ -2320,7 +2317,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
     }
 
     if (!hasClickedMiniapp) {
-      setMessage('CLICK "OPEN MINI APP" FIRST TO CLAIM');
+      setMessage('TAP >> OPEN MINI APP << FIRST');
       return;
     }
 
@@ -2565,10 +2562,10 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
             {!hasClickedMiniapp && isInFarcaster && (
               <div className="mb-4 p-4 border-2 border-white bg-white/5 animate-pulse">
                 <div className="text-sm font-black text-white mb-2 tracking-[0.1em] text-center">
-                  SCROLL UP + TAP "OPEN MINI APP" FIRST
+                  SCROLL UP + TAP &gt;&gt; OPEN MINI APP &lt;&lt;
                 </div>
                 <div className="text-[10px] text-gray-400 text-center">
-                  Then come back here to claim your 80,000 $SEEN
+                  Then scroll back here to claim your 80,000 $SEEN
                 </div>
               </div>
             )}
@@ -2583,7 +2580,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
               {!isInFarcaster 
                 ? 'OPEN IN FARCASTER TO CLAIM' 
                 : !hasClickedMiniapp 
-                ? 'TAP "OPEN MINI APP" BUTTON ABOVE'
+                ? 'TAP >> OPEN MINI APP << ABOVE'
                 : !isConnected 
                 ? 'CONNECT WALLET TO CLAIM' 
                 : 'CLAIM EXPIRES WHEN FEATURED PROJECT CHANGES'}
@@ -2609,7 +2606,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
                   : claimCount >= 1 
                   ? 'CLAIM 1 COMPLETE'
                   : !hasClickedMiniapp 
-                  ? 'CLICK "OPEN MINI APP" FIRST (TOP OF PAGE)' 
+                  ? 'TAP >> OPEN MINI APP << FIRST' 
                   : !treasuryAddress
                   ? 'LOADING...'
                   : maxClaims > 1 ? 'CLAIM NOW 1/2' : 'CLAIM NOW'}
