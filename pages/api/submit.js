@@ -10,6 +10,11 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
+  // EMERGENCY KILL SWITCH - set SUBMISSIONS_DISABLED=true in Vercel env to stop all submissions instantly
+  if (process.env.SUBMISSIONS_DISABLED === 'true') {
+    return res.status(503).json({ error: 'Submissions temporarily disabled for maintenance' });
+  }
+
   try {
     const {
       name,
@@ -64,6 +69,11 @@ export default async function handler(req, res) {
           // You might want to change this to reject if score checking is critical
         }
       }
+    }
+
+    // EMERGENCY KILL SWITCH - set PAYMENTS_DISABLED=true to stop payment processing instantly
+    if (submissionType === 'featured' && process.env.PAYMENTS_DISABLED === 'true') {
+      return res.status(503).json({ error: 'Payment processing temporarily disabled. Please try again later.' });
     }
 
     // Validate featured submission has payment
