@@ -176,6 +176,46 @@ export default async function handler(req, res) {
       throw new Error(`Failed to scan for wallet keys: ${scanError.message}`);
     }
 
+    // CRITICAL: Also find wallet lock keys for this featured rotation (prevents multi-claim exploits)
+    const walletLockPattern = `claim:wallet:lock:*`;
+    const walletLockKeys = [];
+    cursor = 0;
+    try {
+      do {
+        const [nextCursor, foundKeys] = await redis.scan(cursor, {
+          MATCH: walletLockPattern,
+          COUNT: 100
+        });
+        cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
+        if (foundKeys && foundKeys.length > 0) {
+          walletLockKeys.push(...foundKeys);
+        }
+      } while (cursor !== 0);
+    } catch (scanError) {
+      console.error('Error scanning for wallet lock keys:', scanError);
+      throw new Error(`Failed to scan for wallet lock keys: ${scanError.message}`);
+    }
+
+    // CRITICAL: Also find global wallet claim count keys (prevents cross-rotation exploits)
+    const globalWalletPattern = `claim:wallet:global:*`;
+    const globalWalletKeys = [];
+    cursor = 0;
+    try {
+      do {
+        const [nextCursor, foundKeys] = await redis.scan(cursor, {
+          MATCH: globalWalletPattern,
+          COUNT: 100
+        });
+        cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
+        if (foundKeys && foundKeys.length > 0) {
+          globalWalletKeys.push(...foundKeys);
+        }
+      } while (cursor !== 0);
+    } catch (scanError) {
+      console.error('Error scanning for global wallet keys:', scanError);
+      throw new Error(`Failed to scan for global wallet keys: ${scanError.message}`);
+    }
+
     // Delete all claim keys for this featured project
     try {
       if (keys.length > 0) {
@@ -192,6 +232,16 @@ export default async function handler(req, res) {
       
       if (walletKeys.length > 0) {
         await redis.del(walletKeys);
+      }
+      
+      // CRITICAL: Delete wallet lock keys (prevents multi-claim exploits)
+      if (walletLockKeys.length > 0) {
+        await redis.del(walletLockKeys);
+      }
+      
+      // CRITICAL: Delete global wallet claim count keys (prevents cross-rotation exploits)
+      if (globalWalletKeys.length > 0) {
+        await redis.del(globalWalletKeys);
       }
     } catch (delError) {
       console.error('Error deleting keys:', delError);
@@ -241,12 +291,14 @@ export default async function handler(req, res) {
       claimsFound: keys.length,
       countsFound: countKeys.length,
       walletCountsFound: walletKeys.length,
+      walletLocksFound: walletLockKeys.length,
+      globalWalletsFound: globalWalletKeys.length,
       txFound: txKeys.length,
       donutUsersReset,
       donutCountReset
     });
     
-    let message = `Reset ${keys.length} claim(s), ${countKeys.length} FID count(s), ${walletKeys.length} wallet count(s), and ${txKeys.length} transaction(s) for featured project ${featuredProjectId} (rotation started at ${featuredAt.toISOString()})`;
+    let message = `Reset ${keys.length} claim(s), ${countKeys.length} FID count(s), ${walletKeys.length} wallet count(s), ${walletLockKeys.length} wallet lock(s), ${globalWalletKeys.length} global wallet count(s), and ${txKeys.length} transaction(s) for featured project ${featuredProjectId} (rotation started at ${featuredAt.toISOString()})`;
     if (resetDonut) {
       message += `. Also reset DONUT data: ${donutUsersReset} user(s) and global count.`;
     }
@@ -257,6 +309,8 @@ export default async function handler(req, res) {
       claimsReset: keys.length,
       countsReset: countKeys.length,
       walletCountsReset: walletKeys.length,
+      walletLocksReset: walletLockKeys.length,
+      globalWalletCountsReset: globalWalletKeys.length,
       transactionsReset: txKeys.length,
       donutReset: resetDonut === true,
       donutUsersReset,
