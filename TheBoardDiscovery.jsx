@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAccount, useConnect, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi';
-import { parseEther, parseUnits, erc20Abi, encodeFunctionData, toHex, stringToHex } from 'viem';
+import { useAccount, useConnect, useSendTransaction, useWaitForTransactionReceipt, useReadContract } from 'wagmi';
+import { parseEther, parseUnits, erc20Abi, encodeFunctionData, toHex, stringToHex, formatUnits } from 'viem';
 import { sdk } from '@farcaster/miniapp-sdk';
 import SubmitForm from './components/SubmitForm';
 
@@ -216,6 +216,42 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
     };
   }, [app?.featuredAt]);
 
+  // Read treasury $SEEN token balance (updates live)
+  const { data: treasuryBalance, refetch: refetchBalance } = useReadContract({
+    address: SEEN_TOKEN_ADDRESS,
+    abi: erc20Abi,
+    functionName: 'balanceOf',
+    args: [TREASURY_ADDRESS],
+    chainId: 8453, // Base
+  });
+
+  // Poll balance every 10 seconds for live updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refetchBalance();
+    }, 10000); // Update every 10 seconds
+    
+    return () => clearInterval(interval);
+  }, [refetchBalance]);
+
+  // Format balance for display
+  const formatBalance = (balance) => {
+    if (!balance) return '0';
+    try {
+      const formatted = formatUnits(balance, SEEN_TOKEN_DECIMALS);
+      const num = parseFloat(formatted);
+      if (num >= 1000000) {
+        return `${(num / 1000000).toFixed(2)}M`;
+      } else if (num >= 1000) {
+        return `${(num / 1000).toFixed(2)}K`;
+      } else {
+        return num.toFixed(2);
+      }
+    } catch (error) {
+      return '0';
+    }
+  };
+
   // Track view when component mounts and poll for real-time stats
   useEffect(() => {
     if (app?.id) {
@@ -409,11 +445,21 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
         <div className="flex items-center gap-3">
           <div className="text-[10px] tracking-[0.3em] text-gray-500">TODAY'S FEATURED</div>
         </div>
-        <div className="text-right">
-          <div className="font-mono text-sm">
-            {String(countdown.h).padStart(2, '0')}:{String(countdown.m).padStart(2, '0')}:{String(countdown.s).padStart(2, '0')}
+        <div className="flex items-center gap-6">
+          {/* Treasury Balance */}
+          <div className="text-right">
+            <div className="font-mono text-sm">
+              {treasuryBalance ? formatBalance(treasuryBalance) : '...'} $SEEN
+            </div>
+            <div className="text-[9px] tracking-[0.3em] text-gray-500">TREASURY</div>
           </div>
-          <div className="text-[9px] tracking-[0.3em] text-gray-500">UNTIL NEXT</div>
+          {/* Countdown */}
+          <div className="text-right">
+            <div className="font-mono text-sm">
+              {String(countdown.h).padStart(2, '0')}:{String(countdown.m).padStart(2, '0')}:{String(countdown.s).padStart(2, '0')}
+            </div>
+            <div className="text-[9px] tracking-[0.3em] text-gray-500">UNTIL NEXT</div>
+          </div>
         </div>
       </div>
 
@@ -1933,8 +1979,10 @@ const CategoryRankings = ({ category, ethPrice, isInFarcaster = false, isConnect
 // ============================================
 // Token swap constants (moved to top for global access)
 const SEEN_TOKEN_ADDRESS = '0x82a56d595ccdfa3a1dc6eef28d5f0a870f162b07';
+const TREASURY_ADDRESS = '0x32b907f125C4b929D5D9565FA24Bc6BF9af39fBb';
 const BASE_ETH_CAIP19 = 'eip155:8453/native';
 const SEEN_CAIP19 = `eip155:8453/erc20:${SEEN_TOKEN_ADDRESS.toLowerCase()}`;
+const SEEN_TOKEN_DECIMALS = 18; // $SEEN token decimals
 
 const SwapButton = ({ isInFarcaster = false }) => {
   const handleSwap = async () => {
