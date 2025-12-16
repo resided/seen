@@ -1,4 +1,5 @@
 // API route for admin login
+// Triggering redeploy to pick up ADMIN_SECRET env var
 import { serialize } from 'cookie';
 import { checkRateLimit, getClientIP } from '../../../lib/rate-limit';
 
