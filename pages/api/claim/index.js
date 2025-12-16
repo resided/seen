@@ -647,19 +647,38 @@ export default async function handler(req, res) {
       // Send DONUT token if available (1 per user max) - CURRENT CAMPAIGN ONLY
       // DONUT is always sent (if available) regardless of other bonus tokens
       let donutHash = null;
+      console.log('DONUT check:', {
+        donutAvailable,
+        userCanGetDonut,
+        donutGlobalAvailable,
+        donutCountGiven,
+        donutMaxSupply: DONUT_MAX_SUPPLY,
+        donutContract: DONUT_TOKEN_CONTRACT,
+        fid,
+        userDonutKey,
+      });
+      
       if (donutAvailable) {
         // Send DONUT as long as user hasn't received one yet and supply available
-        const donutAmountWei = parseUnits(DONUT_TOKEN_AMOUNT, DONUT_TOKEN_DECIMALS);
-        donutHash = await walletClient.writeContract({
-          address: DONUT_TOKEN_CONTRACT,
-          abi: erc20Abi,
-          functionName: 'transfer',
-          args: [walletAddress, donutAmountWei],
-        });
-        
-        // Increment global DONUT count (persistent, doesn't expire)
-        // User is already marked via SETNX above
-        await redis.incr(DONUT_COUNT_KEY);
+        try {
+          const donutAmountWei = parseUnits(DONUT_TOKEN_AMOUNT, DONUT_TOKEN_DECIMALS);
+          console.log('Sending DONUT:', { amount: DONUT_TOKEN_AMOUNT, to: walletAddress });
+          donutHash = await walletClient.writeContract({
+            address: DONUT_TOKEN_CONTRACT,
+            abi: erc20Abi,
+            functionName: 'transfer',
+            args: [walletAddress, donutAmountWei],
+          });
+          console.log('DONUT sent successfully:', donutHash);
+          
+          // Increment global DONUT count (persistent, doesn't expire)
+          // User is already marked via SETNX above
+          await redis.incr(DONUT_COUNT_KEY);
+        } catch (donutError) {
+          console.error('DONUT transfer FAILED:', donutError.message);
+          // Release the user lock since transfer failed
+          await redis.del(userDonutKey);
+        }
       } else if (userCanGetDonut && !donutGlobalAvailable) {
         // Race condition: user got lock but DONUT ran out - release the lock
         await redis.del(userDonutKey);
