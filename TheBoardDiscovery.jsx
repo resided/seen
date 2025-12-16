@@ -1159,28 +1159,37 @@ const LiveChat = ({ messages, onSend, isInFarcaster = false }) => {
           </div>
         ) : (
           <>
-            {messages.map(msg => (
-              <div key={msg.id} className="group">
-                <div className="flex items-baseline gap-2">
-                  {msg.fid && msg.fid > 0 ? (
-                    <button
-                      onClick={() => handleUsernameClick(msg)}
-                      className="text-[10px] tracking-wider text-gray-500 shrink-0 hover:text-white hover:underline transition-all cursor-pointer"
-                    >
-                      {msg.user}
-                      {msg.verified && <span className="ml-1">✓</span>}
-                    </button>
-                  ) : (
-                    <span className="text-[10px] tracking-wider text-gray-500 shrink-0">
-                      {msg.user}
-                      {msg.verified && <span className="ml-1">✓</span>}
-                    </span>
-                  )}
-                  <span className="text-[10px] text-gray-600">{msg.time}</span>
+            {messages.map(msg => {
+              const isDev = msg.fid === 342433;
+              return (
+                <div key={msg.id} className="group">
+                  <div className="flex items-baseline gap-2">
+                    {msg.fid && msg.fid > 0 ? (
+                      <button
+                        onClick={() => handleUsernameClick(msg)}
+                        className={`text-[10px] tracking-wider shrink-0 transition-all cursor-pointer ${
+                          isDev 
+                            ? 'text-yellow-400 font-black hover:text-yellow-300' 
+                            : 'text-gray-500 hover:text-white hover:underline'
+                        }`}
+                      >
+                        {isDev && <span className="text-yellow-500 mr-0.5">★</span>}
+                        {msg.user}
+                        {isDev && <span className="ml-1 text-[8px] bg-yellow-500 text-black px-1 py-0.5 font-black">DEV</span>}
+                        {!isDev && msg.verified && <span className="ml-1">✓</span>}
+                      </button>
+                    ) : (
+                      <span className="text-[10px] tracking-wider text-gray-500 shrink-0">
+                        {msg.user}
+                        {msg.verified && <span className="ml-1">✓</span>}
+                      </span>
+                    )}
+                    <span className="text-[10px] text-gray-600">{msg.time}</span>
+                  </div>
+                  <p className={`text-sm mt-0.5 leading-snug ${isDev ? 'text-yellow-100' : ''}`}>{msg.msg}</p>
                 </div>
-                <p className="text-sm mt-0.5 leading-snug">{msg.msg}</p>
-              </div>
-            ))}
+              );
+            })}
             <div ref={messagesEndRef} />
           </>
         )}
