@@ -51,25 +51,9 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'Wallet blocked due to suspicious activity' });
     }
 
-    // SECURITY: Global daily rate limit per wallet (max 5 claims per 24h across ALL projects)
     const redis = await getRedisClient();
     if (!redis) {
       return res.status(500).json({ error: 'Service unavailable' });
-    }
-    
-    const globalWalletKey = `claim:global:daily:${walletAddress.toLowerCase()}`;
-    const globalWalletCount = await redis.incr(globalWalletKey);
-    
-    // Set 24h expiry on first increment
-    if (globalWalletCount === 1) {
-      await redis.expire(globalWalletKey, 24 * 60 * 60);
-    }
-    
-    const GLOBAL_DAILY_LIMIT = 5; // Max 5 claims per wallet per 24h no matter what
-    if (globalWalletCount > GLOBAL_DAILY_LIMIT) {
-      await redis.decr(globalWalletKey);
-      console.error('SECURITY: Global daily limit exceeded:', { walletAddress: walletAddress?.slice(0, 10), globalWalletCount });
-      return res.status(429).json({ error: 'Daily claim limit exceeded. Max 5 claims per 24 hours.' });
     }
 
     if (!fid) {
