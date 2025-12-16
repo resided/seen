@@ -428,7 +428,7 @@ export default function Admin() {
             const userData = await response.json();
             // Auto-populate builder name if not already set or if it's empty
             if (!newFormData.builder || newFormData.builder.trim() === '') {
-              newFormData.builder = userData.displayName || userData.username || '';
+              newFormData.builder = userData.username || userData.displayName || '';
             }
             // Update FID
             newFormData.builderFid = userData.fid || value;
@@ -1232,7 +1232,7 @@ export default function Admin() {
             const userData = await response.json();
             // Auto-populate builder name if not already set
             if (!newFormData.builder || newFormData.builder.trim() === '') {
-              newFormData.builder = userData.displayName || userData.username || '';
+              newFormData.builder = userData.username || userData.displayName || '';
             }
             // Update FID if it changed
             newFormData.builderFid = userData.fid || value;
