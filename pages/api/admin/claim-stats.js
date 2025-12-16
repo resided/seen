@@ -57,32 +57,32 @@ export default async function handler(req, res) {
     // Count total claims for this rotation
     const claimPattern = `claim:featured:${featuredProjectId}:${featuredAtTimestamp}:*`;
     const claimKeys = [];
-    let cursor = 0;
+    let cursor = '0'; // Redis SCAN expects string cursor
     do {
       const [nextCursor, foundKeys] = await redis.scan(cursor, {
         MATCH: claimPattern,
         COUNT: 100
       });
-      cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
+      cursor = nextCursor; // Keep as string
       if (foundKeys && foundKeys.length > 0) {
         claimKeys.push(...foundKeys);
       }
-    } while (cursor !== 0);
+    } while (cursor !== '0');
 
     // Count unique wallets
     const walletPattern = `claim:wallet:${featuredProjectId}:${featuredAtTimestamp}:*`;
     const walletKeys = [];
-    cursor = 0;
+    cursor = '0'; // Redis SCAN expects string cursor
     do {
       const [nextCursor, foundKeys] = await redis.scan(cursor, {
         MATCH: walletPattern,
         COUNT: 100
       });
-      cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
+      cursor = nextCursor; // Keep as string
       if (foundKeys && foundKeys.length > 0) {
         walletKeys.push(...foundKeys);
       }
-    } while (cursor !== 0);
+    } while (cursor !== '0');
 
     // Count holder claims (claims > 1 per wallet)
     let holderClaims = 0;
