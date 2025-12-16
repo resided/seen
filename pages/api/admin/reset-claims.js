@@ -294,6 +294,58 @@ export default async function handler(req, res) {
       }
     }
 
+    // CLEAR ALL PERSONAL 24-HOUR COOLDOWNS
+    // This allows everyone to claim again immediately
+    const personalCooldownPattern = 'claim:cooldown:*';
+    const personalCooldownKeys = [];
+    let cooldownCursor = 0;
+    try {
+      do {
+        const [nextCursor, foundKeys] = await redis.scan(cooldownCursor, {
+          MATCH: personalCooldownPattern,
+          COUNT: 100
+        });
+        cooldownCursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
+        if (foundKeys && foundKeys.length > 0) {
+          personalCooldownKeys.push(...foundKeys);
+        }
+      } while (cooldownCursor !== 0);
+    } catch (scanError) {
+      console.error('Error scanning for personal cooldown keys:', scanError);
+    }
+    
+    // Also clear personal claim count keys
+    const personalClaimCountPattern = 'claim:count:personal:*';
+    const personalClaimCountKeys = [];
+    cooldownCursor = 0;
+    try {
+      do {
+        const [nextCursor, foundKeys] = await redis.scan(cooldownCursor, {
+          MATCH: personalClaimCountPattern,
+          COUNT: 100
+        });
+        cooldownCursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
+        if (foundKeys && foundKeys.length > 0) {
+          personalClaimCountKeys.push(...foundKeys);
+        }
+      } while (cooldownCursor !== 0);
+    } catch (scanError) {
+      console.error('Error scanning for personal claim count keys:', scanError);
+    }
+    
+    let personalCooldownsReset = 0;
+    if (personalCooldownKeys.length > 0 || personalClaimCountKeys.length > 0) {
+      try {
+        const allPersonalKeys = [...personalCooldownKeys, ...personalClaimCountKeys];
+        if (allPersonalKeys.length > 0) {
+          await redis.del(allPersonalKeys);
+          personalCooldownsReset = allPersonalKeys.length;
+        }
+      } catch (delError) {
+        console.error('Error deleting personal cooldown keys:', delError);
+      }
+    }
+
     console.log('Reset complete:', {
       claimsFound: keys.length,
       countsFound: countKeys.length,
@@ -301,11 +353,12 @@ export default async function handler(req, res) {
       walletLocksFound: walletLockKeys.length,
       globalWalletsFound: globalWalletKeys.length,
       txFound: txKeys.length,
+      personalCooldownsReset,
       donutUsersReset,
       donutCountReset
     });
     
-    let message = `Reset ${keys.length} claim(s), ${countKeys.length} FID count(s), ${walletKeys.length} wallet count(s), ${walletLockKeys.length} wallet lock(s), ${globalWalletKeys.length} global wallet count(s), and ${txKeys.length} transaction(s) for featured project ${featuredProjectId} (rotation started at ${featuredAt.toISOString()})`;
+    let message = `Reset ${keys.length} claim(s), ${countKeys.length} FID count(s), ${walletKeys.length} wallet count(s), ${walletLockKeys.length} wallet lock(s), ${globalWalletKeys.length} global wallet count(s), ${txKeys.length} transaction(s), and ${personalCooldownsReset} personal cooldown(s) for featured project ${featuredProjectId}`;
     if (resetDonut) {
       message += `. Also reset DONUT data: ${donutUsersReset} user(s) and global count.`;
     }

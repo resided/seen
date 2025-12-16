@@ -195,23 +195,45 @@ export default async function handler(req, res) {
       });
     }
 
-    // WALLET LOCK - ONE CLAIM PER WALLET PER FEATURED ROTATION
-    // Lock is tied to rotation ID so it only resets on explicit reset or new featured project (not timer changes)
-    const walletLockKey = `claim:wallet:lock:${featuredProjectId}:${rotationId}:${walletAddress.toLowerCase()}`;
-    const walletLock = await redis.set(walletLockKey, '1', { NX: true, EX: ttl });
-    if (walletLock === null) {
-      console.warn('SECURITY: Wallet lock already exists for this rotation, rejecting claim:', {
-        fid,
-        walletAddress: walletAddress?.slice(0, 10) + '...',
-        featuredProjectId,
-        featuredAtTimestamp,
-      });
-      return res.status(400).json({
-        error: 'This wallet has already claimed for this featured project rotation.',
-        featuredProjectId,
-        featuredAt: featuredAt.toISOString(),
-        expirationTime: expirationTime.toISOString(),
-      });
+    // PERSONAL 24-HOUR COOLDOWN - Independent of featured project timer
+    // This cooldown is per-wallet and lasts exactly 24 hours from when they claimed
+    // Timer extensions do NOT affect this. Only manual RESET CLAIMS overrides it.
+    const COOLDOWN_SECONDS = 24 * 60 * 60; // 24 hours in seconds
+    const personalCooldownKey = `claim:cooldown:${walletAddress.toLowerCase()}`;
+    
+    // Check if wallet is on cooldown
+    const cooldownData = await redis.get(personalCooldownKey);
+    if (cooldownData) {
+      const cooldownExpiry = parseInt(cooldownData);
+      const now = Date.now();
+      const remainingMs = cooldownExpiry - now;
+      
+      if (remainingMs > 0) {
+        const remainingHours = Math.floor(remainingMs / (1000 * 60 * 60));
+        const remainingMins = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
+        
+        // Check claim count to see if they've used all their claims
+        const claimCountKey = `claim:count:personal:${walletAddress.toLowerCase()}`;
+        const currentClaimCount = parseInt(await redis.get(claimCountKey) || '0');
+        
+        if (currentClaimCount >= maxClaims) {
+          console.warn('PERSONAL COOLDOWN: Wallet still on 24h cooldown:', {
+            fid,
+            walletAddress: walletAddress?.slice(0, 10) + '...',
+            remainingHours,
+            remainingMins,
+            claimCount: currentClaimCount,
+            maxClaims,
+          });
+          return res.status(400).json({
+            error: `You've already claimed. Next claim available in ${remainingHours}h ${remainingMins}m.`,
+            cooldownRemaining: remainingMs,
+            cooldownEndsAt: new Date(cooldownExpiry).toISOString(),
+            claimCount: currentClaimCount,
+            maxClaims,
+          });
+        }
+      }
     }
 
     // Track claim by featured project ID + rotation ID + FID AND wallet
@@ -636,13 +658,37 @@ export default async function handler(req, res) {
       await redis.setEx(claimKey, ttl, newClaimCount.toString());
       // If txHash was provided (user transaction), use that, otherwise use treasury tx hash
       const userTxHash = txHash || hash;
-      await redis.setEx(`claim:tx:${featuredProjectId}:${featuredAtTimestamp}:${fid}:${newClaimCount}`, ttl, userTxHash);
+      await redis.setEx(`claim:tx:${featuredProjectId}:${rotationId}:${fid}:${newClaimCount}`, ttl, userTxHash);
       
       // Mark txHash as permanently used (was locked as 'pending' earlier, now mark as 'used')
       // This is persistent and never expires to prevent replay attacks
       if (txHash) {
         await redis.set(`claim:txhash:${txHash.toLowerCase()}`, 'used');
       }
+      
+      // SET PERSONAL 24-HOUR COOLDOWN
+      // This is independent of the featured project timer - always exactly 24 hours
+      const COOLDOWN_SECONDS = 24 * 60 * 60; // 24 hours
+      const cooldownExpiry = Date.now() + (COOLDOWN_SECONDS * 1000);
+      const personalCooldownKey = `claim:cooldown:${walletAddress.toLowerCase()}`;
+      const personalClaimCountKey = `claim:count:personal:${walletAddress.toLowerCase()}`;
+      
+      // Set or update the cooldown expiry time
+      await redis.setEx(personalCooldownKey, COOLDOWN_SECONDS, cooldownExpiry.toString());
+      
+      // Track personal claim count (how many claims used in this 24h window)
+      const personalClaimCount = await redis.incr(personalClaimCountKey);
+      if (personalClaimCount === 1) {
+        // First claim in this window, set expiry
+        await redis.expire(personalClaimCountKey, COOLDOWN_SECONDS);
+      }
+      
+      console.log('Personal 24h cooldown set:', {
+        wallet: walletAddress?.slice(0, 10) + '...',
+        cooldownExpiry: new Date(cooldownExpiry).toISOString(),
+        personalClaimCount,
+        maxClaims,
+      });
 
       // Track a click when user successfully claims (they opened the miniapp to claim)
       try {

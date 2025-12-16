@@ -62,15 +62,29 @@ export default async function handler(req, res) {
       }
     }
     
-    // Check claim count for this specific featured rotation
-    // Use rotationId which only changes on explicit reset or new featured project (not timer changes)
-    const rotationId = await getRotationId();
-    const claimCountKey = `claim:count:${featuredProjectId}:${rotationId}:${fid}`;
-    const claimCount = parseInt(await redis.get(claimCountKey) || '0');
+    // Check PERSONAL 24-hour cooldown (independent of featured project timer)
+    const personalCooldownKey = walletAddress ? `claim:cooldown:${walletAddress.toLowerCase()}` : null;
+    const personalClaimCountKey = walletAddress ? `claim:count:personal:${walletAddress.toLowerCase()}` : null;
     
-    // User is "fully claimed" when they've used all their claims
-    const fullyClaimed = claimCount >= maxClaims;
-    const canClaimAgain = claimCount < maxClaims && !expired;
+    let personalCooldownRemaining = 0;
+    let personalCooldownEndsAt = null;
+    let personalClaimCount = 0;
+    
+    if (personalCooldownKey) {
+      const cooldownData = await redis.get(personalCooldownKey);
+      if (cooldownData) {
+        const cooldownExpiry = parseInt(cooldownData);
+        const now = Date.now();
+        personalCooldownRemaining = Math.max(0, cooldownExpiry - now);
+        personalCooldownEndsAt = personalCooldownRemaining > 0 ? new Date(cooldownExpiry).toISOString() : null;
+      }
+      
+      personalClaimCount = parseInt(await redis.get(personalClaimCountKey) || '0');
+    }
+    
+    // User is "fully claimed" when they've used all their personal claims in the 24h window
+    const fullyClaimed = personalClaimCount >= maxClaims && personalCooldownRemaining > 0;
+    const canClaimAgain = personalClaimCount < maxClaims || personalCooldownRemaining === 0;
 
     // Check DONUT availability (global and per-user)
     const donutCountGiven = parseInt(await redis.get(DONUT_COUNT_KEY) || '0');
@@ -87,7 +101,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       claimed: fullyClaimed,
-      claimCount,
+      claimCount: personalClaimCount, // Use personal claim count
       maxClaims,
       canClaimAgain: canClaimAgain,
       expired,
@@ -95,6 +109,9 @@ export default async function handler(req, res) {
       featuredAt: featuredAt.toISOString(),
       expirationTime: expirationTime.toISOString(),
       timeRemaining: expired ? 0 : Math.max(0, expirationTime - now),
+      // Personal 24-hour cooldown info
+      personalCooldownRemaining,
+      personalCooldownEndsAt,
       isHolder,
       holderThreshold: HOLDER_THRESHOLD,
       donutAvailable, // Whether DONUT bonus is still available for this user
