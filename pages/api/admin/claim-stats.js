@@ -55,35 +55,45 @@ export default async function handler(req, res) {
     const featuredAtTimestamp = Math.floor(featuredAt.getTime() / 1000);
 
     // Count total claims for this rotation
-    // redis.scan() in v5 requires cursor as string
+    // Use EXACT same pattern as reset-claims.js which works
     const claimPattern = `claim:featured:${featuredProjectId}:${featuredAtTimestamp}:*`;
     const claimKeys = [];
-    let cursor = '0'; // Must be string in redis v5
-    do {
-      const [nextCursor, foundKeys] = await redis.scan(cursor, {
-        MATCH: claimPattern,
-        COUNT: 100
-      });
-      cursor = String(nextCursor); // Keep as string
-      if (foundKeys && foundKeys.length > 0) {
-        claimKeys.push(...foundKeys);
-      }
-    } while (cursor !== '0');
+    let cursor = 0;
+    try {
+      do {
+        const [nextCursor, foundKeys] = await redis.scan(cursor, {
+          MATCH: claimPattern,
+          COUNT: 100
+        });
+        cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
+        if (foundKeys && foundKeys.length > 0) {
+          claimKeys.push(...foundKeys);
+        }
+      } while (cursor !== 0);
+    } catch (scanError) {
+      console.error('Error scanning for claim keys:', scanError);
+      throw new Error(`Failed to scan for claim keys: ${scanError.message}`);
+    }
 
     // Count unique wallets
     const walletPattern = `claim:wallet:${featuredProjectId}:${featuredAtTimestamp}:*`;
     const walletKeys = [];
-    cursor = '0'; // Must be string in redis v5
-    do {
-      const [nextCursor, foundKeys] = await redis.scan(cursor, {
-        MATCH: walletPattern,
-        COUNT: 100
-      });
-      cursor = String(nextCursor); // Keep as string
-      if (foundKeys && foundKeys.length > 0) {
-        walletKeys.push(...foundKeys);
-      }
-    } while (cursor !== '0');
+    cursor = 0;
+    try {
+      do {
+        const [nextCursor, foundKeys] = await redis.scan(cursor, {
+          MATCH: walletPattern,
+          COUNT: 100
+        });
+        cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
+        if (foundKeys && foundKeys.length > 0) {
+          walletKeys.push(...foundKeys);
+        }
+      } while (cursor !== 0);
+    } catch (scanError) {
+      console.error('Error scanning for wallet keys:', scanError);
+      throw new Error(`Failed to scan for wallet keys: ${scanError.message}`);
+    }
 
     // Count holder claims (claims > 1 per wallet)
     let holderClaims = 0;
