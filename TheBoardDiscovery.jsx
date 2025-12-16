@@ -462,8 +462,8 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
         <h1 className="text-xl sm:text-2xl font-black tracking-[-0.03em] mb-0.5">{app.name}</h1>
         <p className="text-[10px] tracking-widest text-gray-500 mb-2">{app.tagline}</p>
         
-        {/* Description */}
-        <p className="text-[11px] leading-relaxed text-gray-400 mb-3 line-clamp-3">
+        {/* Description - full text for paid featured spot */}
+        <p className="text-xs leading-relaxed text-gray-400 mb-3">
           {app.description}
         </p>
 
