@@ -15,6 +15,7 @@ const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDispl
     builder: autoFillBuilder,
     builderFid: userFid ? String(userFid) : '',
     tokenName: '',
+    tokenContractAddress: '',
     category: 'defi', // Default to defi for free queue (no main/featured category)
     miniapp: '',
     website: '',
@@ -235,6 +236,22 @@ const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDispl
       return;
     }
 
+    // Require token contract address for token submissions
+    if (formData.category === 'tokens') {
+      if (!formData.tokenContractAddress || !formData.tokenContractAddress.trim()) {
+        setMessage('ERROR: TOKEN CONTRACT ADDRESS IS REQUIRED FOR TOKEN SUBMISSIONS');
+        setSubmitting(false);
+        return;
+      }
+      // Basic validation: must start with 0x and be 42 characters
+      const addressPattern = /^0x[a-fA-F0-9]{40}$/i;
+      if (!addressPattern.test(formData.tokenContractAddress.trim())) {
+        setMessage('ERROR: INVALID TOKEN CONTRACT ADDRESS. MUST BE A VALID ETHEREUM ADDRESS (0x followed by 40 hex characters)');
+        setSubmitting(false);
+        return;
+      }
+    }
+
     // Calculate payment amount dynamically based on $SEEN price
     let paymentAmount = 0;
     if (formData.submissionType === 'featured') {
@@ -412,6 +429,25 @@ const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDispl
               placeholder="$TOKEN"
             />
           </div>
+
+          {formData.category === 'tokens' && (
+            <div>
+              <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                TOKEN CONTRACT ADDRESS *
+              </label>
+              <input
+                type="text"
+                name="tokenContractAddress"
+                value={formData.tokenContractAddress}
+                onChange={handleChange}
+                required={formData.category === 'tokens'}
+                className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black font-mono"
+                placeholder="0x..."
+                pattern="^0x[a-fA-F0-9]{40}$"
+              />
+              <p className="text-[10px] text-gray-600 mt-1">Required for token submissions. Must be a valid Ethereum address on Base network.</p>
+            </div>
+          )}
 
           <div>
             <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
