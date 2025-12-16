@@ -1,6 +1,6 @@
 // API route to reset claims for current featured project (admin only)
 import { getRedisClient } from '../../../lib/redis';
-import { getFeaturedProject } from '../../../lib/projects';
+import { getFeaturedProject, resetRotationId, getRotationId } from '../../../lib/projects';
 import { parse } from 'cookie';
 
 const ADMIN_FID = 342433; // Admin FID
@@ -82,18 +82,25 @@ export default async function handler(req, res) {
 
     const featuredProjectId = featuredProject.id;
     const featuredAt = featuredProject.featuredAt ? new Date(featuredProject.featuredAt) : new Date();
-    const featuredAtTimestamp = Math.floor(featuredAt.getTime() / 1000);
+    
+    // Get current rotation ID before reset
+    const oldRotationId = await getRotationId();
+    
+    // Generate a new rotation ID - this is the KEY to resetting claims
+    // All claim keys use rotationId, so a new rotationId = fresh slate for everyone
+    const newRotationId = await resetRotationId();
     
     console.log('Resetting claims for:', {
       featuredProjectId,
       featuredAt: featuredAt.toISOString(),
-      featuredAtTimestamp,
+      oldRotationId,
+      newRotationId,
       resetDonut
     });
     
-    // Find all claim keys for this specific featured rotation
-    // Pattern includes featuredAt timestamp to only reset current rotation
-    const pattern = `claim:featured:${featuredProjectId}:${featuredAtTimestamp}:*`;
+    // Find all claim keys for this specific featured rotation (old rotation ID)
+    // Pattern includes rotation ID to only reset current rotation
+    const pattern = `claim:featured:${featuredProjectId}:${oldRotationId}:*`;
     const keys = [];
     
     // Redis SCAN to find all matching keys
@@ -117,7 +124,7 @@ export default async function handler(req, res) {
     }
 
     // Also find transaction hash keys for this specific featured rotation
-    const txPattern = `claim:tx:${featuredProjectId}:${featuredAtTimestamp}:*`;
+    const txPattern = `claim:tx:${featuredProjectId}:${oldRotationId}:*`;
     const txKeys = [];
     cursor = 0;
     try {
@@ -137,7 +144,7 @@ export default async function handler(req, res) {
     }
 
     // Also find claim count keys for this specific featured rotation
-    const countPattern = `claim:count:${featuredProjectId}:${featuredAtTimestamp}:*`;
+    const countPattern = `claim:count:${featuredProjectId}:${oldRotationId}:*`;
     const countKeys = [];
     cursor = 0;
     try {
@@ -157,7 +164,7 @@ export default async function handler(req, res) {
     }
 
     // Also find wallet claim count keys for this specific featured rotation (security feature)
-    const walletPattern = `claim:wallet:${featuredProjectId}:${featuredAtTimestamp}:*`;
+    const walletPattern = `claim:wallet:${featuredProjectId}:${oldRotationId}:*`;
     const walletKeys = [];
     cursor = 0;
     try {

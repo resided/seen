@@ -1,6 +1,6 @@
 // API route to claim tokens (tied to featured project rotation)
 import { getRedisClient } from '../../../lib/redis';
-import { getFeaturedProject } from '../../../lib/projects';
+import { getFeaturedProject, getRotationId } from '../../../lib/projects';
 import { fetchUserByFid } from '../../../lib/neynar';
 import { getTokenBalance } from '../../../lib/token-balance';
 import { createWalletClient, createPublicClient, http, parseUnits } from 'viem';
@@ -167,15 +167,16 @@ export default async function handler(req, res) {
 
     const featuredProjectId = featuredProject.id;
     
-    // SECURITY: featuredAt MUST be defined - using new Date() would create different keys per request!
+    // SECURITY: featuredAt MUST be defined for expiration calculation
     if (!featuredProject.featuredAt) {
       console.error('CRITICAL: Featured project missing featuredAt timestamp!', { featuredProjectId });
       return res.status(500).json({ error: 'Featured project configuration error' });
     }
     const featuredAt = new Date(featuredProject.featuredAt);
     
-    // Calculate featuredAt timestamp (used for rotation-specific keys)
-    const featuredAtTimestamp = Math.floor(featuredAt.getTime() / 1000); // Unix timestamp in seconds
+    // Get rotation ID for claim keys (this only changes on explicit reset or new featured project)
+    // Timer adjustments do NOT change this ID
+    const rotationId = await getRotationId();
     
     // Calculate expiration: 24 hours from when project was featured
     const expirationTime = new Date(featuredAt.getTime() + 24 * 60 * 60 * 1000);
@@ -195,8 +196,8 @@ export default async function handler(req, res) {
     }
 
     // WALLET LOCK - ONE CLAIM PER WALLET PER FEATURED ROTATION
-    // Lock is tied to featured project rotation (featuredAt timestamp) so it resets for new featured projects
-    const walletLockKey = `claim:wallet:lock:${featuredProjectId}:${featuredAtTimestamp}:${walletAddress.toLowerCase()}`;
+    // Lock is tied to rotation ID so it only resets on explicit reset or new featured project (not timer changes)
+    const walletLockKey = `claim:wallet:lock:${featuredProjectId}:${rotationId}:${walletAddress.toLowerCase()}`;
     const walletLock = await redis.set(walletLockKey, '1', { NX: true, EX: ttl });
     if (walletLock === null) {
       console.warn('SECURITY: Wallet lock already exists for this rotation, rejecting claim:', {
@@ -213,18 +214,18 @@ export default async function handler(req, res) {
       });
     }
 
-    // Track claim by featured project ID + featuredAt timestamp + FID AND wallet
+    // Track claim by featured project ID + rotation ID + FID AND wallet
     // This prevents FID spoofing attacks - claims tracked by both FID and wallet
-    // featuredAtTimestamp already defined above
-    const claimKey = `claim:featured:${featuredProjectId}:${featuredAtTimestamp}:${fid}`;
-    const claimCountKey = `claim:count:${featuredProjectId}:${featuredAtTimestamp}:${fid}`;
+    // rotationId only changes on explicit reset or new featured project (not timer changes)
+    const claimKey = `claim:featured:${featuredProjectId}:${rotationId}:${fid}`;
+    const claimCountKey = `claim:count:${featuredProjectId}:${rotationId}:${fid}`;
     
-    // SECURITY: Also track by wallet address to prevent FID spoofing (per featured rotation)
-    const walletClaimCountKey = `claim:wallet:${featuredProjectId}:${featuredAtTimestamp}:${walletAddress.toLowerCase()}`;
+    // SECURITY: Also track by wallet address to prevent FID spoofing (per rotation)
+    const walletClaimCountKey = `claim:wallet:${featuredProjectId}:${rotationId}:${walletAddress.toLowerCase()}`;
     
-    // SECURITY: Per-rotation wallet claim counter (resets for each new featured project)
+    // SECURITY: Per-rotation wallet claim counter (resets for each new featured project or explicit reset)
     // This prevents exploits within a single featured rotation
-    const globalWalletClaimCountKey = `claim:wallet:global:${featuredProjectId}:${featuredAtTimestamp}:${walletAddress.toLowerCase()}`;
+    const globalWalletClaimCountKey = `claim:wallet:global:${featuredProjectId}:${rotationId}:${walletAddress.toLowerCase()}`;
     
     // SECURITY: Test bypass removed - no FID gets special treatment
     const isBypassEnabled = false;
@@ -240,7 +241,7 @@ export default async function handler(req, res) {
       fid,
       walletAddress: walletAddress?.slice(0, 10) + '...',
       featuredProjectId,
-      featuredAtTimestamp,
+      rotationId,
       isHolder,
       maxClaims
     });

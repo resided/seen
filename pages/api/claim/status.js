@@ -1,6 +1,6 @@
-// API route to check claim status (tied to featured project)
+// API route to check claim status (tied to featured project rotation)
 import { getRedisClient } from '../../../lib/redis';
-import { getFeaturedProject } from '../../../lib/projects';
+import { getFeaturedProject, getRotationId } from '../../../lib/projects';
 import { getTokenBalance, HOLDER_THRESHOLD } from '../../../lib/token-balance';
 
 const WHALE_CLAIM_LIMIT = 2; // Whales (30M+) can claim 2x daily
@@ -63,8 +63,9 @@ export default async function handler(req, res) {
     }
     
     // Check claim count for this specific featured rotation
-    const featuredAtTimestamp = Math.floor(featuredAt.getTime() / 1000);
-    const claimCountKey = `claim:count:${featuredProjectId}:${featuredAtTimestamp}:${fid}`;
+    // Use rotationId which only changes on explicit reset or new featured project (not timer changes)
+    const rotationId = await getRotationId();
+    const claimCountKey = `claim:count:${featuredProjectId}:${rotationId}:${fid}`;
     const claimCount = parseInt(await redis.get(claimCountKey) || '0');
     
     // User is "fully claimed" when they've used all their claims
