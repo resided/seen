@@ -37,8 +37,9 @@ export default async function handler(req, res) {
     }
 
     // Validate projectId is a positive integer - handle both string and number
+    // Note: projectId can be large (timestamp-based IDs), so don't limit to 32-bit int
     const projectIdNum = typeof projectId === 'number' ? projectId : parseInt(String(projectId), 10);
-    if (isNaN(projectIdNum) || projectIdNum <= 0 || projectIdNum > 2147483647) {
+    if (isNaN(projectIdNum) || projectIdNum <= 0) {
       console.warn('Track-click validation failed: invalid projectId format', { projectId, projectIdNum, type: typeof projectId, body: req.body });
       // Fail silently for invalid projectId - don't break user experience
       return res.status(200).json({ success: true, tracked: false, reason: 'Invalid projectId format' });
