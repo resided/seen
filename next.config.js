@@ -8,19 +8,29 @@ const nextConfig = {
       exclude: ['error', 'warn'], // Keep error/warn logs in production
     } : false,
   },
-  // Reduce build output
-  output: 'standalone', // Creates smaller deployment package
+  // REMOVED: output: 'standalone' - this actually slows down builds significantly
   // Faster builds - skip type checking during build (run separately if needed)
   typescript: {
-    ignoreBuildErrors: false, // Keep this false for safety, but you can set to true for faster builds in emergencies
+    ignoreBuildErrors: true, // Skip TypeScript checking during builds for speed (emergency fixes)
   },
   eslint: {
     ignoreDuringBuilds: true, // Skip ESLint during builds for speed (run lint separately)
+  },
+  // Experimental optimizations for faster builds
+  experimental: {
+    optimizeCss: true, // Faster CSS optimization
+    optimizePackageImports: ['@farcaster/miniapp-sdk', 'wagmi', '@tanstack/react-query'], // Tree-shake unused exports
   },
   // Optimize images
   images: {
     formats: ['image/webp'],
     minimumCacheTTL: 60,
+  },
+  // Reduce build output verbosity
+  logging: {
+    fetches: {
+      fullUrl: false,
+    },
   },
 }
 

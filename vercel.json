@@ -7,6 +7,12 @@
     }
   ],
   "buildCommand": "yarn build",
-  "installCommand": "yarn install --frozen-lockfile"
+  "installCommand": "yarn install --frozen-lockfile",
+  "framework": "nextjs",
+  "functions": {
+    "pages/api/**/*.js": {
+      "maxDuration": 30
+    }
+  }
 }
 
