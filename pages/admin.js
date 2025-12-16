@@ -710,6 +710,69 @@ export default function Admin() {
       }
     };
 
+    const handleSetMidnight = async () => {
+      // Calculate 11:59pm UK time today (or tomorrow if already past)
+      const now = new Date();
+      const ukTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/London' }));
+      
+      // Set target to 11:59pm UK time
+      let target = new Date(ukTime);
+      target.setHours(23, 59, 0, 0);
+      
+      // If it's already past 11:59pm, set for tomorrow
+      if (ukTime >= target) {
+        target.setDate(target.getDate() + 1);
+      }
+      
+      // Calculate hours until target
+      const hoursUntil = (target - ukTime) / (1000 * 60 * 60);
+      const targetTimeStr = target.toLocaleString('en-GB', { timeZone: 'Europe/London', dateStyle: 'short', timeStyle: 'short' });
+      
+      if (!confirm(`Set timer to expire at 11:59pm UK time (${targetTimeStr})?\n\nThat's approximately ${hoursUntil.toFixed(1)} hours from now.`)) return;
+      
+      setUpdating(true);
+      try {
+        // Calculate featuredAt so that featuredAt + 24h = target
+        // Convert target back to actual Date object for ISO string
+        const targetActual = new Date(target.toLocaleString('en-US', { timeZone: 'Europe/London' }));
+        // Adjust for timezone offset between local and UK
+        const localNow = new Date();
+        const ukNow = new Date(localNow.toLocaleString('en-US', { timeZone: 'Europe/London' }));
+        const offset = localNow - ukNow;
+        
+        // Target in local time
+        const targetLocal = new Date(target.getTime() + offset);
+        const newFeaturedAt = new Date(targetLocal.getTime() - 24 * 60 * 60 * 1000).toISOString();
+        
+        const response = await fetch('/api/admin/update-project', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            projectId: String(project.id),
+            featuredAt: newFeaturedAt,
+            fid: userFid || null,
+          }),
+          credentials: 'include',
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+          setMessage(`Timer set to expire at 11:59pm UK! Refreshing...`);
+          setTimeout(() => {
+            onUpdate();
+            setMessage('');
+          }, 500);
+        } else {
+          setMessage(data.error || 'Failed to update timer');
+        }
+      } catch (error) {
+        console.error('Error updating timer:', error);
+        setMessage('Error updating timer: ' + error.message);
+      } finally {
+        setUpdating(false);
+      }
+    };
+
     return (
       <div className="mt-3 p-3 border border-yellow-500/30 bg-yellow-500/5">
         <div className="flex items-center justify-between mb-2">
@@ -731,6 +794,14 @@ export default function Admin() {
                 {hours}H
               </button>
             ))}
+            <button
+              onClick={handleSetMidnight}
+              disabled={updating}
+              className="px-2 py-1 text-[9px] tracking-[0.1em] border border-purple-500/50 text-purple-400 hover:bg-purple-500/20 transition-all disabled:opacity-50"
+              title="Set to expire at 11:59pm UK time"
+            >
+              11:59PM
+            </button>
           </div>
         </div>
       </div>

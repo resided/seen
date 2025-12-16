@@ -44,7 +44,7 @@ export default async function handler(req, res) {
 
     // Send a new message
     try {
-      const { msg, user, username, fid, verified } = req.body;
+      const { msg, user, username, fid, verified, replyToId, replyToUser, replyToMsg } = req.body;
       
       // Validate fid if provided
       if (fid !== undefined && fid !== null) {
