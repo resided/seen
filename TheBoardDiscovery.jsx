@@ -173,10 +173,14 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
   }, [showTipModal, builderData, app.builderFid]);
   
   // Calculate countdown from featuredAt timestamp (24 hours from featuredAt)
+  // Stops at 00:00:00 and does nothing - manual control only
   useEffect(() => {
+    let timer = null;
+    
     const calculateCountdown = () => {
       if (!app?.featuredAt) {
         setCountdown({ h: 0, m: 0, s: 0 });
+        if (timer) clearInterval(timer);
         return;
       }
       
@@ -186,7 +190,12 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
       const diff = expiresAt - now;
       
       if (diff <= 0) {
+        // Timer reached 0 - stop updating, just display 00:00:00
         setCountdown({ h: 0, m: 0, s: 0 });
+        if (timer) {
+          clearInterval(timer);
+          timer = null;
+        }
         return;
       }
       
@@ -199,9 +208,12 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
     // Calculate immediately
     calculateCountdown();
     
-    // Update every second
-    const timer = setInterval(calculateCountdown, 1000);
-    return () => clearInterval(timer);
+    // Update every second (stops automatically when it hits 0)
+    timer = setInterval(calculateCountdown, 1000);
+    
+    return () => {
+      if (timer) clearInterval(timer);
+    };
   }, [app?.featuredAt]);
 
   // Track view when component mounts and poll for real-time stats
