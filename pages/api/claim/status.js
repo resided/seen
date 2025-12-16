@@ -3,8 +3,28 @@ import { getRedisClient } from '../../../lib/redis';
 import { getFeaturedProject, getRotationId } from '../../../lib/projects';
 import { getTokenBalance, HOLDER_THRESHOLD } from '../../../lib/token-balance';
 
-const WHALE_CLAIM_LIMIT = 2; // Whales (30M+) can claim 2x daily
-const TOKEN_AMOUNT = process.env.CLAIM_TOKEN_AMOUNT || '80000'; // Amount per claim
+// Default settings (reads from Redis if available)
+const DEFAULT_CLAIM_SETTINGS = {
+  baseClaimAmount: 80000,
+  claimMultiplier: 1,
+  holderMultiplier: 2,
+  cooldownHours: 24,
+  minNeynarScore: 0.6,
+  claimsEnabled: true,
+};
+const CLAIM_SETTINGS_KEY = 'claim:settings';
+
+// Helper to get current claim settings from Redis
+async function getClaimSettings(redis) {
+  try {
+    const settingsData = await redis.get(CLAIM_SETTINGS_KEY);
+    if (!settingsData) return DEFAULT_CLAIM_SETTINGS;
+    return { ...DEFAULT_CLAIM_SETTINGS, ...JSON.parse(settingsData) };
+  } catch (error) {
+    console.error('Error fetching claim settings:', error);
+    return DEFAULT_CLAIM_SETTINGS;
+  }
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -41,7 +61,12 @@ export default async function handler(req, res) {
     const now = new Date();
     const expired = now > expirationTime;
     
-    // Check if holder (30M+) for 2x claim benefit
+    // Get dynamic claim settings from Redis
+    const claimSettings = await getClaimSettings(redis);
+    const { baseClaimAmount, claimMultiplier, holderMultiplier } = claimSettings;
+    const tokenAmount = String(Math.floor(baseClaimAmount * claimMultiplier));
+    
+    // Check if holder (30M+) for multiple claim benefit
     let isHolder = false;
     let maxClaims = 1;
     
@@ -50,7 +75,7 @@ export default async function handler(req, res) {
         const { isHolder: holderStatus } = await getTokenBalance(walletAddress);
         isHolder = holderStatus;
         if (isHolder) {
-          maxClaims = WHALE_CLAIM_LIMIT;
+          maxClaims = holderMultiplier; // Dynamic from admin settings
         }
       } catch (balanceError) {
         console.error('Error checking holder status:', balanceError);
@@ -139,8 +164,8 @@ export default async function handler(req, res) {
       bonusTokenAmount: bonusTokenConfig?.amount || null,
       bonusTokenMaxSupply: bonusTokenConfig?.maxSupply || null,
       bonusTokenEnabled: bonusTokenConfig?.enabled || false,
-      // SEEN amount per claim
-      seenAmountPerClaim: TOKEN_AMOUNT,
+      // SEEN amount per claim (dynamic from admin settings)
+      seenAmountPerClaim: tokenAmount,
     });
   } catch (error) {
     console.error('Error checking claim status:', error);

@@ -233,43 +233,46 @@ export default async function handler(req, res) {
       });
     }
 
+    // Calculate maxClaims based on holder status (need this BEFORE cooldown check)
+    let maxClaims = 1;
+    if (isHolder) {
+      maxClaims = holderMultiplier; // Holders with 30M+ get multiple claims
+    }
+    
     // PERSONAL COOLDOWN - Independent of featured project timer
     // This cooldown is per-wallet and lasts for the configured cooldown hours
     // Timer extensions do NOT affect this. Only manual RESET CLAIMS overrides it.
     const personalCooldownKey = `claim:cooldown:${walletAddress.toLowerCase()}`;
+    const personalClaimCountKey = `claim:count:personal:${walletAddress.toLowerCase()}`;
     
-    // Check if wallet is on cooldown
+    // Check if wallet is on cooldown AND has used all claims
     const cooldownData = await redis.get(personalCooldownKey);
+    const currentPersonalClaimCount = parseInt(await redis.get(personalClaimCountKey) || '0');
+    
     if (cooldownData) {
       const cooldownExpiry = parseInt(cooldownData);
       const now = Date.now();
       const remainingMs = cooldownExpiry - now;
       
-      if (remainingMs > 0) {
+      if (remainingMs > 0 && currentPersonalClaimCount >= maxClaims) {
         const remainingHours = Math.floor(remainingMs / (1000 * 60 * 60));
         const remainingMins = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
         
-        // Check claim count to see if they've used all their claims
-        const claimCountKey = `claim:count:personal:${walletAddress.toLowerCase()}`;
-        const currentClaimCount = parseInt(await redis.get(claimCountKey) || '0');
-        
-        if (currentClaimCount >= maxClaims) {
-          console.warn('PERSONAL COOLDOWN: Wallet still on 24h cooldown:', {
-            fid,
-            walletAddress: walletAddress?.slice(0, 10) + '...',
-            remainingHours,
-            remainingMins,
-            claimCount: currentClaimCount,
-            maxClaims,
-          });
-          return res.status(400).json({
-            error: `You've already claimed. Next claim available in ${remainingHours}h ${remainingMins}m.`,
-            cooldownRemaining: remainingMs,
-            cooldownEndsAt: new Date(cooldownExpiry).toISOString(),
-            claimCount: currentClaimCount,
-            maxClaims,
-          });
-        }
+        console.warn('PERSONAL COOLDOWN: Wallet on cooldown with max claims used:', {
+          fid,
+          walletAddress: walletAddress?.slice(0, 10) + '...',
+          remainingHours,
+          remainingMins,
+          claimCount: currentPersonalClaimCount,
+          maxClaims,
+        });
+        return res.status(400).json({
+          error: `You've already claimed ${maxClaims}x. Next claim in ${remainingHours}h ${remainingMins}m.`,
+          cooldownRemaining: remainingMs,
+          cooldownEndsAt: new Date(cooldownExpiry).toISOString(),
+          claimCount: currentPersonalClaimCount,
+          maxClaims,
+        });
       }
     }
 
@@ -289,11 +292,7 @@ export default async function handler(req, res) {
     // SECURITY: Test bypass removed - no FID gets special treatment
     const isBypassEnabled = false;
     
-    // Set maxClaims based on holder status (already checked above for Neynar bypass)
-    let maxClaims = 1;
-    if (isHolder) {
-      maxClaims = holderMultiplier; // Holders with 30M+ get multiple claims per featured project
-    }
+    // maxClaims already calculated above (before cooldown check)
     
     // Log claim attempt for debugging
     console.log('Claim attempt:', {
@@ -322,7 +321,7 @@ export default async function handler(req, res) {
         globalWalletClaimCount,
         maxClaims,
         featuredProjectId,
-        featuredAtTimestamp,
+        rotationId,
       });
       return res.status(400).json({ 
         error: `This wallet has already claimed the maximum allowed (${maxClaims}) for this featured project.`,
@@ -348,7 +347,7 @@ export default async function handler(req, res) {
         globalWalletClaimCount,
         maxClaims,
         featuredProjectId,
-        featuredAtTimestamp
+        rotationId
       });
       return res.status(400).json({ 
         error: 'This wallet has already claimed the maximum allowed for this featured project',
@@ -373,7 +372,7 @@ export default async function handler(req, res) {
       maxClaims,
       isBypassEnabled,
       featuredProjectId,
-      featuredAtTimestamp,
+      rotationId,
       claimCountKey,
       walletClaimCountKey,
       globalWalletClaimCountKey,
@@ -392,7 +391,7 @@ export default async function handler(req, res) {
         newClaimCount,
         maxClaims,
         featuredProjectId,
-        featuredAtTimestamp,
+        rotationId,
         claimCountKey
       });
       return res.status(400).json({ 
@@ -419,7 +418,7 @@ export default async function handler(req, res) {
         maxClaims,
         isBypassEnabled,
         featuredProjectId,
-        featuredAtTimestamp
+        rotationId
       });
     }
     
@@ -710,14 +709,21 @@ export default async function handler(req, res) {
       const personalClaimCountKey = `claim:count:personal:${walletAddress.toLowerCase()}`;
       
       // Set or update the cooldown expiry time
-      await redis.setEx(personalCooldownKey, COOLDOWN_SECONDS, cooldownExpiry.toString());
+      // IMPORTANT: Cooldown is set from FIRST claim only - don't extend on subsequent claims
+      const existingCooldown = await redis.get(personalCooldownKey);
+      if (!existingCooldown) {
+        // First claim - set the cooldown
+        await redis.setEx(personalCooldownKey, COOLDOWN_SECONDS, cooldownExpiry.toString());
+      }
+      // If cooldown already exists, keep the original expiry (don't extend)
       
-      // Track personal claim count (how many claims used in this 24h window)
+      // Track personal claim count (how many claims used in this cooldown window)
       const personalClaimCount = await redis.incr(personalClaimCountKey);
       if (personalClaimCount === 1) {
-        // First claim in this window, set expiry
+        // First claim in this window, set expiry to match cooldown
         await redis.expire(personalClaimCountKey, COOLDOWN_SECONDS);
       }
+      // Subsequent claims: count expiry stays synced with original cooldown
       
       console.log('Personal 24h cooldown set:', {
         wallet: walletAddress?.slice(0, 10) + '...',
