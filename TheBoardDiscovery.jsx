@@ -770,6 +770,32 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
             TIP BUILDER
           </button>
         </div>
+
+        {/* Reward CTA - only show if not yet clicked */}
+        {isInFarcaster && !hasClickedMiniapp && (
+          <div className="mt-4 border-2 border-white p-4 bg-black">
+            <div className="text-center">
+              <div className="text-[10px] tracking-[0.3em] text-gray-400 mb-2">🎁 EARN 80,000 $SEEN</div>
+              <div className="text-sm text-white mb-3">
+                Click <span className="font-black">"OPEN MINI APP"</span> above, then scroll down to claim your reward!
+              </div>
+              <div className="text-[9px] tracking-[0.2em] text-gray-500">
+                ↑ TAP THE BUTTON ABOVE ↑
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Reward completed indicator */}
+        {isInFarcaster && hasClickedMiniapp && (
+          <div className="mt-4 border border-green-500/50 p-3 bg-green-500/10">
+            <div className="text-center">
+              <div className="text-[10px] tracking-[0.2em] text-green-400">
+                ✓ MINI APP OPENED • SCROLL DOWN TO CLAIM YOUR 80K $SEEN
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Tip Modal */}
@@ -2565,15 +2591,19 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
               </div>
             )}
             {!hasClickedMiniapp && isInFarcaster && (
-              <div className="mb-4 p-4 border-2 border-white bg-black">
-                <div className="text-xs font-black text-white mb-2 tracking-[0.2em]">
-                  STEP 1 REQUIRED
+              <div className="mb-4 p-4 border-2 border-yellow-400 bg-yellow-400/10 animate-pulse">
+                <div className="text-sm font-black text-yellow-400 mb-2 tracking-[0.1em] text-center">
+                  ⬆️ SCROLL UP & TAP "OPEN MINI APP" FIRST ⬆️
                 </div>
-                <div className="text-[10px] text-gray-300 mb-3 leading-relaxed">
-                  You must click <span className="font-bold text-white">"OPEN MINI APP"</span> button above first before you can claim tokens.
+                <div className="text-[10px] text-yellow-300/80 text-center">
+                  Then come back here to claim your 80,000 $SEEN
                 </div>
-                <div className="text-[9px] text-gray-500">
-                  Look for the button at the top of this page → Click it → Then come back here to claim
+              </div>
+            )}
+            {hasClickedMiniapp && isInFarcaster && !isConnected && (
+              <div className="mb-4 p-3 border border-green-500/50 bg-green-500/10">
+                <div className="text-[10px] tracking-[0.2em] text-green-400 text-center">
+                  ✓ STEP 1 COMPLETE • NOW CONNECT WALLET TO CLAIM
                 </div>
               </div>
             )}
@@ -2581,7 +2611,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
               {!isInFarcaster 
                 ? 'OPEN IN FARCASTER TO CLAIM' 
                 : !hasClickedMiniapp 
-                ? 'CLICK "OPEN MINI APP" BUTTON ABOVE FIRST'
+                ? '↑ TAP "OPEN MINI APP" BUTTON ABOVE ↑'
                 : !isConnected 
                 ? 'CONNECT WALLET TO CLAIM' 
                 : 'CLAIM EXPIRES WHEN FEATURED PROJECT CHANGES'}
