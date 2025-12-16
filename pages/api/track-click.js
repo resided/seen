@@ -25,17 +25,20 @@ export default async function handler(req, res) {
 
     // Validate inputs
     if (!projectId || !type) {
+      console.warn('Track-click validation failed: missing projectId or type', { projectId, type, body: req.body });
       return res.status(400).json({ error: 'Missing projectId or type' });
     }
 
     // Validate projectId is a positive integer
     const projectIdNum = parseInt(projectId);
     if (isNaN(projectIdNum) || projectIdNum <= 0 || projectIdNum > 2147483647) {
+      console.warn('Track-click validation failed: invalid projectId', { projectId, projectIdNum, body: req.body });
       return res.status(400).json({ error: 'Invalid projectId' });
     }
 
     // Validate type is 'click' or 'view'
     if (type !== 'click' && type !== 'view') {
+      console.warn('Track-click validation failed: invalid type', { type, body: req.body });
       return res.status(400).json({ error: 'Invalid type. Must be "click" or "view"' });
     }
 
