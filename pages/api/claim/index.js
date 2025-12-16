@@ -43,8 +43,15 @@ export default async function handler(req, res) {
   }
 
   // Rate limiting: 10 claims per IP per minute, 3 claims per wallet per hour
-  const clientIP = getClientIP(req);
-  const ipRateLimit = await checkRateLimit(`claim:ip:${clientIP}`, 10, 60000); // 10 per minute
+  let clientIP;
+  let ipRateLimit;
+  try {
+    clientIP = getClientIP(req);
+    ipRateLimit = await checkRateLimit(`claim:ip:${clientIP}`, 10, 60000); // 10 per minute
+  } catch (rateLimitError) {
+    console.error('Rate limit initialization error:', rateLimitError);
+    return res.status(500).json({ error: 'Rate limit service error' });
+  }
   if (!ipRateLimit.allowed) {
     return res.status(429).json({ 
       error: 'Too many claim requests. Please slow down.',
