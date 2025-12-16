@@ -3018,12 +3018,36 @@ export default function Seen() {
               </div>
             </div>
             {isConnected ? (
-              <div className="text-right">
-                <div className="text-[10px] tracking-[0.2em] text-gray-500">CONNECTED</div>
-                <div className="text-[9px] font-mono text-gray-400 truncate max-w-[120px]">
-                  {address?.slice(0, 6)}...{address?.slice(-4)}
-                </div>
-              </div>
+              <button
+                onClick={async () => {
+                  const fallbackUrl = `https://app.uniswap.org/swap?outputCurrency=${SEEN_TOKEN_ADDRESS}&chain=base&inputCurrency=ETH`;
+
+                  try {
+                    // Prefer Farcaster's native swapToken action if available
+                    if (isInFarcaster && sdk.actions?.swapToken) {
+                      await sdk.actions.swapToken({
+                        sellToken: BASE_ETH_CAIP19,
+                        buyToken: SEEN_CAIP19,
+                      });
+                      return;
+                    }
+
+                    // Fallback: open DEX URL in-app (or browser)
+                    if (isInFarcaster && sdk.actions?.openUrl) {
+                      await sdk.actions.openUrl({ url: fallbackUrl });
+                    } else {
+                      window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
+                    }
+                  } catch (error) {
+                    console.error('Error triggering swap:', error);
+                    // Last-resort fallback
+                    window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
+                  }
+                }}
+                className="text-[10px] tracking-[0.2em] px-4 py-2 border border-white transition-all hover:bg-white hover:text-black"
+              >
+                SWAP $SEEN
+              </button>
             ) : (
               <button 
                 onClick={() => isInFarcaster && connect({ connector: connectors[0] })}
