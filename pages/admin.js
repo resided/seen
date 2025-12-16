@@ -315,6 +315,8 @@ export default function Admin() {
         description: project.description || '',
         builder: project.builder || '',
         builderFid: project.builderFid || '',
+        tokenName: project.tokenName || '',
+        tokenContractAddress: project.tokenContractAddress || '',
         category: project.category || 'main',
         status: project.status || 'queued',
         miniapp: project.links?.miniapp || '',

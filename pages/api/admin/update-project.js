@@ -63,6 +63,7 @@ export default async function handler(req, res) {
       builder,
       builderFid,
       tokenName,
+      tokenContractAddress,
       category,
       status,
       miniapp,
