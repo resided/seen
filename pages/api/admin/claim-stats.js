@@ -57,32 +57,34 @@ export default async function handler(req, res) {
     // Count total claims for this rotation
     const claimPattern = `claim:featured:${featuredProjectId}:${featuredAtTimestamp}:*`;
     const claimKeys = [];
-    let cursor = '0'; // Redis SCAN expects string cursor
+    let cursor = 0; // Start with 0
     do {
-      const [nextCursor, foundKeys] = await redis.scan(cursor, {
+      const result = await redis.scan(cursor, {
         MATCH: claimPattern,
         COUNT: 100
       });
-      cursor = nextCursor; // Keep as string
-      if (foundKeys && foundKeys.length > 0) {
-        claimKeys.push(...foundKeys);
+      // node-redis v4+ returns { cursor: number, keys: string[] }
+      cursor = result.cursor;
+      if (result.keys && result.keys.length > 0) {
+        claimKeys.push(...result.keys);
       }
-    } while (cursor !== '0');
+    } while (cursor !== 0);
 
     // Count unique wallets
     const walletPattern = `claim:wallet:${featuredProjectId}:${featuredAtTimestamp}:*`;
     const walletKeys = [];
-    cursor = '0'; // Redis SCAN expects string cursor
+    cursor = 0; // Start with 0
     do {
-      const [nextCursor, foundKeys] = await redis.scan(cursor, {
+      const result = await redis.scan(cursor, {
         MATCH: walletPattern,
         COUNT: 100
       });
-      cursor = nextCursor; // Keep as string
-      if (foundKeys && foundKeys.length > 0) {
-        walletKeys.push(...foundKeys);
+      // node-redis v4+ returns { cursor: number, keys: string[] }
+      cursor = result.cursor;
+      if (result.keys && result.keys.length > 0) {
+        walletKeys.push(...result.keys);
       }
-    } while (cursor !== '0');
+    } while (cursor !== 0);
 
     // Count holder claims (claims > 1 per wallet)
     let holderClaims = 0;
