@@ -1921,6 +1921,7 @@ const CategoryRankings = ({ category, ethPrice, isInFarcaster = false, isConnect
 // ============================================
 // SWAP BUTTON - In-app swap to $SEEN using Farcaster wallet swapToken
 // ============================================
+// Token swap constants (moved to top for global access)
 const SEEN_TOKEN_ADDRESS = '0x82a56d595ccdfa3a1dc6eef28d5f0a870f162b07';
 const BASE_ETH_CAIP19 = 'eip155:8453/native';
 const SEEN_CAIP19 = `eip155:8453/erc20:${SEEN_TOKEN_ADDRESS.toLowerCase()}`;
