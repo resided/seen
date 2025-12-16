@@ -75,8 +75,7 @@ const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDispl
           }
         }
         
-        // Fallback: Try to get price from DEX or use a custom endpoint
-        // You can create an API endpoint at /api/seen-price that fetches from a DEX aggregator
+        // Fallback: Try to get price from our custom API endpoint
         try {
           const customPriceResponse = await fetch('/api/seen-price');
           if (customPriceResponse.ok) {
@@ -90,10 +89,10 @@ const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDispl
           console.warn('Custom price API not available:', customError);
         }
         
-        // Final fallback: use a reasonable default (you should replace this)
-        // This is a placeholder - you need to implement proper price fetching
-        console.warn('SEEN price not available, using fallback. Implement proper price source!');
-        setSeenPrice(0.001); // TODO: Replace with actual price source
+        // Final fallback: use a reasonable default
+        // This should only happen if all price sources fail
+        console.warn('SEEN price not available from any source, using fallback');
+        setSeenPrice(0.001); // Fallback - should be replaced by actual price from API
       } catch (error) {
         console.error('Error fetching SEEN price:', error);
         setSeenPrice(0.001); // Fallback price
