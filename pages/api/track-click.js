@@ -23,23 +23,25 @@ export default async function handler(req, res) {
   try {
     const { projectId, type } = req.body; // type: 'click' or 'view'
 
-    // Validate inputs
-    if (!projectId || !type) {
-      console.warn('Track-click validation failed: missing projectId or type', { projectId, type, body: req.body });
-      return res.status(400).json({ error: 'Missing projectId or type' });
+    // Validate inputs - be more lenient with projectId
+    if (projectId === undefined || projectId === null || projectId === '') {
+      console.warn('Track-click validation failed: missing projectId', { projectId, type, body: req.body });
+      // Fail silently for missing projectId - don't break user experience
+      return res.status(200).json({ success: true, tracked: false, reason: 'Missing projectId' });
     }
 
-    // Validate projectId is a positive integer
-    const projectIdNum = parseInt(projectId);
+    if (!type || (type !== 'click' && type !== 'view')) {
+      console.warn('Track-click validation failed: invalid type', { projectId, type, body: req.body });
+      // Fail silently for invalid type - don't break user experience
+      return res.status(200).json({ success: true, tracked: false, reason: 'Invalid type' });
+    }
+
+    // Validate projectId is a positive integer - handle both string and number
+    const projectIdNum = typeof projectId === 'number' ? projectId : parseInt(String(projectId), 10);
     if (isNaN(projectIdNum) || projectIdNum <= 0 || projectIdNum > 2147483647) {
-      console.warn('Track-click validation failed: invalid projectId', { projectId, projectIdNum, body: req.body });
-      return res.status(400).json({ error: 'Invalid projectId' });
-    }
-
-    // Validate type is 'click' or 'view'
-    if (type !== 'click' && type !== 'view') {
-      console.warn('Track-click validation failed: invalid type', { type, body: req.body });
-      return res.status(400).json({ error: 'Invalid type. Must be "click" or "view"' });
+      console.warn('Track-click validation failed: invalid projectId format', { projectId, projectIdNum, type: typeof projectId, body: req.body });
+      // Fail silently for invalid projectId - don't break user experience
+      return res.status(200).json({ success: true, tracked: false, reason: 'Invalid projectId format' });
     }
 
     const redis = await getRedisClient();
