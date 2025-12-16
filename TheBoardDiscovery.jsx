@@ -2270,6 +2270,17 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
                 })
                   .then(res => res.json())
                   .then(statusData => {
+                    // Update claim counts from fresh status
+                    if (statusData.claimCount !== undefined) {
+                      setClaimCount(statusData.claimCount);
+                    }
+                    if (statusData.maxClaims !== undefined) {
+                      setMaxClaims(statusData.maxClaims);
+                    }
+                    if (statusData.canClaimAgain !== undefined) {
+                      setClaimed(!statusData.canClaimAgain);
+                    }
+                    // Update bonus token info
                     if (statusData.bonusTokenRemaining !== undefined) {
                       setBonusTokenRemaining(statusData.bonusTokenRemaining);
                     }
