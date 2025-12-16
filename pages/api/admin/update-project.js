@@ -10,16 +10,23 @@ const RATE_LIMIT_REQUESTS = 20; // Max 20 update actions
 const RATE_LIMIT_WINDOW = 60000; // Per minute
 
 function isAuthenticated(req) {
-  // Check FID authentication (Farcaster)
-  const { fid } = req.body || {};
-  if (fid && parseInt(fid) === ADMIN_FID) {
+  // SECURITY: Require ADMIN_SECRET for all admin operations
+  const adminSecret = process.env.ADMIN_SECRET;
+  if (!adminSecret) {
+    console.error('ADMIN_SECRET not configured - admin endpoints disabled');
+    return false;
+  }
+  
+  // Check for secret in header or body
+  const providedSecret = req.headers['x-admin-secret'] || req.body?.adminSecret;
+  if (providedSecret && providedSecret === adminSecret) {
     return true;
   }
 
-  // Check session cookie (web login)
+  // Check session cookie (web login) - only if ADMIN_PASSWORD is properly set
   const cookies = parse(req.headers.cookie || '');
   const sessionToken = cookies.admin_session;
-  if (sessionToken) {
+  if (sessionToken && process.env.ADMIN_PASSWORD && process.env.ADMIN_PASSWORD !== 'changeme123') {
     return true;
   }
 
