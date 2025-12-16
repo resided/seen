@@ -1469,7 +1469,7 @@ export default function Admin() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-2xl font-black">BONUS TOKEN CONFIGURATION</h2>
-                  <p className="text-xs text-gray-500 mt-1">Configure a bonus token to be sent alongside $SEEN claims (for future campaigns)</p>
+                  <p className="text-xs text-gray-500 mt-1">Configure ANY bonus token to be sent alongside $SEEN claims. Works for any ERC20 token on Base - DONUT, or any token someone wants to feature.</p>
                 </div>
                 <button
                   onClick={() => setShowBonusTokenConfig(false)}
@@ -1562,7 +1562,8 @@ export default function Admin() {
                     </div>
                     <div className="p-3 bg-yellow-900/20 border border-yellow-500 text-yellow-400 text-xs">
                       <strong>NOTE:</strong> When enabled, this bonus token will be sent alongside $SEEN for all new claims. 
-                      Each wallet can receive the bonus token once. The bonus token will override DONUT if configured.
+                      Each wallet can receive the bonus token once. Works for ANY token - DONUT, or any other token someone wants to feature. 
+                      The bonus token system takes priority over the hardcoded DONUT campaign.
                     </div>
                   </>
                 )}

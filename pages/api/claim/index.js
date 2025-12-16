@@ -456,14 +456,12 @@ export default async function handler(req, res) {
       // User can get DONUT if: global available AND we just marked them (they didn't have it before)
       const donutAvailable = donutGlobalAvailable && userCanGetDonut;
 
-      // Check configurable bonus token (if enabled and different from DONUT)
+      // Check configurable bonus token (works for ANY token - DONUT, or any other token someone wants to feature)
       let bonusTokenAvailable = false;
       
-      if (bonusTokenConfig && bonusTokenConfig.enabled && 
-          bonusTokenConfig.contractAddress && 
-          bonusTokenConfig.contractAddress.toLowerCase() !== DONUT_TOKEN_CONTRACT.toLowerCase()) {
-        // Different bonus token configured - use that instead
-        userBonusTokenKey = `bonus:user:${walletAddress.toLowerCase()}`;
+      if (bonusTokenConfig && bonusTokenConfig.enabled && bonusTokenConfig.contractAddress) {
+        // Any bonus token configured - use that (could be DONUT, or any other token)
+        userBonusTokenKey = `bonus:user:${walletAddress.toLowerCase()}:${bonusTokenConfig.contractAddress.toLowerCase()}`;
         bonusTokenCountKey = `bonus:count:given:${bonusTokenConfig.contractAddress.toLowerCase()}`;
         
         const userBonusLockResult = await redis.set(userBonusTokenKey, '1', { NX: true });
@@ -535,11 +533,11 @@ export default async function handler(req, res) {
         args: [walletAddress, seenAmountWei],
       });
 
-      // Send DONUT token if available (1 per user max) - CURRENT CAMPAIGN
+      // Send DONUT token if available (1 per user max) - CURRENT CAMPAIGN ONLY
+      // NOTE: For future campaigns, configure DONUT (or any token) through the bonus token system
       let donutHash = null;
-      if (donutAvailable && (!bonusTokenConfig || !bonusTokenConfig.enabled || 
-          bonusTokenConfig.contractAddress.toLowerCase() === DONUT_TOKEN_CONTRACT.toLowerCase())) {
-        // Only send DONUT if no bonus token is configured, or if bonus token IS DONUT
+      if (donutAvailable && (!bonusTokenConfig || !bonusTokenConfig.enabled)) {
+        // Only send DONUT if no bonus token is configured (bonus token system takes priority)
         const donutAmountWei = parseUnits(DONUT_TOKEN_AMOUNT, DONUT_TOKEN_DECIMALS);
         donutHash = await walletClient.writeContract({
           address: DONUT_TOKEN_CONTRACT,
@@ -556,7 +554,7 @@ export default async function handler(req, res) {
         await redis.del(userDonutKey);
       }
 
-      // Send configurable bonus token if available (different from DONUT)
+      // Send configurable bonus token if available (works for ANY token - DONUT, or any other token)
       if (bonusTokenAvailable && bonusTokenConfig) {
         const bonusAmountWei = parseUnits(bonusTokenConfig.amount, parseInt(bonusTokenConfig.decimals || '18'));
         bonusTokenHash = await walletClient.writeContract({
@@ -637,7 +635,7 @@ export default async function handler(req, res) {
       donutTxHash: donutHash, // DONUT transaction hash if sent (current campaign)
       bonusTokenTxHash: bonusTokenHash, // Configurable bonus token transaction hash if sent
       amount: seenAmount, // Actual SEEN amount sent
-      donutIncluded: donutAvailable && (!bonusTokenConfig || !bonusTokenConfig.enabled || bonusTokenConfig.contractAddress.toLowerCase() === DONUT_TOKEN_CONTRACT.toLowerCase()), // Whether DONUT was included
+      donutIncluded: donutAvailable && (!bonusTokenConfig || !bonusTokenConfig.enabled), // Whether DONUT was included (only if no bonus token configured)
       bonusTokenIncluded: bonusTokenAvailable, // Whether configurable bonus token was included
       bonusTokenName: bonusTokenConfig?.tokenName || null, // Name of bonus token if sent
       donutRemaining: Math.max(0, DONUT_MAX_SUPPLY - donutCountGiven - (donutAvailable ? 1 : 0)), // Remaining DONUT tokens
