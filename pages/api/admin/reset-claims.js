@@ -255,9 +255,11 @@ export default async function handler(req, res) {
       throw new Error(`Failed to delete keys: ${delError.message}`);
     }
 
-    // Optionally reset DONUT data (if resetDonut is true)
+    // Optionally reset DONUT and bonus token data (if resetDonut is true)
     let donutUsersReset = 0;
     let donutCountReset = false;
+    let bonusUsersReset = 0;
+    let bonusCountsReset = 0;
     if (resetDonut === true) {
       // Reset global DONUT count
       await redis.del('donut:count:given');
@@ -290,6 +292,62 @@ export default async function handler(req, res) {
         } catch (donutDelError) {
           console.error('Error deleting DONUT user keys:', donutDelError);
           throw new Error(`Failed to delete DONUT user keys: ${donutDelError.message}`);
+        }
+      }
+      
+      // Also reset all BONUS TOKEN user flags (for admin-configured bonus tokens like DONUT)
+      const bonusUserPattern = 'bonus:user:*';
+      const bonusUserKeys = [];
+      cursor = 0;
+      try {
+        do {
+          const [nextCursor, foundKeys] = await redis.scan(cursor, {
+            MATCH: bonusUserPattern,
+            COUNT: 100
+          });
+          cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
+          if (foundKeys && foundKeys.length > 0) {
+            bonusUserKeys.push(...foundKeys);
+          }
+        } while (cursor !== 0);
+      } catch (scanError) {
+        console.error('Error scanning for bonus user keys:', scanError);
+      }
+      
+      if (bonusUserKeys.length > 0) {
+        try {
+          await redis.del(bonusUserKeys);
+          bonusUsersReset = bonusUserKeys.length;
+        } catch (bonusDelError) {
+          console.error('Error deleting bonus user keys:', bonusDelError);
+        }
+      }
+      
+      // Reset all BONUS TOKEN count keys
+      const bonusCountPattern = 'bonus:count:given:*';
+      const bonusCountKeys = [];
+      cursor = 0;
+      try {
+        do {
+          const [nextCursor, foundKeys] = await redis.scan(cursor, {
+            MATCH: bonusCountPattern,
+            COUNT: 100
+          });
+          cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
+          if (foundKeys && foundKeys.length > 0) {
+            bonusCountKeys.push(...foundKeys);
+          }
+        } while (cursor !== 0);
+      } catch (scanError) {
+        console.error('Error scanning for bonus count keys:', scanError);
+      }
+      
+      if (bonusCountKeys.length > 0) {
+        try {
+          await redis.del(bonusCountKeys);
+          bonusCountsReset = bonusCountKeys.length;
+        } catch (bonusDelError) {
+          console.error('Error deleting bonus count keys:', bonusDelError);
         }
       }
     }
@@ -360,7 +418,7 @@ export default async function handler(req, res) {
     
     let message = `Reset ${keys.length} claim(s), ${countKeys.length} FID count(s), ${walletKeys.length} wallet count(s), ${walletLockKeys.length} wallet lock(s), ${globalWalletKeys.length} global wallet count(s), ${txKeys.length} transaction(s), and ${personalCooldownsReset} personal cooldown(s) for featured project ${featuredProjectId}`;
     if (resetDonut) {
-      message += `. Also reset DONUT data: ${donutUsersReset} user(s) and global count.`;
+      message += `. Also reset DONUT data: ${donutUsersReset} user(s) and global count. Bonus token data: ${bonusUsersReset} user(s), ${bonusCountsReset} count key(s).`;
     }
 
     return res.status(200).json({
@@ -375,6 +433,8 @@ export default async function handler(req, res) {
       donutReset: resetDonut === true,
       donutUsersReset,
       donutCountReset,
+      bonusUsersReset,
+      bonusCountsReset,
       featuredProjectId,
       featuredProjectName: featuredProject.name,
       featuredAt: featuredAt.toISOString(),
