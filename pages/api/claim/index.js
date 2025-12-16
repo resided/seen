@@ -53,53 +53,67 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { fid, walletAddress, txHash } = req.body;
+    let { fid, walletAddress, txHash } = req.body;
 
     // Validate and sanitize inputs
-    if (!fid || isNaN(parseInt(fid)) || parseInt(fid) <= 0) {
+    if (!fid) {
+      return res.status(400).json({ error: 'FID is required' });
+    }
+
+    // Parse and validate FID
+    const fidNum = parseInt(fid);
+    if (isNaN(fidNum) || fidNum <= 0) {
       return res.status(400).json({ error: 'Invalid FID' });
     }
+    fid = fidNum; // Use parsed integer
 
-    if (walletAddress && (!walletAddress.match(/^0x[a-fA-F0-9]{40}$/))) {
-      return res.status(400).json({ error: 'Invalid wallet address format' });
-    }
-
-    if (txHash && (!txHash.match(/^0x[a-fA-F0-9]{64}$/))) {
-      return res.status(400).json({ error: 'Invalid transaction hash format' });
-    }
-
-    // Additional wallet-level rate limiting
+    // Validate wallet address format if provided
     if (walletAddress) {
-      const walletRateLimit = await checkRateLimit(`claim:wallet:${walletAddress.toLowerCase()}`, 3, 3600000); // 3 per hour
+      const walletLower = walletAddress.toLowerCase().trim();
+      if (!walletLower.match(/^0x[a-fA-F0-9]{40}$/)) {
+        return res.status(400).json({ error: 'Invalid wallet address format' });
+      }
+      walletAddress = walletLower; // Normalize to lowercase
+    }
+
+    // Validate transaction hash format if provided
+    if (txHash) {
+      const txHashLower = txHash.toLowerCase().trim();
+      if (!txHashLower.match(/^0x[a-fA-F0-9]{64}$/)) {
+        return res.status(400).json({ error: 'Invalid transaction hash format' });
+      }
+      txHash = txHashLower; // Normalize to lowercase
+    }
+
+    // Either walletAddress OR txHash is required
+    if (!walletAddress && !txHash) {
+      return res.status(400).json({ error: 'Wallet address or transaction hash is required for claiming' });
+    }
+
+    // Additional wallet-level rate limiting (only if walletAddress provided)
+    if (walletAddress) {
+      const walletRateLimit = await checkRateLimit(`claim:wallet:${walletAddress}`, 3, 3600000); // 3 per hour
       if (!walletRateLimit.allowed) {
         return res.status(429).json({ 
           error: 'Too many claims from this wallet. Please wait before claiming again.',
           retryAfter: Math.ceil((walletRateLimit.resetAt - Date.now()) / 1000)
         });
       }
-    }
 
-    // SECURITY: Blocklist known exploiter wallets
-    const BLOCKED_WALLETS = [
-      '0xda9623023a2dd7f1ce4e68772c3a0b57ad420260',
-      '0x1915a871dea94e538a3c9ec671574ffdee6e7c45',
-    ];
-    if (walletAddress && BLOCKED_WALLETS.includes(walletAddress.toLowerCase())) {
-      console.error('BLOCKED WALLET ATTEMPTED CLAIM:', walletAddress);
-      return res.status(403).json({ error: 'Wallet blocked due to suspicious activity' });
+      // SECURITY: Blocklist known exploiter wallets
+      const BLOCKED_WALLETS = [
+        '0xda9623023a2dd7f1ce4e68772c3a0b57ad420260',
+        '0x1915a871dea94e538a3c9ec671574ffdee6e7c45',
+      ];
+      if (BLOCKED_WALLETS.includes(walletAddress)) {
+        console.error('BLOCKED WALLET ATTEMPTED CLAIM:', walletAddress);
+        return res.status(403).json({ error: 'Wallet blocked due to suspicious activity' });
+      }
     }
 
     const redis = await getRedisClient();
     if (!redis) {
       return res.status(500).json({ error: 'Service unavailable' });
-    }
-
-    if (!fid) {
-      return res.status(400).json({ error: 'FID is required' });
-    }
-
-    if (!walletAddress && !txHash) {
-      return res.status(400).json({ error: 'Wallet address is required for claiming' });
     }
 
     // Check if user is a 30M+ holder first (holders bypass Neynar score requirement)
@@ -118,7 +132,7 @@ export default async function handler(req, res) {
     const apiKey = process.env.NEYNAR_API_KEY;
     if (apiKey && !isHolder) { // Only check Neynar score if not a 30M+ holder
       try {
-        const user = await fetchUserByFid(parseInt(fid), apiKey);
+        const user = await fetchUserByFid(fid, apiKey);
         if (user) {
           const userScore = user.experimental?.neynar_user_score;
           
