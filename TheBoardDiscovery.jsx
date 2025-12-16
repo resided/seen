@@ -440,9 +440,10 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
                   window.open(`https://basescan.org/address/${app.tokenContractAddress}`, '_blank', 'noopener,noreferrer');
                 }
               }}
-              className="text-xs font-mono text-white hover:text-gray-300 border border-white/50 px-3 py-2 hover:bg-white/10 transition-all break-all text-left"
+              className="text-[10px] font-mono text-white hover:text-gray-300 border border-white/50 px-2 py-1.5 hover:bg-white/10 transition-all text-left w-full truncate"
+              title={app.tokenContractAddress}
             >
-              {app.tokenContractAddress}
+              {app.tokenContractAddress.slice(0, 6)}...{app.tokenContractAddress.slice(-4)}
             </button>
             {app.tokenName && (
               <div className="text-[10px] text-gray-500 mt-1">
