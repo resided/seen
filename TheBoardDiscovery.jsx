@@ -771,33 +771,20 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
           </button>
         </div>
 
-        {/* Reward CTA - only show if not yet clicked */}
-        {isInFarcaster && !hasClickedMiniapp && (
-          <div className="mt-4 border-2 border-white p-4 bg-black">
-            <div className="text-center">
-              <div className="text-xs font-black text-white mb-2">
-                STEP 1: CLICK THE BUTTON ABOVE
-              </div>
-              <div className="text-sm font-black text-white mb-2">
-                &gt;&gt; OPEN MINI APP &lt;&lt;
-              </div>
-              <div className="text-[10px] text-gray-400">
-                Then scroll down to Featured Claim to claim $SEEN and any bonus tokens
-              </div>
+        {/* Instructions box - always visible */}
+        <div className="mt-4 border border-white p-4 bg-black">
+          <div className="text-center">
+            <div className="text-xs font-black tracking-[0.2em] text-white mb-2">
+              CLICK THE BUTTON ABOVE
+            </div>
+            <div className="text-sm font-black text-white mb-2">
+              &gt;&gt; OPEN MINI APP &lt;&lt;
+            </div>
+            <div className="text-[10px] text-gray-400">
+              THEN SCROLL DOWN TO CLAIM YOUR TOKENS
             </div>
           </div>
-        )}
-        
-        {/* Reward completed indicator */}
-        {isInFarcaster && hasClickedMiniapp && (
-          <div className="mt-4 border border-white p-3 bg-black">
-            <div className="text-center">
-              <div className="text-xs font-black tracking-[0.2em] text-white">
-                SCROLL DOWN TO CLAIM YOUR TOKENS
-              </div>
-            </div>
-          </div>
-        )}
+        </div>
       </div>
 
       {/* Tip Modal */}
