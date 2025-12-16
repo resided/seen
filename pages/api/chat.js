@@ -7,10 +7,10 @@ export default async function handler(req, res) {
     // Fetch messages
     const { since } = req.query;
     
-    // Rate limiting: 60 requests per IP per minute
+    // Rate limiting: 300 requests per IP per minute (allows multiple polling clients)
     const { checkRateLimit, getClientIP } = await import('../../lib/rate-limit');
     const clientIP = getClientIP(req);
-    const rateLimit = await checkRateLimit(`chat:get:${clientIP}`, 60, 60000);
+    const rateLimit = await checkRateLimit(`chat:get:${clientIP}`, 300, 60000);
     if (!rateLimit.allowed) {
       return res.status(429).json({ 
         error: 'Too many requests. Please slow down.',
