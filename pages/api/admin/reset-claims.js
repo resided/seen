@@ -98,130 +98,56 @@ export default async function handler(req, res) {
       resetDonut
     });
     
+    // Helper function to scan Redis keys with v5 compatibility
+    const scanKeys = async (scanPattern) => {
+      const foundKeys = [];
+      try {
+        // Try scanIterator first (node-redis v5)
+        for await (const key of redis.scanIterator({ MATCH: scanPattern, COUNT: 100 })) {
+          foundKeys.push(key);
+        }
+      } catch (err) {
+        console.warn(`scanIterator failed for ${scanPattern}, trying fallback:`, err.message);
+        // Fallback to manual scan
+        try {
+          let cursor = '0';
+          do {
+            const result = await redis.scan(cursor, { MATCH: scanPattern, COUNT: 100 });
+            cursor = String(result.cursor ?? result[0] ?? '0');
+            const keys = result.keys || result[1] || [];
+            if (keys.length > 0) foundKeys.push(...keys);
+          } while (cursor !== '0');
+        } catch (fallbackErr) {
+          console.error(`Fallback scan also failed for ${scanPattern}:`, fallbackErr.message);
+        }
+      }
+      return foundKeys;
+    };
+
     // Find all claim keys for this specific featured rotation (old rotation ID)
     // Pattern includes rotation ID to only reset current rotation
     const pattern = `claim:featured:${featuredProjectId}:${oldRotationId}:*`;
-    const keys = [];
-    
-    // Redis SCAN to find all matching keys
-    // redis.scan() returns [cursor, keys] tuple in node-redis v4+
-    let cursor = 0;
-    try {
-      do {
-        const [nextCursor, foundKeys] = await redis.scan(cursor, {
-          MATCH: pattern,
-          COUNT: 100
-        });
-        // Cursor might be string "0" or number 0, convert to number for comparison
-        cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
-        if (foundKeys && foundKeys.length > 0) {
-          keys.push(...foundKeys);
-        }
-      } while (cursor !== 0);
-    } catch (scanError) {
-      console.error('Error scanning for claim keys:', scanError);
-      throw new Error(`Failed to scan for claim keys: ${scanError.message}`);
-    }
+    const keys = await scanKeys(pattern);
 
     // Also find transaction hash keys for this specific featured rotation
     const txPattern = `claim:tx:${featuredProjectId}:${oldRotationId}:*`;
-    const txKeys = [];
-    cursor = 0;
-    try {
-      do {
-        const [nextCursor, foundKeys] = await redis.scan(cursor, {
-          MATCH: txPattern,
-          COUNT: 100
-        });
-        cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
-        if (foundKeys && foundKeys.length > 0) {
-          txKeys.push(...foundKeys);
-        }
-      } while (cursor !== 0);
-    } catch (scanError) {
-      console.error('Error scanning for tx keys:', scanError);
-      throw new Error(`Failed to scan for transaction keys: ${scanError.message}`);
-    }
+    const txKeys = await scanKeys(txPattern);
 
     // Also find claim count keys for this specific featured rotation
     const countPattern = `claim:count:${featuredProjectId}:${oldRotationId}:*`;
-    const countKeys = [];
-    cursor = 0;
-    try {
-      do {
-        const [nextCursor, foundKeys] = await redis.scan(cursor, {
-          MATCH: countPattern,
-          COUNT: 100
-        });
-        cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
-        if (foundKeys && foundKeys.length > 0) {
-          countKeys.push(...foundKeys);
-        }
-      } while (cursor !== 0);
-    } catch (scanError) {
-      console.error('Error scanning for count keys:', scanError);
-      throw new Error(`Failed to scan for count keys: ${scanError.message}`);
-    }
+    const countKeys = await scanKeys(countPattern);
 
     // Also find wallet claim count keys for this specific featured rotation (security feature)
     const walletPattern = `claim:wallet:${featuredProjectId}:${oldRotationId}:*`;
-    const walletKeys = [];
-    cursor = 0;
-    try {
-      do {
-        const [nextCursor, foundKeys] = await redis.scan(cursor, {
-          MATCH: walletPattern,
-          COUNT: 100
-        });
-        cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
-        if (foundKeys && foundKeys.length > 0) {
-          walletKeys.push(...foundKeys);
-        }
-      } while (cursor !== 0);
-    } catch (scanError) {
-      console.error('Error scanning for wallet keys:', scanError);
-      throw new Error(`Failed to scan for wallet keys: ${scanError.message}`);
-    }
+    const walletKeys = await scanKeys(walletPattern);
 
     // CRITICAL: Also find wallet lock keys for this featured rotation (prevents multi-claim exploits)
     const walletLockPattern = `claim:wallet:lock:*`;
-    const walletLockKeys = [];
-    cursor = 0;
-    try {
-      do {
-        const [nextCursor, foundKeys] = await redis.scan(cursor, {
-          MATCH: walletLockPattern,
-          COUNT: 100
-        });
-        cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
-        if (foundKeys && foundKeys.length > 0) {
-          walletLockKeys.push(...foundKeys);
-        }
-      } while (cursor !== 0);
-    } catch (scanError) {
-      console.error('Error scanning for wallet lock keys:', scanError);
-      throw new Error(`Failed to scan for wallet lock keys: ${scanError.message}`);
-    }
+    const walletLockKeys = await scanKeys(walletLockPattern);
 
     // CRITICAL: Also find global wallet claim count keys (prevents cross-rotation exploits)
     const globalWalletPattern = `claim:wallet:global:*`;
-    const globalWalletKeys = [];
-    cursor = 0;
-    try {
-      do {
-        const [nextCursor, foundKeys] = await redis.scan(cursor, {
-          MATCH: globalWalletPattern,
-          COUNT: 100
-        });
-        cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
-        if (foundKeys && foundKeys.length > 0) {
-          globalWalletKeys.push(...foundKeys);
-        }
-      } while (cursor !== 0);
-    } catch (scanError) {
-      console.error('Error scanning for global wallet keys:', scanError);
-      throw new Error(`Failed to scan for global wallet keys: ${scanError.message}`);
-    }
+    const globalWalletKeys = await scanKeys(globalWalletPattern);
 
     // Delete all claim keys for this featured project
     try {
@@ -266,54 +192,18 @@ export default async function handler(req, res) {
       donutCountReset = true;
       
       // Reset all user DONUT flags
-      const donutUserPattern = 'donut:user:*';
-      const donutUserKeys = [];
-      cursor = 0;
-      try {
-        do {
-          const [nextCursor, foundKeys] = await redis.scan(cursor, {
-            MATCH: donutUserPattern,
-            COUNT: 100
-          });
-          cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
-          if (foundKeys && foundKeys.length > 0) {
-            donutUserKeys.push(...foundKeys);
-          }
-        } while (cursor !== 0);
-      } catch (scanError) {
-        console.error('Error scanning for DONUT user keys:', scanError);
-        throw new Error(`Failed to scan for DONUT user keys: ${scanError.message}`);
-      }
-      
+      const donutUserKeys = await scanKeys('donut:user:*');
       if (donutUserKeys.length > 0) {
         try {
           await redis.del(donutUserKeys);
           donutUsersReset = donutUserKeys.length;
         } catch (donutDelError) {
           console.error('Error deleting DONUT user keys:', donutDelError);
-          throw new Error(`Failed to delete DONUT user keys: ${donutDelError.message}`);
         }
       }
       
       // Also reset all BONUS TOKEN user flags (for admin-configured bonus tokens like DONUT)
-      const bonusUserPattern = 'bonus:user:*';
-      const bonusUserKeys = [];
-      cursor = 0;
-      try {
-        do {
-          const [nextCursor, foundKeys] = await redis.scan(cursor, {
-            MATCH: bonusUserPattern,
-            COUNT: 100
-          });
-          cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
-          if (foundKeys && foundKeys.length > 0) {
-            bonusUserKeys.push(...foundKeys);
-          }
-        } while (cursor !== 0);
-      } catch (scanError) {
-        console.error('Error scanning for bonus user keys:', scanError);
-      }
-      
+      const bonusUserKeys = await scanKeys('bonus:user:*');
       if (bonusUserKeys.length > 0) {
         try {
           await redis.del(bonusUserKeys);
@@ -324,24 +214,7 @@ export default async function handler(req, res) {
       }
       
       // Reset all BONUS TOKEN count keys
-      const bonusCountPattern = 'bonus:count:given:*';
-      const bonusCountKeys = [];
-      cursor = 0;
-      try {
-        do {
-          const [nextCursor, foundKeys] = await redis.scan(cursor, {
-            MATCH: bonusCountPattern,
-            COUNT: 100
-          });
-          cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
-          if (foundKeys && foundKeys.length > 0) {
-            bonusCountKeys.push(...foundKeys);
-          }
-        } while (cursor !== 0);
-      } catch (scanError) {
-        console.error('Error scanning for bonus count keys:', scanError);
-      }
-      
+      const bonusCountKeys = await scanKeys('bonus:count:given:*');
       if (bonusCountKeys.length > 0) {
         try {
           await redis.del(bonusCountKeys);
@@ -354,42 +227,8 @@ export default async function handler(req, res) {
 
     // CLEAR ALL PERSONAL 24-HOUR COOLDOWNS
     // This allows everyone to claim again immediately
-    const personalCooldownPattern = 'claim:cooldown:*';
-    const personalCooldownKeys = [];
-    let cooldownCursor = 0;
-    try {
-      do {
-        const [nextCursor, foundKeys] = await redis.scan(cooldownCursor, {
-          MATCH: personalCooldownPattern,
-          COUNT: 100
-        });
-        cooldownCursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
-        if (foundKeys && foundKeys.length > 0) {
-          personalCooldownKeys.push(...foundKeys);
-        }
-      } while (cooldownCursor !== 0);
-    } catch (scanError) {
-      console.error('Error scanning for personal cooldown keys:', scanError);
-    }
-    
-    // Also clear personal claim count keys
-    const personalClaimCountPattern = 'claim:count:personal:*';
-    const personalClaimCountKeys = [];
-    cooldownCursor = 0;
-    try {
-      do {
-        const [nextCursor, foundKeys] = await redis.scan(cooldownCursor, {
-          MATCH: personalClaimCountPattern,
-          COUNT: 100
-        });
-        cooldownCursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
-        if (foundKeys && foundKeys.length > 0) {
-          personalClaimCountKeys.push(...foundKeys);
-        }
-      } while (cooldownCursor !== 0);
-    } catch (scanError) {
-      console.error('Error scanning for personal claim count keys:', scanError);
-    }
+    const personalCooldownKeys = await scanKeys('claim:cooldown:*');
+    const personalClaimCountKeys = await scanKeys('claim:count:personal:*');
     
     let personalCooldownsReset = 0;
     if (personalCooldownKeys.length > 0 || personalClaimCountKeys.length > 0) {
