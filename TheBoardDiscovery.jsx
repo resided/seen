@@ -3198,9 +3198,9 @@ export default function Seen() {
                   }
                   setShowInstallPrompt(false);
                 }}
-                className="flex-1 py-3 bg-white text-black font-black text-sm tracking-[0.2em] hover:bg-gray-200 transition-all"
+                className="flex-1 py-4 bg-white text-black font-black text-sm tracking-[0.25em] hover:bg-gray-200 transition-all animate-pulse shadow-[0_0_25px_rgba(255,255,255,0.7)]"
               >
-                OPEN MINI APP
+                STEP 1: OPEN MINI APP
               </button>
             </div>
           </div>
