@@ -419,66 +419,44 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
         {/* Token Contract Address (for token submissions) */}
         {app.tokenContractAddress && app.category === 'tokens' && (
           <div className="mb-6">
-            <div className="text-[10px] tracking-[0.2em] text-gray-500 mb-2">TOKEN CONTRACT</div>
             <button
               onClick={async () => {
                 if (!isInFarcaster) return;
                 
                 try {
-                  // Try multiple formats to open token in Farcaster wallet
                   const contractAddress = app.tokenContractAddress.toLowerCase();
+                  const tokenCAIP19 = `eip155:8453/erc20:${contractAddress}`;
+                  const fallbackUrl = `https://app.uniswap.org/swap?outputCurrency=${contractAddress}&chain=base&inputCurrency=ETH`;
                   
-                  // Format 1: Try Base wallet deep link format
-                  const baseWalletLink = `base://token/${contractAddress}`;
-                  
-                  // Format 2: Try Farcaster wallet format
-                  const farcasterWalletLink = `farcaster://wallet/token/${contractAddress}`;
-                  
-                  // Format 3: Use BaseScan URL (wallet may intercept and show token view)
-                  const basescanUrl = `https://basescan.org/token/${contractAddress}`;
-                  
-                  // Try Base wallet link first
-                  try {
-                    if (sdk.actions?.openUrl) {
-                      await sdk.actions.openUrl({ url: baseWalletLink });
-                      return;
-                    }
-                  } catch (e) {
-                    console.log('Base wallet link failed, trying Farcaster format');
+                  // Prefer Farcaster's native swapToken action if available
+                  if (sdk.actions?.swapToken) {
+                    await sdk.actions.swapToken({
+                      sellToken: BASE_ETH_CAIP19,
+                      buyToken: tokenCAIP19,
+                    });
+                    return;
                   }
                   
-                  // Try Farcaster wallet link
-                  try {
-                    if (sdk.actions?.openUrl) {
-                      await sdk.actions.openUrl({ url: farcasterWalletLink });
-                      return;
-                    }
-                  } catch (e) {
-                    console.log('Farcaster wallet link failed, trying BaseScan');
-                  }
-                  
-                  // Fallback to BaseScan (wallet may show token view)
+                  // Fallback: open DEX URL in-app (or browser)
                   if (sdk.actions?.openUrl) {
-                    await sdk.actions.openUrl({ url: basescanUrl });
+                    await sdk.actions.openUrl({ url: fallbackUrl });
                   } else {
-                    window.open(basescanUrl, '_blank', 'noopener,noreferrer');
+                    window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
                   }
                 } catch (error) {
-                  console.error('Error opening token:', error);
-                  // Final fallback
-                  window.open(`https://basescan.org/token/${app.tokenContractAddress}`, '_blank', 'noopener,noreferrer');
+                  console.error('Error triggering swap:', error);
+                  // Last-resort fallback
+                  const fallbackUrl = `https://app.uniswap.org/swap?outputCurrency=${app.tokenContractAddress}&chain=base&inputCurrency=ETH`;
+                  window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
                 }
               }}
-              className="text-[10px] font-mono text-white hover:text-gray-300 border border-white/50 px-2 py-1.5 hover:bg-white/10 transition-all text-left w-full truncate"
-              title={app.tokenContractAddress}
+              className="w-full px-4 py-3 border-2 border-white font-black text-sm tracking-[0.2em] hover:bg-white hover:text-black transition-all"
             >
-              {app.tokenContractAddress.slice(0, 6)}...{app.tokenContractAddress.slice(-4)}
+              SWAP {app.tokenName ? app.tokenName.toUpperCase() : 'TOKEN'}
             </button>
-            {app.tokenName && (
-              <div className="text-[10px] text-gray-500 mt-1">
-                {app.tokenName}
-              </div>
-            )}
+            <div className="text-[9px] text-gray-600 mt-2 text-center">
+              SWAP ETH FOR {app.tokenName ? app.tokenName.toUpperCase() : 'THIS TOKEN'} USING FARCASTER WALLET
+            </div>
           </div>
         )}
 
@@ -1435,68 +1413,44 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
               </div>
             )}
 
-            {/* Token Contract Address (for token submissions) */}
+            {/* Token Swap Button (for token submissions) */}
             {project.tokenContractAddress && project.category === 'tokens' && (
               <div className="mb-2">
-                <div className="text-[10px] tracking-[0.2em] text-gray-500 mb-1">TOKEN CONTRACT</div>
                 <button
                   onClick={async () => {
                     if (!isInFarcaster) return;
+                    
                     try {
-                      // Try multiple formats to open token in Farcaster wallet
                       const contractAddress = project.tokenContractAddress.toLowerCase();
+                      const tokenCAIP19 = `eip155:8453/erc20:${contractAddress}`;
+                      const fallbackUrl = `https://app.uniswap.org/swap?outputCurrency=${contractAddress}&chain=base&inputCurrency=ETH`;
                       
-                      // Format 1: Try Base wallet deep link format
-                      const baseWalletLink = `base://token/${contractAddress}`;
-                      
-                      // Format 2: Try Farcaster wallet format
-                      const farcasterWalletLink = `farcaster://wallet/token/${contractAddress}`;
-                      
-                      // Format 3: Use BaseScan token URL (wallet may intercept and show token view)
-                      const basescanUrl = `https://basescan.org/token/${contractAddress}`;
-                      
-                      // Try Base wallet link first
-                      try {
-                        if (sdk.actions?.openUrl) {
-                          await sdk.actions.openUrl({ url: baseWalletLink });
-                          return;
-                        }
-                      } catch (e) {
-                        console.log('Base wallet link failed, trying Farcaster format');
+                      // Prefer Farcaster's native swapToken action if available
+                      if (sdk.actions?.swapToken) {
+                        await sdk.actions.swapToken({
+                          sellToken: BASE_ETH_CAIP19,
+                          buyToken: tokenCAIP19,
+                        });
+                        return;
                       }
                       
-                      // Try Farcaster wallet link
-                      try {
-                        if (sdk.actions?.openUrl) {
-                          await sdk.actions.openUrl({ url: farcasterWalletLink });
-                          return;
-                        }
-                      } catch (e) {
-                        console.log('Farcaster wallet link failed, trying BaseScan');
-                      }
-                      
-                      // Fallback to BaseScan (wallet may show token view)
+                      // Fallback: open DEX URL in-app (or browser)
                       if (sdk.actions?.openUrl) {
-                        await sdk.actions.openUrl({ url: basescanUrl });
+                        await sdk.actions.openUrl({ url: fallbackUrl });
                       } else {
-                        window.open(basescanUrl, '_blank', 'noopener,noreferrer');
+                        window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
                       }
                     } catch (error) {
-                      console.error('Error opening token:', error);
-                      // Final fallback
-                      window.open(`https://basescan.org/token/${project.tokenContractAddress}`, '_blank', 'noopener,noreferrer');
+                      console.error('Error triggering swap:', error);
+                      // Last-resort fallback
+                      const fallbackUrl = `https://app.uniswap.org/swap?outputCurrency=${project.tokenContractAddress}&chain=base&inputCurrency=ETH`;
+                      window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
                     }
                   }}
-                  className="text-[10px] font-mono text-white hover:text-gray-300 border border-white/50 px-2 py-1 hover:bg-white/10 transition-all text-left truncate max-w-full"
-                  title={project.tokenContractAddress}
+                  className="w-full px-3 py-2 border border-white text-[10px] tracking-[0.2em] hover:bg-white hover:text-black transition-all font-bold"
                 >
-                  {`${project.tokenContractAddress.slice(0, 6)}...${project.tokenContractAddress.slice(-4)}`}
+                  SWAP {project.tokenName ? project.tokenName.toUpperCase() : 'TOKEN'}
                 </button>
-                {project.tokenName && (
-                  <div className="text-[10px] text-gray-500 mt-1">
-                    {project.tokenName}
-                  </div>
-                )}
               </div>
             )}
             
