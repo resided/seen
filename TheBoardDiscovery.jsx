@@ -2132,6 +2132,8 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
   const [bonusTokenEnabled, setBonusTokenEnabled] = useState(false);
   const [userHasBonusToken, setUserHasBonusToken] = useState(false);
   const [seenAmountPerClaim, setSeenAmountPerClaim] = useState('80000');
+  const [canClaimAgain, setCanClaimAgain] = useState(true);
+  const [personalCooldownRemaining, setPersonalCooldownRemaining] = useState(0);
   const { address } = useAccount();
   const { sendTransaction, data: claimTxData } = useSendTransaction();
   const { isLoading: isClaimTxConfirming, isSuccess: isClaimTxConfirmed } = useWaitForTransactionReceipt({
@@ -2202,6 +2204,13 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
           }
           if (data.seenAmountPerClaim !== undefined) {
             setSeenAmountPerClaim(data.seenAmountPerClaim);
+          }
+          // Track if user can claim again (respects personal cooldown)
+          if (data.canClaimAgain !== undefined) {
+            setCanClaimAgain(data.canClaimAgain);
+          }
+          if (data.personalCooldownRemaining !== undefined) {
+            setPersonalCooldownRemaining(data.personalCooldownRemaining);
           }
         })
         .catch(() => {});
@@ -2279,6 +2288,10 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
                     }
                     if (statusData.canClaimAgain !== undefined) {
                       setClaimed(!statusData.canClaimAgain);
+                      setCanClaimAgain(statusData.canClaimAgain);
+                    }
+                    if (statusData.personalCooldownRemaining !== undefined) {
+                      setPersonalCooldownRemaining(statusData.personalCooldownRemaining);
                     }
                     // Update bonus token info
                     if (statusData.bonusTokenRemaining !== undefined) {
@@ -2607,55 +2620,56 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
                 : 'CLAIM EXPIRES WHEN FEATURED PROJECT CHANGES'}
             </div>
             
-            {/* Claim Box 1 */}
-            <div className="mb-3">
-              <button
-                onClick={handleClaim}
-                disabled={!isInFarcaster || !hasClickedMiniapp || !isConnected || claiming || isClaimTxConfirming || expired || claimCount >= 1 || !treasuryAddress}
-                className={`w-full py-4 font-black text-sm tracking-[0.2em] transition-all ${
-                  isInFarcaster && hasClickedMiniapp && isConnected && !claiming && !isClaimTxConfirming && !expired && claimCount < 1 && treasuryAddress
-                    ? 'bg-white text-black hover:bg-gray-200'
-                    : !hasClickedMiniapp && isInFarcaster
-                    ? 'bg-black text-white border-2 border-white cursor-not-allowed'
-                    : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                }`}
-              >
-                {claiming || isClaimTxConfirming 
-                  ? (isClaimTxConfirming ? 'CONFIRMING...' : 'PREPARING...')
-                  : expired 
-                  ? 'EXPIRED' 
-                  : claimCount >= 1 
-                  ? 'CLAIM 1 COMPLETE'
-                  : !hasClickedMiniapp 
-                  ? 'TAP >> OPEN MINI APP << FIRST' 
-                  : !treasuryAddress
-                  ? 'LOADING...'
-                  : maxClaims > 1 ? 'CLAIM NOW 1/2' : 'CLAIM NOW'}
-              </button>
-            </div>
-            
-            {/* Claim Box 2 - Only shows for 30M+ holders after claim 1 is complete */}
-            {maxClaims > 1 && claimCount >= 1 && (
-              <div>
-                <button
-                  onClick={handleClaim}
-                  disabled={!isInFarcaster || !hasClickedMiniapp || !isConnected || claiming || isClaimTxConfirming || expired || claimCount >= 2 || !treasuryAddress}
-                  className={`w-full py-3 font-black text-sm tracking-[0.2em] transition-all ${
-                    isInFarcaster && hasClickedMiniapp && isConnected && !claiming && !isClaimTxConfirming && !expired && claimCount < 2 && treasuryAddress
-                      ? 'bg-white text-black hover:bg-gray-200'
-                      : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                  }`}
-                >
-                  {claiming || isClaimTxConfirming 
-                    ? (isClaimTxConfirming ? 'CONFIRMING...' : 'PREPARING...')
-                    : expired 
-                    ? 'EXPIRED' 
-                    : claimCount >= 2 
-                    ? 'CLAIM 2 COMPLETE'
-                    : 'CLAIM NOW 2/2'}
-                </button>
+            {/* Cooldown Warning */}
+            {personalCooldownRemaining > 0 && claimCount >= maxClaims && (
+              <div className="mb-3 p-3 border border-orange-500/50 bg-orange-500/10">
+                <div className="text-[10px] tracking-[0.2em] text-orange-400 font-bold mb-1">
+                  ON COOLDOWN
+                </div>
+                <div className="text-xs text-orange-300">
+                  Next claim available in {Math.ceil(personalCooldownRemaining / (1000 * 60 * 60))}h {Math.ceil((personalCooldownRemaining % (1000 * 60 * 60)) / (1000 * 60))}m
+                </div>
               </div>
             )}
+            
+            {/* Dynamic Claim Buttons - based on maxClaims */}
+            {Array.from({ length: maxClaims }, (_, i) => i + 1).map((claimNum) => {
+              const isThisClaimComplete = claimCount >= claimNum;
+              const canClaimThis = claimCount === claimNum - 1 && canClaimAgain && !expired;
+              const showButton = claimNum === 1 || claimCount >= claimNum - 1;
+              
+              if (!showButton) return null;
+              
+              return (
+                <div key={claimNum} className={claimNum > 1 ? 'mt-2' : 'mb-3'}>
+                  <button
+                    onClick={handleClaim}
+                    disabled={!isInFarcaster || !hasClickedMiniapp || !isConnected || claiming || isClaimTxConfirming || expired || isThisClaimComplete || !canClaimThis || !treasuryAddress}
+                    className={`w-full ${claimNum === 1 ? 'py-4' : 'py-3'} font-black text-sm tracking-[0.2em] transition-all ${
+                      isInFarcaster && hasClickedMiniapp && isConnected && !claiming && !isClaimTxConfirming && canClaimThis && treasuryAddress
+                        ? 'bg-white text-black hover:bg-gray-200'
+                        : !hasClickedMiniapp && isInFarcaster
+                        ? 'bg-black text-white border-2 border-white cursor-not-allowed'
+                        : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                    }`}
+                  >
+                    {claiming || isClaimTxConfirming 
+                      ? (isClaimTxConfirming ? 'CONFIRMING...' : 'PREPARING...')
+                      : expired 
+                      ? 'EXPIRED' 
+                      : isThisClaimComplete 
+                      ? `CLAIM ${claimNum} COMPLETE`
+                      : !hasClickedMiniapp 
+                      ? 'TAP >> OPEN MINI APP << FIRST' 
+                      : !treasuryAddress
+                      ? 'LOADING...'
+                      : personalCooldownRemaining > 0 && !canClaimAgain
+                      ? 'ON COOLDOWN'
+                      : maxClaims > 1 ? `CLAIM NOW ${claimNum}/${maxClaims}` : 'CLAIM NOW'}
+                  </button>
+                </div>
+              );
+            })}
           </>
         )}
           </>
