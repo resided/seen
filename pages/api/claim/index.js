@@ -2,7 +2,7 @@
 import { getRedisClient } from '../../../lib/redis';
 import { getFeaturedProject } from '../../../lib/projects';
 import { fetchUserByFid } from '../../../lib/neynar';
-import { getTokenBalance, HOLDER_THRESHOLD } from '../../../lib/token-balance';
+import { getTokenBalance } from '../../../lib/token-balance';
 import { createWalletClient, createPublicClient, http, parseUnits } from 'viem';
 import { base } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
