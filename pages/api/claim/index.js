@@ -139,25 +139,23 @@ export default async function handler(req, res) {
       });
     }
 
-    // EMERGENCY GLOBAL WALLET LOCK - ONE CLAIM PER WALLET (TEMPORARY HARD CAP)
-    // This is a simple, brutal safety net: once a wallet has successfully claimed,
-    // this key will exist and all future attempts from that wallet are rejected.
-    const walletLockKey = `claim:wallet:lock:${walletAddress.toLowerCase()}`;
-    const walletLock = await redis.set(walletLockKey, '1', { NX: true });
+    // WALLET LOCK - ONE CLAIM PER WALLET PER FEATURED ROTATION
+    // Lock is tied to featured project rotation (featuredAt timestamp) so it resets for new featured projects
+    const walletLockKey = `claim:wallet:lock:${featuredProjectId}:${featuredAtTimestamp}:${walletAddress.toLowerCase()}`;
+    const walletLock = await redis.set(walletLockKey, '1', { NX: true, EX: ttl });
     if (walletLock === null) {
-      console.warn('SECURITY: Wallet lock already exists, rejecting claim:', {
+      console.warn('SECURITY: Wallet lock already exists for this rotation, rejecting claim:', {
         fid,
         walletAddress: walletAddress?.slice(0, 10) + '...',
         featuredProjectId,
+        featuredAtTimestamp,
       });
       return res.status(400).json({
-        error: 'This wallet has already claimed. Additional claims are temporarily disabled for safety.',
+        error: 'This wallet has already claimed for this featured project rotation.',
         featuredProjectId,
+        featuredAt: featuredAt.toISOString(),
+        expirationTime: expirationTime.toISOString(),
       });
-    }
-    // Ensure the lock expires when this rotation expires (so future rotations can opt into new rules)
-    if (ttl > 0) {
-      await redis.expire(walletLockKey, ttl);
     }
 
     // Track claim by featured project ID + featuredAt timestamp + FID AND wallet
@@ -169,9 +167,9 @@ export default async function handler(req, res) {
     // SECURITY: Also track by wallet address to prevent FID spoofing (per featured rotation)
     const walletClaimCountKey = `claim:wallet:${featuredProjectId}:${featuredAtTimestamp}:${walletAddress.toLowerCase()}`;
     
-    // SECURITY: Global wallet claim counter across featured rotations (hard cap per wallet)
-    // This prevents exploits where the featured window or stats are reset to re-enable claims
-    const globalWalletClaimCountKey = `claim:wallet:global:${walletAddress.toLowerCase()}`;
+    // SECURITY: Per-rotation wallet claim counter (resets for each new featured project)
+    // This prevents exploits within a single featured rotation
+    const globalWalletClaimCountKey = `claim:wallet:global:${featuredProjectId}:${featuredAtTimestamp}:${walletAddress.toLowerCase()}`;
     
     // SECURITY: Test bypass removed - no FID gets special treatment
     const isBypassEnabled = false;
@@ -192,13 +190,18 @@ export default async function handler(req, res) {
       maxClaims
     });
     
-    // SECURITY: Check GLOBAL WALLET claim count FIRST to enforce hard per-wallet cap
+    // SECURITY: Check per-rotation wallet claim count to enforce limit for this featured project
     const globalWalletClaimCount = await redis.incr(globalWalletClaimCountKey);
+    
+    // Set expiration on the counter key so it expires with the rotation
+    if (ttl > 0) {
+      await redis.expire(globalWalletClaimCountKey, ttl);
+    }
     
     if (globalWalletClaimCount > maxClaims && !isBypassEnabled) {
       // Rollback the increment
       await redis.decr(globalWalletClaimCountKey);
-      console.warn('SECURITY: Global wallet claim limit exceeded:', {
+      console.warn('SECURITY: Wallet claim limit exceeded for this rotation:', {
         fid,
         walletAddress: walletAddress?.slice(0, 10) + '...',
         globalWalletClaimCount,
@@ -207,7 +210,7 @@ export default async function handler(req, res) {
         featuredAtTimestamp,
       });
       return res.status(400).json({ 
-        error: 'This wallet has already claimed the maximum allowed number of times',
+        error: `This wallet has already claimed the maximum allowed (${maxClaims}) for this featured project.`,
         featuredProjectId,
         globalWalletClaimCount: globalWalletClaimCount - 1,
         maxClaims,
@@ -423,18 +426,10 @@ export default async function handler(req, res) {
         transport: http(),
       });
 
-      // ATOMIC CHECK: Check DONUT availability (global count and per-user)
-      // Use SET with NX to atomically check and mark user as having received DONUT
-      const userDonutLockResult = await redis.set(userDonutKey, '1', { NX: true }); // SET if Not eXists (atomic)
-      // Returns "OK" if key was set (user didn't have DONUT), null if key already exists (user already has DONUT)
-      userCanGetDonut = userDonutLockResult === 'OK';
-      
-      // Check global DONUT count
-      const donutCountGiven = parseInt(await redis.get(DONUT_COUNT_KEY) || '0');
-      const donutGlobalAvailable = donutCountGiven < DONUT_MAX_SUPPLY;
-      
-      // User can get DONUT if: global available AND we just marked them (they didn't have it before)
-      const donutAvailable = donutGlobalAvailable && userCanGetDonut;
+      // DONUT DISABLED - Only sending $SEEN tokens now
+      // Previously: DONUT was a one-time bonus token, now disabled per user request
+      const donutAvailable = false;
+      userCanGetDonut = false;
       
       // If user already had DONUT, nothing to do (lock result was null)
       
@@ -446,13 +441,9 @@ export default async function handler(req, res) {
       const seenAmountWei = parseUnits(seenAmount, TOKEN_DECIMALS);
       
       console.log('Sending tokens:', {
-        donutAvailable,
-        donutCountGiven,
-        donutMaxSupply: DONUT_MAX_SUPPLY,
+        donutAvailable: false, // DONUT disabled
         seenContract: TOKEN_CONTRACT,
         seenAmount,
-        donutContract: donutAvailable ? DONUT_TOKEN_CONTRACT : null,
-        donutAmount: donutAvailable ? DONUT_TOKEN_AMOUNT : null,
         to: walletAddress,
         from: account.address,
       });
@@ -547,10 +538,12 @@ export default async function handler(req, res) {
 
     // Build success message
     let successMessage = 'Tokens sent successfully';
-    if (donutAvailable) {
-      successMessage = `Tokens sent successfully! Bonus: 1 DONUT + ${seenAmount} $SEEN`;
+    if (isHolder && newClaimCount === maxClaims) {
+      successMessage = `Tokens sent successfully! (Claim ${newClaimCount}/${maxClaims} - 30M+ holder benefit: ${maxClaims * parseInt(seenAmount)} $SEEN total)`;
     } else if (isHolder) {
       successMessage = `Tokens sent successfully! (Claim ${newClaimCount}/${maxClaims} - 30M+ holder benefit)`;
+    } else {
+      successMessage = `Tokens sent successfully! ${seenAmount} $SEEN`;
     }
 
     return res.status(200).json({
@@ -562,8 +555,8 @@ export default async function handler(req, res) {
       treasuryTxHash: hash, // Also return treasury transaction hash
       donutTxHash: donutHash, // DONUT transaction hash if sent
       amount: seenAmount, // Actual SEEN amount sent
-      donutIncluded: donutAvailable, // Whether DONUT was included
-      donutRemaining: Math.max(0, DONUT_MAX_SUPPLY - donutCountGiven - (donutAvailable ? 1 : 0)), // Remaining DONUT tokens
+      donutIncluded: false, // DONUT disabled
+      donutRemaining: 0, // DONUT disabled
       claimCount: newClaimCount,
       maxClaims,
       isHolder,
