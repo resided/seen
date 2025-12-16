@@ -41,6 +41,37 @@ export default async function handler(req, res) {
   try {
     const { fid, walletAddress, txHash } = req.body;
 
+    // SECURITY: Blocklist known exploiter wallets
+    const BLOCKED_WALLETS = [
+      '0xda9623023a2dd7f1ce4e68772c3a0b57ad420260',
+      '0x1915a871dea94e538a3c9ec671574ffdee6e7c45',
+    ];
+    if (walletAddress && BLOCKED_WALLETS.includes(walletAddress.toLowerCase())) {
+      console.error('BLOCKED WALLET ATTEMPTED CLAIM:', walletAddress);
+      return res.status(403).json({ error: 'Wallet blocked due to suspicious activity' });
+    }
+
+    // SECURITY: Global daily rate limit per wallet (max 5 claims per 24h across ALL projects)
+    const redis = await getRedisClient();
+    if (!redis) {
+      return res.status(500).json({ error: 'Service unavailable' });
+    }
+    
+    const globalWalletKey = `claim:global:daily:${walletAddress.toLowerCase()}`;
+    const globalWalletCount = await redis.incr(globalWalletKey);
+    
+    // Set 24h expiry on first increment
+    if (globalWalletCount === 1) {
+      await redis.expire(globalWalletKey, 24 * 60 * 60);
+    }
+    
+    const GLOBAL_DAILY_LIMIT = 5; // Max 5 claims per wallet per 24h no matter what
+    if (globalWalletCount > GLOBAL_DAILY_LIMIT) {
+      await redis.decr(globalWalletKey);
+      console.error('SECURITY: Global daily limit exceeded:', { walletAddress: walletAddress?.slice(0, 10), globalWalletCount });
+      return res.status(429).json({ error: 'Daily claim limit exceeded. Max 5 claims per 24 hours.' });
+    }
+
     if (!fid) {
       return res.status(400).json({ error: 'FID is required' });
     }
@@ -92,11 +123,6 @@ export default async function handler(req, res) {
       console.log(`30M+ holder ${fid} bypassing Neynar score requirement`);
     }
 
-    const redis = await getRedisClient();
-    if (!redis) {
-      return res.status(500).json({ error: 'Service unavailable' });
-    }
-
     // Get current featured project to determine claim window
     const featuredProject = await getFeaturedProject();
     if (!featuredProject || !featuredProject.id) {
@@ -104,7 +130,13 @@ export default async function handler(req, res) {
     }
 
     const featuredProjectId = featuredProject.id;
-    const featuredAt = featuredProject.featuredAt ? new Date(featuredProject.featuredAt) : new Date();
+    
+    // SECURITY: featuredAt MUST be defined - using new Date() would create different keys per request!
+    if (!featuredProject.featuredAt) {
+      console.error('CRITICAL: Featured project missing featuredAt timestamp!', { featuredProjectId });
+      return res.status(500).json({ error: 'Featured project configuration error' });
+    }
+    const featuredAt = new Date(featuredProject.featuredAt);
     
     // Calculate expiration: 24 hours from when project was featured
     const expirationTime = new Date(featuredAt.getTime() + 24 * 60 * 60 * 1000);
