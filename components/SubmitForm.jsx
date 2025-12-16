@@ -519,7 +519,7 @@ const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDispl
                   </div>
                   {isHolder && (
                     <div className="text-[9px] text-green-400 mt-1 font-bold">
-                      30M+ HOLDER: 20% OFF (was ${BASE_FEATURED_PRICE_USD})
+                      30M+ HOLDER: 20% OFF (was {BASE_FEATURED_PRICE} USDC)
                     </div>
                   )}
                   <div className="text-[9px] text-yellow-400 mt-1 font-bold">
