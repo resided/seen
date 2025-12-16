@@ -149,33 +149,37 @@ export default async function handler(req, res) {
     const globalWalletPattern = `claim:wallet:global:*`;
     const globalWalletKeys = await scanKeys(globalWalletPattern);
 
+    // Helper function to delete keys (handles node-redis v5 compatibility)
+    const deleteKeys = async (keysToDelete) => {
+      if (!keysToDelete || keysToDelete.length === 0) return 0;
+      try {
+        // node-redis v5 accepts spread arguments
+        await redis.del(...keysToDelete);
+        return keysToDelete.length;
+      } catch (err) {
+        // Fallback: try deleting one by one
+        console.warn('Batch delete failed, trying one by one:', err.message);
+        let deleted = 0;
+        for (const key of keysToDelete) {
+          try {
+            await redis.del(key);
+            deleted++;
+          } catch (singleErr) {
+            console.error(`Failed to delete key ${key}:`, singleErr.message);
+          }
+        }
+        return deleted;
+      }
+    };
+
     // Delete all claim keys for this featured project
     try {
-      if (keys.length > 0) {
-        await redis.del(keys);
-      }
-      
-      if (txKeys.length > 0) {
-        await redis.del(txKeys);
-      }
-      
-      if (countKeys.length > 0) {
-        await redis.del(countKeys);
-      }
-      
-      if (walletKeys.length > 0) {
-        await redis.del(walletKeys);
-      }
-      
-      // CRITICAL: Delete wallet lock keys (prevents multi-claim exploits)
-      if (walletLockKeys.length > 0) {
-        await redis.del(walletLockKeys);
-      }
-      
-      // CRITICAL: Delete global wallet claim count keys (prevents cross-rotation exploits)
-      if (globalWalletKeys.length > 0) {
-        await redis.del(globalWalletKeys);
-      }
+      await deleteKeys(keys);
+      await deleteKeys(txKeys);
+      await deleteKeys(countKeys);
+      await deleteKeys(walletKeys);
+      await deleteKeys(walletLockKeys);
+      await deleteKeys(globalWalletKeys);
     } catch (delError) {
       console.error('Error deleting keys:', delError);
       throw new Error(`Failed to delete keys: ${delError.message}`);
@@ -193,36 +197,15 @@ export default async function handler(req, res) {
       
       // Reset all user DONUT flags
       const donutUserKeys = await scanKeys('donut:user:*');
-      if (donutUserKeys.length > 0) {
-        try {
-          await redis.del(donutUserKeys);
-          donutUsersReset = donutUserKeys.length;
-        } catch (donutDelError) {
-          console.error('Error deleting DONUT user keys:', donutDelError);
-        }
-      }
+      donutUsersReset = await deleteKeys(donutUserKeys);
       
       // Also reset all BONUS TOKEN user flags (for admin-configured bonus tokens like DONUT)
       const bonusUserKeys = await scanKeys('bonus:user:*');
-      if (bonusUserKeys.length > 0) {
-        try {
-          await redis.del(bonusUserKeys);
-          bonusUsersReset = bonusUserKeys.length;
-        } catch (bonusDelError) {
-          console.error('Error deleting bonus user keys:', bonusDelError);
-        }
-      }
+      bonusUsersReset = await deleteKeys(bonusUserKeys);
       
       // Reset all BONUS TOKEN count keys
       const bonusCountKeys = await scanKeys('bonus:count:given:*');
-      if (bonusCountKeys.length > 0) {
-        try {
-          await redis.del(bonusCountKeys);
-          bonusCountsReset = bonusCountKeys.length;
-        } catch (bonusDelError) {
-          console.error('Error deleting bonus count keys:', bonusDelError);
-        }
-      }
+      bonusCountsReset = await deleteKeys(bonusCountKeys);
     }
 
     // CLEAR ALL PERSONAL 24-HOUR COOLDOWNS
@@ -230,18 +213,8 @@ export default async function handler(req, res) {
     const personalCooldownKeys = await scanKeys('claim:cooldown:*');
     const personalClaimCountKeys = await scanKeys('claim:count:personal:*');
     
-    let personalCooldownsReset = 0;
-    if (personalCooldownKeys.length > 0 || personalClaimCountKeys.length > 0) {
-      try {
-        const allPersonalKeys = [...personalCooldownKeys, ...personalClaimCountKeys];
-        if (allPersonalKeys.length > 0) {
-          await redis.del(allPersonalKeys);
-          personalCooldownsReset = allPersonalKeys.length;
-        }
-      } catch (delError) {
-        console.error('Error deleting personal cooldown keys:', delError);
-      }
-    }
+    const allPersonalKeys = [...personalCooldownKeys, ...personalClaimCountKeys];
+    const personalCooldownsReset = await deleteKeys(allPersonalKeys);
 
     console.log('Reset complete:', {
       claimsFound: keys.length,
