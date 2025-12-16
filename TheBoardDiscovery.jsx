@@ -441,42 +441,35 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
   return (
     <div className="border border-white">
       {/* Header bar */}
-      <div className="border-b border-white p-3 flex items-center justify-between">
+      <div className="border-b border-white px-3 py-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="text-[9px] tracking-[0.2em] text-gray-500">TODAY'S FEATURED</div>
+          <div className="text-[8px] tracking-[0.2em] text-gray-500">TODAY'S FEATURED</div>
         </div>
         <div className="flex items-center gap-3">
-          {/* Treasury Balance */}
-          <div className="text-right">
-            <div className="font-mono text-xs">
-              {treasuryBalance ? formatBalance(treasuryBalance) : '...'}
-            </div>
-            <div className="text-[8px] tracking-[0.2em] text-gray-500">TREASURY</div>
-          </div>
           {/* Countdown */}
           <div className="text-right">
-            <div className="font-mono text-xs">
+            <div className="font-mono text-[10px]">
               {String(countdown.h).padStart(2, '0')}:{String(countdown.m).padStart(2, '0')}:{String(countdown.s).padStart(2, '0')}
             </div>
-            <div className="text-[8px] tracking-[0.2em] text-gray-500">UNTIL NEXT</div>
+            <div className="text-[7px] tracking-[0.2em] text-gray-500">UNTIL NEXT</div>
           </div>
         </div>
       </div>
 
       {/* Main content */}
-      <div className="p-4">
+      <div className="p-3">
         {/* App name */}
-        <h1 className="text-2xl sm:text-3xl font-black tracking-[-0.03em] mb-1">{app.name}</h1>
-        <p className="text-xs tracking-widest text-gray-500 mb-4">{app.tagline}</p>
+        <h1 className="text-xl sm:text-2xl font-black tracking-[-0.03em] mb-0.5">{app.name}</h1>
+        <p className="text-[10px] tracking-widest text-gray-500 mb-2">{app.tagline}</p>
         
         {/* Description */}
-        <p className="text-xs leading-relaxed text-gray-400 mb-4">
+        <p className="text-[11px] leading-relaxed text-gray-400 mb-3 line-clamp-3">
           {app.description}
         </p>
 
         {/* Token Contract Address (for token submissions) */}
         {app.tokenContractAddress && (
-          <div className="mb-6">
+          <div className="mb-3">
             <button
               onClick={async () => {
                 if (!isInFarcaster) return;
@@ -508,19 +501,19 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
                   window.open(fallbackUrl, '_blank', 'noopener,noreferrer');
                 }
               }}
-              className="w-full px-4 py-3 border-2 border-white font-black text-sm tracking-[0.2em] hover:bg-white hover:text-black transition-all"
+              className="w-full px-3 py-2 border-2 border-white font-black text-xs tracking-[0.2em] hover:bg-white hover:text-black transition-all"
             >
               SWAP {app.tokenName ? app.tokenName.toUpperCase() : 'TOKEN'}
             </button>
-            <div className="text-[9px] text-gray-600 mt-2 text-center">
+            <div className="text-[8px] text-gray-600 mt-1 text-center">
               SWAP ETH FOR {app.tokenName ? app.tokenName.toUpperCase() : 'THIS TOKEN'} USING FARCASTER WALLET
             </div>
           </div>
         )}
 
         {/* Builder */}
-        <div className="flex items-center gap-2 mb-4 pb-4 border-b border-white/20">
-          <div className="w-10 h-10 bg-white text-black flex items-center justify-center font-black text-sm relative overflow-hidden rounded-full border border-white shrink-0">
+        <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/20">
+          <div className="w-8 h-8 bg-white text-black flex items-center justify-center font-black text-xs relative overflow-hidden rounded-full border border-white shrink-0">
             {builderData?.pfpUrl ? (
               <>
                 <img
@@ -665,18 +658,18 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
         </div>
 
         {/* Stats */}
-        <div className="flex justify-around mb-4">
+        <div className="flex justify-around mb-3">
           <div className="text-center">
-            <div className="text-xl font-black">{formatNumber(liveStats.views || app.stats?.views || 0)}</div>
-            <div className="text-[8px] tracking-[0.2em] text-gray-500">VIEWS</div>
+            <div className="text-lg font-black">{formatNumber(liveStats.views || app.stats?.views || 0)}</div>
+            <div className="text-[7px] tracking-[0.2em] text-gray-500">VIEWS</div>
           </div>
           <div className="text-center">
-            <div className="text-xl font-black">{formatNumber(liveStats.clicks || app.stats?.clicks || 0)}</div>
-            <div className="text-[8px] tracking-[0.2em] text-gray-500">CLICKS</div>
+            <div className="text-lg font-black">{formatNumber(liveStats.clicks || app.stats?.clicks || 0)}</div>
+            <div className="text-[7px] tracking-[0.2em] text-gray-500">CLICKS</div>
           </div>
           <div className="text-center">
-            <div className="text-xl font-black">{formatTipsUsd(liveStats.tips || app.stats?.tips || 0, ethPrice)}</div>
-            <div className="text-[8px] tracking-[0.2em] text-gray-500">TIPPED</div>
+            <div className="text-lg font-black">{formatTipsUsd(liveStats.tips || app.stats?.tips || 0, ethPrice)}</div>
+            <div className="text-[7px] tracking-[0.2em] text-gray-500">TIPPED</div>
           </div>
         </div>
 
@@ -728,7 +721,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
               }
             }}
             disabled={!isInFarcaster}
-            className={`bg-black py-3 font-bold text-xs tracking-[0.2em] transition-all w-full ${
+            className={`bg-black py-2 font-bold text-[10px] tracking-[0.2em] transition-all w-full ${
               isInFarcaster 
                 ? 'hover:bg-white hover:text-black' 
                 : 'opacity-50 cursor-not-allowed'
@@ -765,7 +758,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
               !builderData?.walletAddress ? 'Builder needs a Farcaster wallet' :
               'Tip the builder'
             }
-            className="bg-black py-3 font-bold text-xs tracking-[0.2em] transition-all hover:bg-white hover:text-black w-full"
+            className="bg-black py-2 font-bold text-[10px] tracking-[0.2em] transition-all hover:bg-white hover:text-black w-full"
           >
             TIP BUILDER
           </button>
@@ -3048,10 +3041,10 @@ export default function Seen() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white w-full overflow-x-hidden">
+    <div className="h-screen bg-black text-white w-full overflow-hidden flex flex-col" style={{ height: '100dvh' }}>
       {/* Read-only banner for web users */}
       {!isInFarcaster && (
-        <div className="border-b border-yellow-500 bg-yellow-500/10 px-4 py-2">
+        <div className="border-b border-yellow-500 bg-yellow-500/10 px-4 py-2 shrink-0">
           <div className="max-w-4xl mx-auto text-center">
             <p className="text-[10px] tracking-[0.2em] text-yellow-400">
               READ-ONLY MODE • OPEN IN FARCASTER APP OR DESKTOP FOR FULL FUNCTIONALITY
@@ -3061,8 +3054,8 @@ export default function Seen() {
       )}
       
       {/* Header */}
-      <header className="border-b border-white">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+      <header className="border-b border-white shrink-0">
+        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-black tracking-[-0.02em]">SEEN.</h1>
             <p className="text-[9px] tracking-[0.3em] text-gray-500">PROJECT DISCOVERY</p>
@@ -3125,10 +3118,12 @@ export default function Seen() {
       </header>
       
       {/* Ticker */}
-      <ActivityTicker />
+      <div className="shrink-0">
+        <ActivityTicker />
+      </div>
       
       {/* Category nav */}
-      <div className="border-b border-white">
+      <div className="border-b border-white shrink-0">
         <div className="max-w-4xl mx-auto">
           <div className="flex overflow-x-auto scrollbar-thin">
             {CATEGORIES.map(cat => {
@@ -3160,11 +3155,12 @@ export default function Seen() {
       </div>
       
       {/* Main content */}
-      <main className="max-w-4xl mx-auto px-4 py-6">
+      <main className="flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="max-w-4xl mx-auto px-3 py-3">
         {category === 'main' ? (
-          <div className="grid lg:grid-cols-[1fr,340px] gap-6">
+          <div className="grid lg:grid-cols-[1fr,300px] gap-4">
             {/* Left: Featured + Submit */}
-            <div className="space-y-6">
+            <div className="space-y-4">
               {loading ? (
                 <div className="border border-white p-6 text-center">
                   <div className="text-sm text-gray-500">LOADING...</div>
@@ -3203,7 +3199,7 @@ export default function Seen() {
             </div>
             
             {/* Right: Chat + Leaderboard + Queue */}
-            <div className="space-y-6">
+            <div className="space-y-4">
               {/* Chat */}
               <div className="space-y-2">
                 {chatLoading ? (
@@ -3270,6 +3266,7 @@ export default function Seen() {
         ) : (
           <CategoryRankings category={category} ethPrice={ethPrice} isInFarcaster={isInFarcaster} isConnected={isConnected} />
         )}
+        </div>
       </main>
 
       {/* Install Miniapp Prompt Modal */}
