@@ -1588,6 +1588,108 @@ export default function Admin() {
             </div>
           )}
 
+          {/* Quick Reference Legend */}
+          <div className="mb-8 border border-gray-700 bg-gray-900/50">
+            <button
+              onClick={() => {
+                const el = document.getElementById('admin-legend');
+                if (el) el.classList.toggle('hidden');
+              }}
+              className="w-full p-3 flex items-center justify-between text-left hover:bg-gray-800/50 transition-all"
+            >
+              <span className="text-sm font-bold tracking-[0.1em] text-gray-400">QUICK REFERENCE LEGEND</span>
+              <span className="text-gray-500 text-xs">Click to expand/collapse</span>
+            </button>
+            <div id="admin-legend" className="hidden border-t border-gray-700 p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                
+                {/* Actions that RESET Claims */}
+                <div className="border border-red-500/50 bg-red-500/5 p-3">
+                  <div className="text-[10px] tracking-[0.2em] text-red-400 mb-2 font-bold">🔴 RESETS ALL CLAIMS</div>
+                  <ul className="text-xs space-y-1 text-gray-300">
+                    <li>• <span className="text-red-400 font-bold">SET FEATURED</span> - New project = fresh claims</li>
+                    <li>• <span className="text-red-400 font-bold">RESET CLAIMS</span> - Manual reset button</li>
+                    <li>• <span className="text-red-400 font-bold">Approve & Feature</span> - New submission goes live</li>
+                    <li>• <span className="text-red-400 font-bold">Scheduled</span> - When scheduled project goes live</li>
+                  </ul>
+                  <div className="text-[9px] text-gray-500 mt-2">Everyone can claim again immediately</div>
+                </div>
+
+                {/* Actions that DON'T affect claims */}
+                <div className="border border-green-500/50 bg-green-500/5 p-3">
+                  <div className="text-[10px] tracking-[0.2em] text-green-400 mb-2 font-bold">🟢 SAFE - NO CLAIM RESET</div>
+                  <ul className="text-xs space-y-1 text-gray-300">
+                    <li>• <span className="text-green-400 font-bold">Timer buttons</span> - 1H, 6H, 12H, 24H, 11:59PM</li>
+                    <li>• <span className="text-green-400 font-bold">Edit project</span> - Name, description, links</li>
+                    <li>• <span className="text-green-400 font-bold">Update stats</span> - Views, clicks, tips</li>
+                    <li>• <span className="text-green-400 font-bold">Archive/Restore</span> - Moving projects</li>
+                  </ul>
+                  <div className="text-[9px] text-gray-500 mt-2">Claim status stays unchanged</div>
+                </div>
+
+                {/* Claim Settings */}
+                <div className="border border-cyan-500/50 bg-cyan-500/5 p-3">
+                  <div className="text-[10px] tracking-[0.2em] text-cyan-400 mb-2 font-bold">🔵 CLAIM SETTINGS</div>
+                  <ul className="text-xs space-y-1 text-gray-300">
+                    <li>• <span className="text-cyan-400 font-bold">Multiplier</span> - 1x, 2x, 3x... token amount</li>
+                    <li>• <span className="text-cyan-400 font-bold">Holder bonus</span> - Claims for 30M+ holders</li>
+                    <li>• <span className="text-cyan-400 font-bold">Cooldown</span> - Hours between claims</li>
+                    <li>• <span className="text-cyan-400 font-bold">Enable/Disable</span> - Master claims toggle</li>
+                  </ul>
+                  <div className="text-[9px] text-gray-500 mt-2">Changes apply immediately, persist until changed</div>
+                </div>
+
+                {/* Featured Timer */}
+                <div className="border border-yellow-500/50 bg-yellow-500/5 p-3">
+                  <div className="text-[10px] tracking-[0.2em] text-yellow-400 mb-2 font-bold">🟡 FEATURED TIMER</div>
+                  <ul className="text-xs space-y-1 text-gray-300">
+                    <li>• <span className="text-yellow-400 font-bold">1H/6H/12H/24H</span> - Set hours remaining</li>
+                    <li>• <span className="text-yellow-400 font-bold">11:59PM</span> - Expire at midnight UK</li>
+                    <li>• Timer only affects <span className="italic">display countdown</span></li>
+                    <li>• Does NOT affect claim eligibility</li>
+                  </ul>
+                  <div className="text-[9px] text-gray-500 mt-2">Adjust freely without affecting claims</div>
+                </div>
+
+                {/* Bonus Token */}
+                <div className="border border-purple-500/50 bg-purple-500/5 p-3">
+                  <div className="text-[10px] tracking-[0.2em] text-purple-400 mb-2 font-bold">🟣 BONUS TOKEN</div>
+                  <ul className="text-xs space-y-1 text-gray-300">
+                    <li>• <span className="text-purple-400 font-bold">Enable</span> - Add bonus token to claims</li>
+                    <li>• <span className="text-purple-400 font-bold">Contract</span> - Any ERC20 on Base</li>
+                    <li>• <span className="text-purple-400 font-bold">Amount/Max</span> - Per claim & total supply</li>
+                    <li>• Sent alongside $SEEN automatically</li>
+                  </ul>
+                  <div className="text-[9px] text-gray-500 mt-2">Configure per campaign, 1 bonus per wallet</div>
+                </div>
+
+                {/* Personal Cooldown */}
+                <div className="border border-orange-500/50 bg-orange-500/5 p-3">
+                  <div className="text-[10px] tracking-[0.2em] text-orange-400 mb-2 font-bold">🟠 PERSONAL COOLDOWN</div>
+                  <ul className="text-xs space-y-1 text-gray-300">
+                    <li>• Each wallet: 24h between claims</li>
+                    <li>• 30M+ holders: configurable multiplier</li>
+                    <li>• Resets: New featured OR Reset button</li>
+                    <li>• Persists: Timer changes, stats updates</li>
+                  </ul>
+                  <div className="text-[9px] text-gray-500 mt-2">Prevents spam within same featured project</div>
+                </div>
+
+              </div>
+
+              {/* Quick Formula */}
+              <div className="mt-4 p-3 bg-white/5 border border-white/20">
+                <div className="text-[10px] tracking-[0.2em] text-white mb-2 font-bold">CLAIM FORMULA</div>
+                <div className="text-sm font-mono text-gray-300">
+                  Tokens per claim = <span className="text-cyan-400">Base Amount</span> × <span className="text-cyan-400">Multiplier</span>
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  Example: 80,000 × 2x = 160,000 tokens per claim
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Automation Dashboard */}
           <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Current Featured Project */}
