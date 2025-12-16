@@ -9,14 +9,32 @@ import { privateKeyToAccount } from 'viem/accounts';
 import { erc20Abi } from 'viem';
 import { checkRateLimit, getClientIP } from '../../../lib/rate-limit';
 
-const MIN_NEYNAR_SCORE = 0.6; // Minimum Neynar user score required to claim
-const WHALE_CLAIM_LIMIT = 2; // Whales (30M+) can claim 2x daily
-
 // Token configuration from environment variables
-// To change claim amount, update CLAIM_TOKEN_AMOUNT in your environment variables
 const TOKEN_CONTRACT = process.env.CLAIM_TOKEN_CONTRACT; // ERC20 token contract address
-const TOKEN_AMOUNT = process.env.CLAIM_TOKEN_AMOUNT || '80000'; // Amount to send (in token units, not wei) - Default: 80,000
 const TOKEN_DECIMALS = parseInt(process.env.CLAIM_TOKEN_DECIMALS || '18'); // Token decimals
+
+// Default settings (can be overridden via admin panel)
+const DEFAULT_CLAIM_SETTINGS = {
+  baseClaimAmount: 80000,
+  claimMultiplier: 1,
+  holderMultiplier: 2,
+  cooldownHours: 24,
+  minNeynarScore: 0.6,
+  claimsEnabled: true,
+};
+const CLAIM_SETTINGS_KEY = 'claim:settings';
+
+// Helper to get current claim settings from Redis
+async function getClaimSettings(redis) {
+  try {
+    const settingsData = await redis.get(CLAIM_SETTINGS_KEY);
+    if (!settingsData) return DEFAULT_CLAIM_SETTINGS;
+    return { ...DEFAULT_CLAIM_SETTINGS, ...JSON.parse(settingsData) };
+  } catch (error) {
+    console.error('Error fetching claim settings:', error);
+    return DEFAULT_CLAIM_SETTINGS;
+  }
+}
 const TREASURY_PRIVATE_KEY = process.env.TREASURY_PRIVATE_KEY; // Private key of wallet holding tokens (0x prefix)
 const TREASURY_ADDRESS = process.env.TREASURY_ADDRESS; // Treasury wallet address (for verification) - REQUIRED
 const REQUIRE_USER_TX = process.env.REQUIRE_USER_TX !== 'false'; // Allow disabling in env if needed
@@ -116,6 +134,26 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Service unavailable' });
     }
 
+    // Get dynamic claim settings from Redis
+    const claimSettings = await getClaimSettings(redis);
+    const { 
+      baseClaimAmount, 
+      claimMultiplier, 
+      holderMultiplier, 
+      cooldownHours, 
+      minNeynarScore, 
+      claimsEnabled 
+    } = claimSettings;
+    
+    // Calculate actual claim amount
+    const TOKEN_AMOUNT = String(Math.floor(baseClaimAmount * claimMultiplier));
+    const COOLDOWN_SECONDS = cooldownHours * 60 * 60;
+    
+    // Check if claims are enabled
+    if (!claimsEnabled) {
+      return res.status(503).json({ error: 'Claims are currently disabled by admin' });
+    }
+
     // Check if user is a 30M+ holder first (holders bypass Neynar score requirement)
     let isHolder = false;
     if (walletAddress) {
@@ -138,11 +176,11 @@ export default async function handler(req, res) {
           
           // If score exists and is below threshold, reject claim
           if (userScore !== null && userScore !== undefined) {
-            if (userScore < MIN_NEYNAR_SCORE) {
+            if (userScore < minNeynarScore) {
               return res.status(403).json({ 
-                error: `Your Neynar user score (${userScore.toFixed(2)}) is below the required threshold of ${MIN_NEYNAR_SCORE}. Only users with a score of ${MIN_NEYNAR_SCORE} or higher can claim tokens.`,
+                error: `Your Neynar user score (${userScore.toFixed(2)}) is below the required threshold of ${minNeynarScore}. Only users with a score of ${minNeynarScore} or higher can claim tokens.`,
                 userScore: userScore,
-                minScore: MIN_NEYNAR_SCORE
+                minScore: minNeynarScore
               });
             }
           } else {
@@ -195,10 +233,9 @@ export default async function handler(req, res) {
       });
     }
 
-    // PERSONAL 24-HOUR COOLDOWN - Independent of featured project timer
-    // This cooldown is per-wallet and lasts exactly 24 hours from when they claimed
+    // PERSONAL COOLDOWN - Independent of featured project timer
+    // This cooldown is per-wallet and lasts for the configured cooldown hours
     // Timer extensions do NOT affect this. Only manual RESET CLAIMS overrides it.
-    const COOLDOWN_SECONDS = 24 * 60 * 60; // 24 hours in seconds
     const personalCooldownKey = `claim:cooldown:${walletAddress.toLowerCase()}`;
     
     // Check if wallet is on cooldown
@@ -255,7 +292,7 @@ export default async function handler(req, res) {
     // Set maxClaims based on holder status (already checked above for Neynar bypass)
     let maxClaims = 1;
     if (isHolder) {
-      maxClaims = WHALE_CLAIM_LIMIT; // Holders with 30M+ get 2 claims per featured project
+      maxClaims = holderMultiplier; // Holders with 30M+ get multiple claims per featured project
     }
     
     // Log claim attempt for debugging
@@ -666,9 +703,8 @@ export default async function handler(req, res) {
         await redis.set(`claim:txhash:${txHash.toLowerCase()}`, 'used');
       }
       
-      // SET PERSONAL 24-HOUR COOLDOWN
-      // This is independent of the featured project timer - always exactly 24 hours
-      const COOLDOWN_SECONDS = 24 * 60 * 60; // 24 hours
+      // SET PERSONAL COOLDOWN
+      // This is independent of the featured project timer - uses configured cooldown hours
       const cooldownExpiry = Date.now() + (COOLDOWN_SECONDS * 1000);
       const personalCooldownKey = `claim:cooldown:${walletAddress.toLowerCase()}`;
       const personalClaimCountKey = `claim:count:personal:${walletAddress.toLowerCase()}`;

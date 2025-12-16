@@ -39,6 +39,16 @@ export default function Admin() {
   });
   const [loadingBonusConfig, setLoadingBonusConfig] = useState(false);
   const [showBonusTokenConfig, setShowBonusTokenConfig] = useState(false);
+  const [showClaimSettings, setShowClaimSettings] = useState(false);
+  const [claimSettings, setClaimSettings] = useState({
+    baseClaimAmount: 80000,
+    claimMultiplier: 1,
+    holderMultiplier: 2,
+    cooldownHours: 24,
+    minNeynarScore: 0.6,
+    claimsEnabled: true,
+  });
+  const [loadingClaimSettings, setLoadingClaimSettings] = useState(false);
   const [editFormData, setEditFormData] = useState({
     name: '',
     tagline: '',
@@ -1092,11 +1102,12 @@ export default function Admin() {
     }
   };
 
-  // Fetch current featured and bonus token config on load
+  // Fetch current featured, bonus token config, and claim settings on load
   useEffect(() => {
     if (isAuthenticated) {
       fetchCurrentFeatured();
       fetchBonusTokenConfig();
+      fetchClaimSettings();
     }
   }, [isAuthenticated]);
 
@@ -1160,6 +1171,103 @@ export default function Admin() {
       setMessage('Error saving bonus token config');
     } finally {
       setLoadingBonusConfig(false);
+    }
+  };
+
+  // Claim Settings Functions
+  const fetchClaimSettings = async () => {
+    setLoadingClaimSettings(true);
+    try {
+      const response = await fetch('/api/admin/claim-settings', {
+        method: 'GET',
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setClaimSettings(data.settings || {
+          baseClaimAmount: 80000,
+          claimMultiplier: 1,
+          holderMultiplier: 2,
+          cooldownHours: 24,
+          minNeynarScore: 0.6,
+          claimsEnabled: true,
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching claim settings:', error);
+    } finally {
+      setLoadingClaimSettings(false);
+    }
+  };
+
+  const handleSaveClaimSettings = async () => {
+    setLoadingClaimSettings(true);
+    try {
+      const response = await fetch('/api/admin/claim-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: claimSettings, fid: userFid || null }),
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setMessage(data.message || 'Claim settings saved successfully');
+      } else {
+        setMessage(data.error || 'Failed to save claim settings');
+      }
+    } catch (error) {
+      setMessage('Error saving claim settings');
+    } finally {
+      setLoadingClaimSettings(false);
+    }
+  };
+
+  const handleQuickMultiplier = async (multiplier) => {
+    const newSettings = { ...claimSettings, claimMultiplier: multiplier };
+    setClaimSettings(newSettings);
+    setLoadingClaimSettings(true);
+    try {
+      const response = await fetch('/api/admin/claim-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: newSettings }),
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setMessage(`Claim multiplier set to ${multiplier}x! (${Math.floor(claimSettings.baseClaimAmount * multiplier).toLocaleString()} tokens per claim)`);
+      } else {
+        setMessage(data.error || 'Failed to update multiplier');
+      }
+    } catch (error) {
+      setMessage('Error updating multiplier');
+    } finally {
+      setLoadingClaimSettings(false);
+    }
+  };
+
+  const handleToggleClaims = async () => {
+    const newEnabled = !claimSettings.claimsEnabled;
+    const newSettings = { ...claimSettings, claimsEnabled: newEnabled };
+    setClaimSettings(newSettings);
+    setLoadingClaimSettings(true);
+    try {
+      const response = await fetch('/api/admin/claim-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: newSettings }),
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setMessage(newEnabled ? 'Claims ENABLED!' : 'Claims DISABLED!');
+      } else {
+        setMessage(data.error || 'Failed to toggle claims');
+      }
+    } catch (error) {
+      setMessage('Error toggling claims');
+    } finally {
+      setLoadingClaimSettings(false);
     }
   };
 
@@ -1436,6 +1544,17 @@ export default function Admin() {
                 {showBonusTokenConfig ? 'HIDE BONUS TOKEN' : 'CONFIGURE BONUS TOKEN'}
               </button>
               <button
+                onClick={() => {
+                  setShowClaimSettings(!showClaimSettings);
+                  if (!showClaimSettings) {
+                    fetchClaimSettings();
+                  }
+                }}
+                className="px-4 py-2 bg-cyan-600 text-white font-bold hover:bg-cyan-500 transition-all"
+              >
+                {showClaimSettings ? 'HIDE CLAIM SETTINGS' : 'CLAIM SETTINGS'}
+              </button>
+              <button
                 onClick={handleLogout}
                 className="px-4 py-2 border border-white text-sm hover:bg-white hover:text-black transition-all"
               >
@@ -1654,6 +1773,181 @@ export default function Admin() {
                     REFRESH
                   </button>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Claim Settings Panel */}
+          {showClaimSettings && (
+            <div className="mb-8 border border-cyan-500/50 p-6 bg-cyan-500/5">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-2xl font-black text-cyan-400">CLAIM SETTINGS</h2>
+                  <p className="text-xs text-gray-500 mt-1">Control claim amounts, cooldowns, and more. Changes apply immediately.</p>
+                </div>
+                <button
+                  onClick={() => setShowClaimSettings(false)}
+                  className="text-white hover:text-gray-400 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="mb-6 p-4 border border-cyan-500/30 bg-black">
+                <div className="text-[10px] tracking-[0.2em] text-cyan-400 mb-3">QUICK ACTIONS</div>
+                
+                {/* Master Toggle */}
+                <div className="flex items-center gap-4 mb-4">
+                  <button
+                    onClick={handleToggleClaims}
+                    disabled={loadingClaimSettings}
+                    className={`px-6 py-3 font-black text-sm tracking-[0.1em] transition-all disabled:opacity-50 ${
+                      claimSettings.claimsEnabled 
+                        ? 'bg-green-600 text-white hover:bg-green-500' 
+                        : 'bg-red-600 text-white hover:bg-red-500'
+                    }`}
+                  >
+                    {claimSettings.claimsEnabled ? 'CLAIMS ENABLED' : 'CLAIMS DISABLED'}
+                  </button>
+                  <span className="text-xs text-gray-500">Click to toggle</span>
+                </div>
+
+                {/* Multiplier Buttons */}
+                <div className="mb-4">
+                  <div className="text-[10px] tracking-[0.2em] text-gray-500 mb-2">CLAIM MULTIPLIER</div>
+                  <div className="flex flex-wrap gap-2">
+                    {[1, 1.5, 2, 2.5, 3, 5, 10].map((mult) => (
+                      <button
+                        key={mult}
+                        onClick={() => handleQuickMultiplier(mult)}
+                        disabled={loadingClaimSettings}
+                        className={`px-4 py-2 text-sm font-bold transition-all disabled:opacity-50 ${
+                          claimSettings.claimMultiplier === mult 
+                            ? 'bg-cyan-500 text-black' 
+                            : 'border border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/20'
+                        }`}
+                      >
+                        {mult}x
+                      </button>
+                    ))}
+                  </div>
+                  <div className="text-xs text-gray-600 mt-2">
+                    Current: <span className="text-cyan-400 font-bold">{(claimSettings.baseClaimAmount * claimSettings.claimMultiplier).toLocaleString()}</span> tokens per claim
+                  </div>
+                </div>
+
+                {/* Holder Multiplier */}
+                <div className="mb-4">
+                  <div className="text-[10px] tracking-[0.2em] text-gray-500 mb-2">30M+ HOLDER CLAIMS (PER 24H)</div>
+                  <div className="flex flex-wrap gap-2">
+                    {[1, 2, 3, 4, 5].map((mult) => (
+                      <button
+                        key={mult}
+                        onClick={async () => {
+                          const newSettings = { ...claimSettings, holderMultiplier: mult };
+                          setClaimSettings(newSettings);
+                          await handleSaveClaimSettings();
+                        }}
+                        disabled={loadingClaimSettings}
+                        className={`px-4 py-2 text-sm font-bold transition-all disabled:opacity-50 ${
+                          claimSettings.holderMultiplier === mult 
+                            ? 'bg-yellow-500 text-black' 
+                            : 'border border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/20'
+                        }`}
+                      >
+                        {mult}x
+                      </button>
+                    ))}
+                  </div>
+                  <div className="text-xs text-gray-600 mt-2">
+                    30M+ holders can claim <span className="text-yellow-400 font-bold">{claimSettings.holderMultiplier} times</span> per cooldown period
+                  </div>
+                </div>
+              </div>
+
+              {/* Detailed Settings */}
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                    BASE CLAIM AMOUNT
+                  </label>
+                  <input
+                    type="number"
+                    value={claimSettings.baseClaimAmount}
+                    onChange={(e) => setClaimSettings({ ...claimSettings, baseClaimAmount: parseInt(e.target.value) || 80000 })}
+                    className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                    placeholder="80000"
+                  />
+                  <p className="text-[10px] text-gray-600 mt-1">Base tokens per claim (before multiplier)</p>
+                </div>
+                <div>
+                  <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                    COOLDOWN HOURS
+                  </label>
+                  <input
+                    type="number"
+                    value={claimSettings.cooldownHours}
+                    onChange={(e) => setClaimSettings({ ...claimSettings, cooldownHours: parseInt(e.target.value) || 24 })}
+                    className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                    placeholder="24"
+                  />
+                  <p className="text-[10px] text-gray-600 mt-1">Hours between claims per wallet</p>
+                </div>
+                <div>
+                  <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                    MIN NEYNAR SCORE
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="1"
+                    value={claimSettings.minNeynarScore}
+                    onChange={(e) => setClaimSettings({ ...claimSettings, minNeynarScore: parseFloat(e.target.value) || 0.6 })}
+                    className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                    placeholder="0.6"
+                  />
+                  <p className="text-[10px] text-gray-600 mt-1">Min score to claim (0.0-1.0, 30M+ holders bypass)</p>
+                </div>
+                <div>
+                  <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                    CUSTOM MULTIPLIER
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0.1"
+                    value={claimSettings.claimMultiplier}
+                    onChange={(e) => setClaimSettings({ ...claimSettings, claimMultiplier: parseFloat(e.target.value) || 1 })}
+                    className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                    placeholder="1"
+                  />
+                  <p className="text-[10px] text-gray-600 mt-1">Enter custom multiplier (e.g., 1.5, 2.5)</p>
+                </div>
+              </div>
+
+              <div className="p-3 bg-cyan-900/20 border border-cyan-500 text-cyan-400 text-xs mb-4">
+                <strong>CURRENT SETTINGS:</strong> {(claimSettings.baseClaimAmount * claimSettings.claimMultiplier).toLocaleString()} tokens per claim, 
+                {claimSettings.cooldownHours}h cooldown, {claimSettings.holderMultiplier}x for 30M+ holders, 
+                min Neynar score {claimSettings.minNeynarScore}
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleSaveClaimSettings}
+                  disabled={loadingClaimSettings}
+                  className="px-4 py-2 bg-cyan-600 text-white font-bold hover:bg-cyan-500 transition-all disabled:opacity-50"
+                >
+                  {loadingClaimSettings ? 'SAVING...' : 'SAVE SETTINGS'}
+                </button>
+                <button
+                  onClick={fetchClaimSettings}
+                  disabled={loadingClaimSettings}
+                  className="px-4 py-2 border border-white text-sm hover:bg-white hover:text-black transition-all disabled:opacity-50"
+                >
+                  REFRESH
+                </button>
               </div>
             </div>
           )}
