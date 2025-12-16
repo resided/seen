@@ -426,10 +426,18 @@ export default async function handler(req, res) {
         transport: http(),
       });
 
-      // DONUT DISABLED - Only sending $SEEN tokens now
-      // Previously: DONUT was a one-time bonus token, now disabled per user request
-      const donutAvailable = false;
-      userCanGetDonut = false;
+      // ATOMIC CHECK: Check DONUT availability (global count and per-user)
+      // Use SET with NX to atomically check and mark user as having received DONUT
+      const userDonutLockResult = await redis.set(userDonutKey, '1', { NX: true }); // SET if Not eXists (atomic)
+      // Returns "OK" if key was set (user didn't have DONUT), null if key already exists (user already has DONUT)
+      userCanGetDonut = userDonutLockResult === 'OK';
+      
+      // Check global DONUT count
+      const donutCountGiven = parseInt(await redis.get(DONUT_COUNT_KEY) || '0');
+      const donutGlobalAvailable = donutCountGiven < DONUT_MAX_SUPPLY;
+      
+      // User can get DONUT if: global available AND we just marked them (they didn't have it before)
+      const donutAvailable = donutGlobalAvailable && userCanGetDonut;
       
       // If user already had DONUT, nothing to do (lock result was null)
       
@@ -441,9 +449,13 @@ export default async function handler(req, res) {
       const seenAmountWei = parseUnits(seenAmount, TOKEN_DECIMALS);
       
       console.log('Sending tokens:', {
-        donutAvailable: false, // DONUT disabled
+        donutAvailable,
+        donutCountGiven,
+        donutMaxSupply: DONUT_MAX_SUPPLY,
         seenContract: TOKEN_CONTRACT,
         seenAmount,
+        donutContract: donutAvailable ? DONUT_TOKEN_CONTRACT : null,
+        donutAmount: donutAvailable ? DONUT_TOKEN_AMOUNT : null,
         to: walletAddress,
         from: account.address,
       });
@@ -538,12 +550,10 @@ export default async function handler(req, res) {
 
     // Build success message
     let successMessage = 'Tokens sent successfully';
-    if (isHolder && newClaimCount === maxClaims) {
-      successMessage = `Tokens sent successfully! (Claim ${newClaimCount}/${maxClaims} - 30M+ holder benefit: ${maxClaims * parseInt(seenAmount)} $SEEN total)`;
+    if (donutAvailable) {
+      successMessage = `Tokens sent successfully! Bonus: 1 DONUT + ${seenAmount} $SEEN`;
     } else if (isHolder) {
       successMessage = `Tokens sent successfully! (Claim ${newClaimCount}/${maxClaims} - 30M+ holder benefit)`;
-    } else {
-      successMessage = `Tokens sent successfully! ${seenAmount} $SEEN`;
     }
 
     return res.status(200).json({
@@ -555,8 +565,8 @@ export default async function handler(req, res) {
       treasuryTxHash: hash, // Also return treasury transaction hash
       donutTxHash: donutHash, // DONUT transaction hash if sent
       amount: seenAmount, // Actual SEEN amount sent
-      donutIncluded: false, // DONUT disabled
-      donutRemaining: 0, // DONUT disabled
+      donutIncluded: donutAvailable, // Whether DONUT was included
+      donutRemaining: Math.max(0, DONUT_MAX_SUPPLY - donutCountGiven - (donutAvailable ? 1 : 0)), // Remaining DONUT tokens
       claimCount: newClaimCount,
       maxClaims,
       isHolder,
