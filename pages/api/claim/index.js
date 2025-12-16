@@ -9,7 +9,7 @@ import { privateKeyToAccount } from 'viem/accounts';
 import { erc20Abi } from 'viem';
 import { checkRateLimit, getClientIP } from '../../../lib/rate-limit';
 
-const MIN_NEYNAR_SCORE = 0.62; // Minimum Neynar user score required to claim
+const MIN_NEYNAR_SCORE = 0.6; // Minimum Neynar user score required to claim
 const WHALE_CLAIM_LIMIT = 2; // Whales (30M+) can claim 2x daily
 
 // Token configuration from environment variables

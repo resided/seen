@@ -3,7 +3,7 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagm
 import { parseUnits, erc20Abi } from 'viem';
 
 const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDisplayName = null, isMiniappInstalled = false, neynarUserScore = null }) => {
-  const MIN_NEYNAR_SCORE = 0.62; // Minimum Neynar user score required to submit
+  const MIN_NEYNAR_SCORE = 0.6; // Minimum Neynar user score required to submit
   
   // Auto-fill builder name (prefer displayName, fallback to username)
   const autoFillBuilder = userDisplayName || (userUsername ? `@${userUsername}` : '');
