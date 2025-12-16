@@ -252,6 +252,16 @@ const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDispl
       }
     }
 
+    // Validate token contract address format if provided for featured/other categories (optional)
+    if (formData.submissionType === 'featured' && formData.category !== 'tokens' && formData.tokenContractAddress && formData.tokenContractAddress.trim()) {
+      const addressPattern = /^0x[a-fA-F0-9]{40}$/i;
+      if (!addressPattern.test(formData.tokenContractAddress.trim())) {
+        setMessage('ERROR: INVALID TOKEN CONTRACT ADDRESS. MUST BE A VALID ETHEREUM ADDRESS (0x followed by 40 hex characters)');
+        setSubmitting(false);
+        return;
+      }
+    }
+
     // Calculate payment amount dynamically based on $SEEN price
     let paymentAmount = 0;
     if (formData.submissionType === 'featured') {
