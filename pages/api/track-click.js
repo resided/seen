@@ -9,11 +9,34 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Rate limiting: 100 requests per IP per minute
+  const { checkRateLimit, getClientIP } = await import('../../lib/rate-limit');
+  const clientIP = getClientIP(req);
+  const rateLimit = await checkRateLimit(`track:${clientIP}`, 100, 60000);
+  if (!rateLimit.allowed) {
+    return res.status(429).json({ 
+      error: 'Too many requests. Please slow down.',
+      retryAfter: Math.ceil((rateLimit.resetAt - Date.now()) / 1000)
+    });
+  }
+
   try {
     const { projectId, type } = req.body; // type: 'click' or 'view'
 
+    // Validate inputs
     if (!projectId || !type) {
       return res.status(400).json({ error: 'Missing projectId or type' });
+    }
+
+    // Validate projectId is a positive integer
+    const projectIdNum = parseInt(projectId);
+    if (isNaN(projectIdNum) || projectIdNum <= 0 || projectIdNum > 2147483647) {
+      return res.status(400).json({ error: 'Invalid projectId' });
+    }
+
+    // Validate type is 'click' or 'view'
+    if (type !== 'click' && type !== 'view') {
+      return res.status(400).json({ error: 'Invalid type. Must be "click" or "view"' });
     }
 
     const redis = await getRedisClient();
@@ -24,7 +47,7 @@ export default async function handler(req, res) {
 
     // Get project to check if it's featured and has featuredAt
     const { getProjectById } = await import('../../lib/projects');
-    const project = await getProjectById(parseInt(projectId));
+    const project = await getProjectById(projectIdNum);
     
     // For featured projects, use 24-hour window from featuredAt instead of calendar date
     let windowKey;
@@ -38,7 +61,7 @@ export default async function handler(req, res) {
     }
     
     const key = type === 'click' ? CLICKS_KEY : VIEWS_KEY;
-    const projectKey = `${key}:${projectId}:${windowKey}`;
+    const projectKey = `${key}:${projectIdNum}:${windowKey}`;
 
     // Increment counter
     await redis.incr(projectKey);
@@ -55,7 +78,7 @@ export default async function handler(req, res) {
     
     if (type === 'click') {
       // Track unique clicks per IP per window
-      const uniqueKey = `clicks:unique:${projectId}:${windowKey}:${clientIP}`;
+      const uniqueKey = `clicks:unique:${projectIdNum}:${windowKey}:${clientIP}`;
       const exists = await redis.exists(uniqueKey);
       if (!exists) {
         const expiration = project?.status === 'featured' ? 48 * 60 * 60 : 2 * 24 * 60 * 60;
@@ -67,7 +90,7 @@ export default async function handler(req, res) {
       success: true, 
       tracked: true,
       type,
-      projectId 
+      projectId: projectIdNum
     });
   } catch (error) {
     console.error('Error tracking click/view:', error);

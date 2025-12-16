@@ -7,11 +7,27 @@ export default async function handler(req, res) {
     // Fetch messages
     const { since } = req.query;
     
+    // Rate limiting: 60 requests per IP per minute
+    const { checkRateLimit, getClientIP } = await import('../../lib/rate-limit');
+    const clientIP = getClientIP(req);
+    const rateLimit = await checkRateLimit(`chat:get:${clientIP}`, 60, 60000);
+    if (!rateLimit.allowed) {
+      return res.status(429).json({ 
+        error: 'Too many requests. Please slow down.',
+        retryAfter: Math.ceil((rateLimit.resetAt - Date.now()) / 1000)
+      });
+    }
+    
     try {
       let messages;
       if (since) {
+        // Validate since is a valid timestamp
+        const sinceNum = parseInt(since);
+        if (isNaN(sinceNum) || sinceNum < 0 || sinceNum > Date.now()) {
+          return res.status(400).json({ error: 'Invalid timestamp' });
+        }
         // Get messages since a specific timestamp (for polling)
-        messages = await getChatMessagesSince(since);
+        messages = await getChatMessagesSince(sinceNum);
       } else {
         // Get all messages
         messages = await getChatMessages(100);
@@ -26,9 +42,28 @@ export default async function handler(req, res) {
       res.status(500).json({ error: 'Failed to fetch messages' });
     }
   } else if (req.method === 'POST') {
+    // Rate limiting: 10 messages per IP per minute
+    const { checkRateLimit, getClientIP } = await import('../../lib/rate-limit');
+    const clientIP = getClientIP(req);
+    const rateLimit = await checkRateLimit(`chat:post:${clientIP}`, 10, 60000);
+    if (!rateLimit.allowed) {
+      return res.status(429).json({ 
+        error: 'Too many messages. Please slow down.',
+        retryAfter: Math.ceil((rateLimit.resetAt - Date.now()) / 1000)
+      });
+    }
+
     // Send a new message
     try {
       const { msg, user, username, fid, verified } = req.body;
+      
+      // Validate fid if provided
+      if (fid !== undefined && fid !== null) {
+        const fidNum = parseInt(fid);
+        if (isNaN(fidNum) || fidNum <= 0) {
+          return res.status(400).json({ error: 'Invalid FID' });
+        }
+      }
       
       // Validate required fields
       if (!msg || !msg.trim()) {
@@ -50,10 +85,10 @@ export default async function handler(req, res) {
       
       const newMessage = await addChatMessage({
         msg: msg.trim(),
-        user: user || 'ANON',
-        username: username || null,
-        fid: fid || 0,
-        verified: verified || false,
+        user: (user && typeof user === 'string' && user.length <= 50) ? user.substring(0, 50) : 'ANON',
+        username: (username && typeof username === 'string' && username.length <= 50) ? username.substring(0, 50) : null,
+        fid: fid ? parseInt(fid) : 0,
+        verified: verified === true,
       });
       
       res.status(201).json({

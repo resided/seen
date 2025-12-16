@@ -7,6 +7,7 @@ import { createWalletClient, createPublicClient, http, parseUnits } from 'viem';
 import { base } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 import { erc20Abi } from 'viem';
+import { checkRateLimit, getClientIP } from '../../../lib/rate-limit';
 
 const MIN_NEYNAR_SCORE = 0.62; // Minimum Neynar user score required to claim
 const WHALE_CLAIM_LIMIT = 2; // Whales (30M+) can claim 2x daily
@@ -41,8 +42,42 @@ export default async function handler(req, res) {
     return res.status(503).json({ error: 'Claims temporarily disabled for maintenance' });
   }
 
+  // Rate limiting: 10 claims per IP per minute, 3 claims per wallet per hour
+  const clientIP = getClientIP(req);
+  const ipRateLimit = await checkRateLimit(`claim:ip:${clientIP}`, 10, 60000); // 10 per minute
+  if (!ipRateLimit.allowed) {
+    return res.status(429).json({ 
+      error: 'Too many claim requests. Please slow down.',
+      retryAfter: Math.ceil((ipRateLimit.resetAt - Date.now()) / 1000)
+    });
+  }
+
   try {
     const { fid, walletAddress, txHash } = req.body;
+
+    // Validate and sanitize inputs
+    if (!fid || isNaN(parseInt(fid)) || parseInt(fid) <= 0) {
+      return res.status(400).json({ error: 'Invalid FID' });
+    }
+
+    if (walletAddress && (!walletAddress.match(/^0x[a-fA-F0-9]{40}$/))) {
+      return res.status(400).json({ error: 'Invalid wallet address format' });
+    }
+
+    if (txHash && (!txHash.match(/^0x[a-fA-F0-9]{64}$/))) {
+      return res.status(400).json({ error: 'Invalid transaction hash format' });
+    }
+
+    // Additional wallet-level rate limiting
+    if (walletAddress) {
+      const walletRateLimit = await checkRateLimit(`claim:wallet:${walletAddress.toLowerCase()}`, 3, 3600000); // 3 per hour
+      if (!walletRateLimit.allowed) {
+        return res.status(429).json({ 
+          error: 'Too many claims from this wallet. Please wait before claiming again.',
+          retryAfter: Math.ceil((walletRateLimit.resetAt - Date.now()) / 1000)
+        });
+      }
+    }
 
     // SECURITY: Blocklist known exploiter wallets
     const BLOCKED_WALLETS = [

@@ -9,9 +9,12 @@ const SESSION_SECRET = process.env.SESSION_SECRET || 'your-secret-key-change-thi
 const RATE_LIMIT_REQUESTS = 5; // Max 5 login attempts
 const RATE_LIMIT_WINDOW = 300000; // Per 5 minutes (to prevent brute force)
 
-// Simple session token generation (in production, use a proper JWT library)
+// Secure session token generation using crypto
+import { randomBytes } from 'crypto';
+
 function generateToken() {
-  return Buffer.from(`${Date.now()}-${Math.random()}`).toString('base64');
+  // Generate 32 random bytes (256 bits) and encode as base64
+  return randomBytes(32).toString('base64');
 }
 
 export default async function handler(req, res) {

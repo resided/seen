@@ -7,11 +7,43 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Rate limiting: 50 requests per IP per minute
+  const { checkRateLimit, getClientIP } = await import('../../lib/rate-limit');
+  const clientIP = getClientIP(req);
+  const rateLimit = await checkRateLimit(`tip:${clientIP}`, 50, 60000);
+  if (!rateLimit.allowed) {
+    return res.status(429).json({ 
+      error: 'Too many requests. Please slow down.',
+      retryAfter: Math.ceil((rateLimit.resetAt - Date.now()) / 1000)
+    });
+  }
+
   try {
     const { projectId, amount, recipientFid } = req.body;
 
+    // Validate inputs
     if (!projectId || !amount) {
       return res.status(400).json({ error: 'Missing projectId or amount' });
+    }
+
+    // Validate projectId is a positive integer
+    const projectIdNum = parseInt(projectId);
+    if (isNaN(projectIdNum) || projectIdNum <= 0 || projectIdNum > 2147483647) {
+      return res.status(400).json({ error: 'Invalid projectId' });
+    }
+
+    // Validate amount is a positive number
+    const amountNum = parseFloat(amount);
+    if (isNaN(amountNum) || amountNum <= 0 || amountNum > 1e10) {
+      return res.status(400).json({ error: 'Invalid amount. Must be a positive number' });
+    }
+
+    // Validate recipientFid if provided
+    if (recipientFid !== undefined && recipientFid !== null) {
+      const recipientFidNum = parseInt(recipientFid);
+      if (isNaN(recipientFidNum) || recipientFidNum <= 0) {
+        return res.status(400).json({ error: 'Invalid recipientFid' });
+      }
     }
 
     const redis = await getRedisClient();
@@ -22,24 +54,23 @@ export default async function handler(req, res) {
     // Track tip in project stats
     try {
       const { getProjectById } = await import('../../lib/projects');
-      const project = await getProjectById(parseInt(projectId));
+      const project = await getProjectById(projectIdNum);
       
       if (project) {
         const currentTips = parseFloat(project.stats?.tips || 0);
-        const tipAmount = parseFloat(amount) || 0;
-        const newTipsTotal = currentTips + tipAmount;
+        const newTipsTotal = currentTips + amountNum;
         
-        await updateProjectStats(parseInt(projectId), {
+        await updateProjectStats(projectIdNum, {
           tips: newTipsTotal,
         });
       }
       
       // Also track individual tips for analytics
-      const tipKey = `tip:${projectId}:${Date.now()}`;
+      const tipKey = `tip:${projectIdNum}:${Date.now()}`;
       await redis.hSet(tipKey, {
-        projectId: projectId.toString(),
-        amount: amount.toString(),
-        recipientFid: recipientFid?.toString() || '',
+        projectId: projectIdNum.toString(),
+        amount: amountNum.toString(),
+        recipientFid: recipientFid !== undefined && recipientFid !== null ? parseInt(recipientFid).toString() : '',
         timestamp: Date.now().toString(),
       });
       
