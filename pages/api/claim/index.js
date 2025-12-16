@@ -126,6 +126,9 @@ export default async function handler(req, res) {
     const expirationTime = new Date(featuredAt.getTime() + 24 * 60 * 60 * 1000);
     const now = new Date();
     
+    // Global TTL for all claim-related keys in this rotation
+    const ttl = Math.max(0, Math.floor((expirationTime - now) / 1000));
+    
     // Check if claim window has expired
     if (now > expirationTime) {
       return res.status(400).json({ 
@@ -134,6 +137,27 @@ export default async function handler(req, res) {
         featuredAt: featuredAt.toISOString(),
         expirationTime: expirationTime.toISOString(),
       });
+    }
+
+    // EMERGENCY GLOBAL WALLET LOCK - ONE CLAIM PER WALLET (TEMPORARY HARD CAP)
+    // This is a simple, brutal safety net: once a wallet has successfully claimed,
+    // this key will exist and all future attempts from that wallet are rejected.
+    const walletLockKey = `claim:wallet:lock:${walletAddress.toLowerCase()}`;
+    const walletLock = await redis.set(walletLockKey, '1', { NX: true });
+    if (walletLock === null) {
+      console.warn('SECURITY: Wallet lock already exists, rejecting claim:', {
+        fid,
+        walletAddress: walletAddress?.slice(0, 10) + '...',
+        featuredProjectId,
+      });
+      return res.status(400).json({
+        error: 'This wallet has already claimed. Additional claims are temporarily disabled for safety.',
+        featuredProjectId,
+      });
+    }
+    // Ensure the lock expires when this rotation expires (so future rotations can opt into new rules)
+    if (ttl > 0) {
+      await redis.expire(walletLockKey, ttl);
     }
 
     // Track claim by featured project ID + featuredAt timestamp + FID AND wallet
@@ -282,7 +306,6 @@ export default async function handler(req, res) {
     }
     
     // Set expiration on all claim count keys
-    const ttl = Math.max(0, Math.floor((expirationTime - now) / 1000));
     await redis.expire(claimCountKey, ttl);
     await redis.expire(walletClaimCountKey, ttl);
     await redis.expire(globalWalletClaimCountKey, ttl);
