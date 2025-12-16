@@ -775,7 +775,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
         <div className="mt-4 border border-white p-4 bg-black">
           <div className="text-center">
             <div className="text-xs font-black tracking-[0.2em] text-white mb-2">
-              CLICK THE BUTTON ABOVE
+              ↑ CLICK THE BUTTON ABOVE ↑
             </div>
             <div className="text-sm font-black text-white mb-2">
               &gt;&gt; OPEN MINI APP &lt;&lt;
