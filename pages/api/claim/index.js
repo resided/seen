@@ -43,15 +43,8 @@ export default async function handler(req, res) {
   }
 
   // Rate limiting: 10 claims per IP per minute, 3 claims per wallet per hour
-  let clientIP;
-  let ipRateLimit;
-  try {
-    clientIP = getClientIP(req);
-    ipRateLimit = await checkRateLimit(`claim:ip:${clientIP}`, 10, 60000); // 10 per minute
-  } catch (rateLimitError) {
-    console.error('Rate limit initialization error:', rateLimitError);
-    return res.status(500).json({ error: 'Rate limit service error' });
-  }
+  const clientIP = getClientIP(req);
+  const ipRateLimit = await checkRateLimit(`claim:ip:${clientIP}`, 10, 60000); // 10 per minute
   if (!ipRateLimit.allowed) {
     return res.status(429).json({ 
       error: 'Too many claim requests. Please slow down.',
@@ -181,6 +174,9 @@ export default async function handler(req, res) {
     }
     const featuredAt = new Date(featuredProject.featuredAt);
     
+    // Calculate featuredAt timestamp (used for rotation-specific keys)
+    const featuredAtTimestamp = Math.floor(featuredAt.getTime() / 1000); // Unix timestamp in seconds
+    
     // Calculate expiration: 24 hours from when project was featured
     const expirationTime = new Date(featuredAt.getTime() + 24 * 60 * 60 * 1000);
     const now = new Date();
@@ -219,7 +215,7 @@ export default async function handler(req, res) {
 
     // Track claim by featured project ID + featuredAt timestamp + FID AND wallet
     // This prevents FID spoofing attacks - claims tracked by both FID and wallet
-    const featuredAtTimestamp = Math.floor(featuredAt.getTime() / 1000); // Unix timestamp in seconds
+    // featuredAtTimestamp already defined above
     const claimKey = `claim:featured:${featuredProjectId}:${featuredAtTimestamp}:${fid}`;
     const claimCountKey = `claim:count:${featuredProjectId}:${featuredAtTimestamp}:${fid}`;
     
