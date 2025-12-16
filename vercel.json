@@ -5,6 +5,8 @@
       "destination": "https://api.farcaster.xyz/miniapps/hosted-manifest/019b19f2-6ca6-3bb7-c3e0-f374fc02f670",
       "permanent": false
     }
-  ]
+  ],
+  "buildCommand": "yarn build",
+  "installCommand": "yarn install --frozen-lockfile"
 }
 
