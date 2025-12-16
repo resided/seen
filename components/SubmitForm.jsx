@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useAccount, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi';
-import { parseEther } from 'viem';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { parseUnits, erc20Abi } from 'viem';
 
 const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDisplayName = null, isMiniappInstalled = false, neynarUserScore = null }) => {
   const MIN_NEYNAR_SCORE = 0.62; // Minimum Neynar user score required to submit
@@ -29,15 +29,19 @@ const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDispl
   const [processingPayment, setProcessingPayment] = useState(false);
   
   const { isConnected, address } = useAccount();
-  const { sendTransaction, data: txData } = useSendTransaction();
+  const { writeContract, data: txData } = useWriteContract();
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash: paymentTxHash || txData,
   });
   
+  // SEEN token contract address (Base network)
+  const SEEN_TOKEN_CONTRACT = '0x82a56d595cCDFa3A1dc6eEf28d5F0A870f162B07';
+  const SEEN_TOKEN_DECIMALS = 18;
+  
   // Featured submission pricing (configurable)
   const BASE_FEATURED_PRICE_USD = 111; // Base USD price
-  const [ethPrice, setEthPrice] = useState(null);
-  const [ethPriceLoading, setEthPriceLoading] = useState(true);
+  const [seenPrice, setSeenPrice] = useState(null);
+  const [seenPriceLoading, setSeenPriceLoading] = useState(true);
   // Treasury address should be fetched from API or environment
   const [treasuryAddress, setTreasuryAddress] = useState(null);
   
@@ -49,34 +53,58 @@ const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDispl
   const discountPercent = isHolder ? 20 : 0;
   const FEATURED_PRICE_USD = BASE_FEATURED_PRICE_USD * (1 - discountPercent / 100);
   
-  // Calculate ETH amount from USD price
-  const FEATURED_PRICE_ETH = ethPrice ? (FEATURED_PRICE_USD / ethPrice) : null;
+  // Calculate $SEEN amount from USD price
+  const FEATURED_PRICE_SEEN = seenPrice ? (FEATURED_PRICE_USD / seenPrice) : null;
   const FEATURED_PRICE_DISPLAY = isHolder 
     ? `$${FEATURED_PRICE_USD.toFixed(0)} (20% holder discount!)` 
     : `$${BASE_FEATURED_PRICE_USD}`;
   
-  // Fetch ETH price
+  // Fetch $SEEN price
+  // NOTE: You may need to add SEEN token to CoinGecko or use a DEX aggregator API
+  // For now, this tries CoinGecko first, then falls back to a reasonable default
   useEffect(() => {
-    const fetchEthPrice = async () => {
+    const fetchSeenPrice = async () => {
       try {
-        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd');
+        // Try CoinGecko first (if SEEN is listed there)
+        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=seen&vs_currencies=usd');
         if (response.ok) {
           const data = await response.json();
-          if (data.ethereum?.usd) {
-            setEthPrice(data.ethereum.usd);
+          if (data.seen?.usd) {
+            setSeenPrice(data.seen.usd);
+            return;
           }
         }
+        
+        // Fallback: Try to get price from DEX or use a custom endpoint
+        // You can create an API endpoint at /api/seen-price that fetches from a DEX aggregator
+        try {
+          const customPriceResponse = await fetch('/api/seen-price');
+          if (customPriceResponse.ok) {
+            const priceData = await customPriceResponse.json();
+            if (priceData.price) {
+              setSeenPrice(priceData.price);
+              return;
+            }
+          }
+        } catch (customError) {
+          console.warn('Custom price API not available:', customError);
+        }
+        
+        // Final fallback: use a reasonable default (you should replace this)
+        // This is a placeholder - you need to implement proper price fetching
+        console.warn('SEEN price not available, using fallback. Implement proper price source!');
+        setSeenPrice(0.001); // TODO: Replace with actual price source
       } catch (error) {
-        console.error('Error fetching ETH price:', error);
-        setEthPrice(2800); // Approximate fallback
+        console.error('Error fetching SEEN price:', error);
+        setSeenPrice(0.001); // Fallback price
       } finally {
-        setEthPriceLoading(false);
+        setSeenPriceLoading(false);
       }
     };
     
-    fetchEthPrice();
+    fetchSeenPrice();
     // Refresh price every 30 seconds
-    const interval = setInterval(fetchEthPrice, 30000);
+    const interval = setInterval(fetchSeenPrice, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -122,7 +150,7 @@ const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDispl
         setMessage('PAYMENT CONFIRMED! SUBMITTING PROJECT...');
         
         try {
-          const paymentAmount = FEATURED_PRICE_ETH;
+          const paymentAmount = FEATURED_PRICE_SEEN;
           const response = await fetch('/api/submit', {
             method: 'POST',
             headers: {
@@ -208,15 +236,15 @@ const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDispl
       return;
     }
 
-    // Calculate payment amount dynamically based on ETH price
+    // Calculate payment amount dynamically based on $SEEN price
     let paymentAmount = 0;
     if (formData.submissionType === 'featured') {
-      if (!ethPrice || !FEATURED_PRICE_ETH) {
-        setMessage('ERROR: ETH PRICE NOT LOADED. PLEASE WAIT AND TRY AGAIN.');
+      if (!seenPrice || !FEATURED_PRICE_SEEN) {
+        setMessage('ERROR: $SEEN PRICE NOT LOADED. PLEASE WAIT AND TRY AGAIN.');
         setSubmitting(false);
         return;
       }
-      paymentAmount = FEATURED_PRICE_ETH;
+      paymentAmount = FEATURED_PRICE_SEEN;
     }
 
     // If featured submission, collect payment first
@@ -237,13 +265,16 @@ const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDispl
         setProcessingPayment(true);
         setMessage('PROCESSING PAYMENT...');
 
-        // Send payment transaction
-        const hash = await sendTransaction({
-          to: treasuryAddress,
-          value: parseEther(paymentAmount.toFixed(6)),
+        // Send $SEEN token payment using ERC20 transfer
+        const seenAmountWei = parseUnits(paymentAmount.toFixed(6), SEEN_TOKEN_DECIMALS);
+        const hash = await writeContract({
+          address: SEEN_TOKEN_CONTRACT,
+          abi: erc20Abi,
+          functionName: 'transfer',
+          args: [treasuryAddress, seenAmountWei],
         });
 
-        // The hash will be available in txData from useSendTransaction
+        // The hash will be available in txData from useWriteContract
         // But we also set it in state for the useEffect
         if (hash) {
           setPaymentTxHash(hash);
@@ -475,7 +506,7 @@ const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDispl
                   <div className="text-sm font-bold">FEATURED SLOT</div>
                   <div className="text-[10px] text-gray-500">
                     {FEATURED_PRICE_DISPLAY} 
-                    {ethPriceLoading ? ' (Loading...)' : FEATURED_PRICE_ETH ? ` (~${FEATURED_PRICE_ETH.toFixed(6)} ETH)` : ' (Price unavailable)'} - Payment required
+                    {seenPriceLoading ? ' (Loading...)' : FEATURED_PRICE_SEEN ? ` (~${FEATURED_PRICE_SEEN.toLocaleString(undefined, { maximumFractionDigits: 0 })} $SEEN)` : ' (Price unavailable)'} - Payment required
                   </div>
                   {isHolder && (
                     <div className="text-[9px] text-green-400 mt-1 font-bold">
