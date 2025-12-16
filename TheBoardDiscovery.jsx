@@ -1405,6 +1405,38 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
                 ) : null}
               </div>
             )}
+
+            {/* Token Contract Address (for token submissions) */}
+            {project.tokenContractAddress && project.category === 'tokens' && (
+              <div className="mb-2">
+                <div className="text-[10px] tracking-[0.2em] text-gray-500 mb-1">TOKEN CONTRACT</div>
+                <button
+                  onClick={async () => {
+                    if (!isInFarcaster) return;
+                    try {
+                      const contractUrl = `https://basescan.org/address/${project.tokenContractAddress}`;
+                      if (sdk.actions?.openUrl) {
+                        await sdk.actions.openUrl({ url: contractUrl });
+                      } else {
+                        window.open(contractUrl, '_blank', 'noopener,noreferrer');
+                      }
+                    } catch (error) {
+                      console.error('Error opening contract address:', error);
+                      window.open(`https://basescan.org/address/${project.tokenContractAddress}`, '_blank', 'noopener,noreferrer');
+                    }
+                  }}
+                  className="text-[10px] font-mono text-white hover:text-gray-300 border border-white/50 px-2 py-1 hover:bg-white/10 transition-all text-left truncate max-w-full"
+                  title={project.tokenContractAddress}
+                >
+                  {`${project.tokenContractAddress.slice(0, 6)}...${project.tokenContractAddress.slice(-4)}`}
+                </button>
+                {project.tokenName && (
+                  <div className="text-[10px] text-gray-500 mt-1">
+                    {project.tokenName}
+                  </div>
+                )}
+              </div>
+            )}
             
             {/* Description - show more by default, can collapse */}
             {project.description && (
