@@ -120,7 +120,7 @@ const ActivityTicker = () => {
 // ============================================
 // FEATURED APP CARD
 // ============================================
-const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, onMiniappClick, ethPrice = null, ethPriceLoading = false }) => {
+const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, onMiniappClick, ethPrice = null, ethPriceLoading = false, hasClickedMiniapp = false }) => {
   const [countdown, setCountdown] = useState({ h: 0, m: 0, s: 0 });
   const [creatorProfileUrl, setCreatorProfileUrl] = useState(null);
   const [builderData, setBuilderData] = useState(null);
@@ -3208,6 +3208,7 @@ export default function Seen() {
                   isConnected={isConnected}
                   ethPrice={ethPrice}
                   ethPriceLoading={ethPriceLoading}
+                  hasClickedMiniapp={hasClickedMiniapp}
                   onMiniappClick={() => {
                     setHasClickedMiniapp(true);
                     // Store with project info for validation
