@@ -29,6 +29,16 @@ export default function Admin() {
   const [currentFeatured, setCurrentFeatured] = useState(null);
   const [claimStats, setClaimStats] = useState(null);
   const [loadingStats, setLoadingStats] = useState(false);
+  const [bonusTokenConfig, setBonusTokenConfig] = useState({
+    enabled: false,
+    contractAddress: '',
+    amount: '',
+    decimals: 18,
+    maxSupply: 0,
+    tokenName: '',
+  });
+  const [loadingBonusConfig, setLoadingBonusConfig] = useState(false);
+  const [showBonusTokenConfig, setShowBonusTokenConfig] = useState(false);
   const [editFormData, setEditFormData] = useState({
     name: '',
     tagline: '',
@@ -1011,12 +1021,76 @@ export default function Admin() {
     }
   };
 
-  // Fetch current featured on load
+  // Fetch current featured and bonus token config on load
   useEffect(() => {
     if (isAuthenticated) {
       fetchCurrentFeatured();
+      fetchBonusTokenConfig();
     }
   }, [isAuthenticated]);
+
+  const fetchBonusTokenConfig = async () => {
+    setLoadingBonusConfig(true);
+    try {
+      const response = await fetch('/api/admin/bonus-token-config', {
+        method: 'GET',
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setBonusTokenConfig(data.config || {
+          enabled: false,
+          contractAddress: '',
+          amount: '',
+          decimals: 18,
+          maxSupply: 0,
+          tokenName: '',
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching bonus token config:', error);
+    } finally {
+      setLoadingBonusConfig(false);
+    }
+  };
+
+  const handleSaveBonusTokenConfig = async () => {
+    if (bonusTokenConfig.enabled) {
+      if (!bonusTokenConfig.contractAddress || !bonusTokenConfig.contractAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
+        setMessage('ERROR: Valid contract address is required when enabled');
+        return;
+      }
+      if (!bonusTokenConfig.amount || parseFloat(bonusTokenConfig.amount) <= 0) {
+        setMessage('ERROR: Valid amount > 0 is required when enabled');
+        return;
+      }
+      if (!bonusTokenConfig.maxSupply || parseInt(bonusTokenConfig.maxSupply) <= 0) {
+        setMessage('ERROR: Valid maxSupply > 0 is required when enabled');
+        return;
+      }
+    }
+
+    setLoadingBonusConfig(true);
+    try {
+      const response = await fetch('/api/admin/bonus-token-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ config: bonusTokenConfig, fid: userFid || null }),
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setMessage(data.message || 'Bonus token config saved successfully');
+        setShowBonusTokenConfig(false);
+      } else {
+        setMessage(data.error || 'Failed to save bonus token config');
+      }
+    } catch (error) {
+      setMessage('Error saving bonus token config');
+    } finally {
+      setLoadingBonusConfig(false);
+    }
+  };
 
   const handleArchive = async (projectId, archive = true) => {
     const action = archive ? 'archive' : 'unarchive';
@@ -1280,6 +1354,17 @@ export default function Admin() {
                 CLEAR OLD CLAIMS
               </button>
               <button
+                onClick={() => {
+                  setShowBonusTokenConfig(!showBonusTokenConfig);
+                  if (!showBonusTokenConfig) {
+                    fetchBonusTokenConfig();
+                  }
+                }}
+                className="px-4 py-2 bg-purple-600 text-white font-bold hover:bg-purple-500 transition-all"
+              >
+                {showBonusTokenConfig ? 'HIDE BONUS TOKEN' : 'CONFIGURE BONUS TOKEN'}
+              </button>
+              <button
                 onClick={handleLogout}
                 className="px-4 py-2 border border-white text-sm hover:bg-white hover:text-black transition-all"
               >
@@ -1377,6 +1462,129 @@ export default function Admin() {
               )}
             </div>
           </div>
+
+          {/* Bonus Token Configuration */}
+          {showBonusTokenConfig && (
+            <div className="mb-8 border border-white p-6 bg-black">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-2xl font-black">BONUS TOKEN CONFIGURATION</h2>
+                  <p className="text-xs text-gray-500 mt-1">Configure a bonus token to be sent alongside $SEEN claims (for future campaigns)</p>
+                </div>
+                <button
+                  onClick={() => setShowBonusTokenConfig(false)}
+                  className="text-white hover:text-gray-400 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="bonusEnabled"
+                    checked={bonusTokenConfig.enabled}
+                    onChange={(e) => setBonusTokenConfig({ ...bonusTokenConfig, enabled: e.target.checked })}
+                    className="w-5 h-5"
+                  />
+                  <label htmlFor="bonusEnabled" className="text-sm font-bold">
+                    ENABLE BONUS TOKEN (will override DONUT for new claims)
+                  </label>
+                </div>
+                {bonusTokenConfig.enabled && (
+                  <>
+                    <div>
+                      <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                        TOKEN NAME (OPTIONAL)
+                      </label>
+                      <input
+                        type="text"
+                        value={bonusTokenConfig.tokenName}
+                        onChange={(e) => setBonusTokenConfig({ ...bonusTokenConfig, tokenName: e.target.value })}
+                        className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                        placeholder="e.g., DONUT, BONUS, etc."
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                        CONTRACT ADDRESS *
+                      </label>
+                      <input
+                        type="text"
+                        value={bonusTokenConfig.contractAddress}
+                        onChange={(e) => setBonusTokenConfig({ ...bonusTokenConfig, contractAddress: e.target.value })}
+                        className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black font-mono"
+                        placeholder="0x..."
+                        pattern="^0x[a-fA-F0-9]{40}$"
+                      />
+                      <p className="text-[10px] text-gray-600 mt-1">Token contract address on Base network</p>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                          AMOUNT PER CLAIM *
+                        </label>
+                        <input
+                          type="text"
+                          value={bonusTokenConfig.amount}
+                          onChange={(e) => setBonusTokenConfig({ ...bonusTokenConfig, amount: e.target.value })}
+                          className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                          placeholder="1"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                          DECIMALS
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="18"
+                          value={bonusTokenConfig.decimals}
+                          onChange={(e) => setBonusTokenConfig({ ...bonusTokenConfig, decimals: parseInt(e.target.value) || 18 })}
+                          className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                          placeholder="18"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                          MAX SUPPLY *
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={bonusTokenConfig.maxSupply}
+                          onChange={(e) => setBonusTokenConfig({ ...bonusTokenConfig, maxSupply: parseInt(e.target.value) || 0 })}
+                          className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                          placeholder="1000"
+                        />
+                      </div>
+                    </div>
+                    <div className="p-3 bg-yellow-900/20 border border-yellow-500 text-yellow-400 text-xs">
+                      <strong>NOTE:</strong> When enabled, this bonus token will be sent alongside $SEEN for all new claims. 
+                      Each wallet can receive the bonus token once. The bonus token will override DONUT if configured.
+                    </div>
+                  </>
+                )}
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleSaveBonusTokenConfig}
+                    disabled={loadingBonusConfig}
+                    className="px-4 py-2 bg-green-600 text-white font-bold hover:bg-green-500 transition-all disabled:opacity-50"
+                  >
+                    {loadingBonusConfig ? 'SAVING...' : 'SAVE CONFIG'}
+                  </button>
+                  <button
+                    onClick={fetchBonusTokenConfig}
+                    disabled={loadingBonusConfig}
+                    className="px-4 py-2 border border-white text-sm hover:bg-white hover:text-black transition-all disabled:opacity-50"
+                  >
+                    REFRESH
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Edit Project Modal */}
           {editingProject && (
