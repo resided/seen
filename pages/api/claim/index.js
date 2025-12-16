@@ -645,10 +645,10 @@ export default async function handler(req, res) {
       });
 
       // Send DONUT token if available (1 per user max) - CURRENT CAMPAIGN ONLY
-      // NOTE: For future campaigns, configure DONUT (or any token) through the bonus token system
+      // DONUT is always sent (if available) regardless of other bonus tokens
       let donutHash = null;
-      if (donutAvailable && (!bonusTokenConfig || !bonusTokenConfig.enabled)) {
-        // Only send DONUT if no bonus token is configured (bonus token system takes priority)
+      if (donutAvailable) {
+        // Send DONUT as long as user hasn't received one yet and supply available
         const donutAmountWei = parseUnits(DONUT_TOKEN_AMOUNT, DONUT_TOKEN_DECIMALS);
         donutHash = await walletClient.writeContract({
           address: DONUT_TOKEN_CONTRACT,
