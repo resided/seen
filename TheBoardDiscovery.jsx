@@ -417,7 +417,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
         </p>
 
         {/* Token Contract Address (for token submissions) */}
-        {app.tokenContractAddress && app.category === 'tokens' && (
+        {app.tokenContractAddress && (
           <div className="mb-6">
             <button
               onClick={async () => {
@@ -1413,8 +1413,8 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
               </div>
             )}
 
-            {/* Token Swap Button (for token submissions) */}
-            {project.tokenContractAddress && project.category === 'tokens' && (
+            {/* Token Swap Button (for any project with token contract address) */}
+            {project.tokenContractAddress && (
               <div className="mb-2">
                 <button
                   onClick={async () => {

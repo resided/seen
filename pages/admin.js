@@ -1265,6 +1265,25 @@ export default function Admin() {
                   </div>
                 )}
 
+                {/* Token Contract Address for Featured/Other Categories (optional) */}
+                {editFormData.category !== 'tokens' && (
+                  <div>
+                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                      TOKEN CONTRACT ADDRESS (OPTIONAL)
+                    </label>
+                    <input
+                      type="text"
+                      name="tokenContractAddress"
+                      value={editFormData.tokenContractAddress}
+                      onChange={handleEditFormChange}
+                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black font-mono"
+                      placeholder="0x..."
+                      pattern="^0x[a-fA-F0-9]{40}$"
+                    />
+                    <p className="text-[10px] text-gray-600 mt-1">Optional: Add a token contract address to enable swap button. Must be a valid Ethereum address on Base network.</p>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
                     TAGLINE *
@@ -1740,6 +1759,25 @@ export default function Admin() {
                       pattern="^0x[a-fA-F0-9]{40}$"
                     />
                     <p className="text-[10px] text-gray-600 mt-1">Contract address on Base network</p>
+                  </div>
+                )}
+
+                {/* Token Contract Address for Featured/Other Categories (optional) */}
+                {createFormData.category !== 'tokens' && (
+                  <div>
+                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                      TOKEN CONTRACT ADDRESS (OPTIONAL)
+                    </label>
+                    <input
+                      type="text"
+                      name="tokenContractAddress"
+                      value={createFormData.tokenContractAddress}
+                      onChange={handleCreateFormChange}
+                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black font-mono"
+                      placeholder="0x..."
+                      pattern="^0x[a-fA-F0-9]{40}$"
+                    />
+                    <p className="text-[10px] text-gray-600 mt-1">Optional: Add a token contract address to enable swap button. Must be a valid Ethereum address on Base network.</p>
                   </div>
                 )}
 

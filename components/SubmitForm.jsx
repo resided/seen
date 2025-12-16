@@ -449,6 +449,25 @@ const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDispl
             </div>
           )}
 
+          {/* Token Contract Address for Featured Listings (optional) */}
+          {formData.submissionType === 'featured' && formData.category !== 'tokens' && (
+            <div>
+              <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                TOKEN CONTRACT ADDRESS (OPTIONAL)
+              </label>
+              <input
+                type="text"
+                name="tokenContractAddress"
+                value={formData.tokenContractAddress}
+                onChange={handleChange}
+                className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black font-mono"
+                placeholder="0x..."
+                pattern="^0x[a-fA-F0-9]{40}$"
+              />
+              <p className="text-[10px] text-gray-600 mt-1">Optional: Add a token contract address to enable swap button. Must be a valid Ethereum address on Base network.</p>
+            </div>
+          )}
+
           <div>
             <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
               TAGLINE *
