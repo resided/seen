@@ -233,9 +233,9 @@ const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDispl
 
       try {
         setProcessingPayment(true);
-        setMessage('PROCESSING PAYMENT...');
+        setMessage('APPROVE TRANSACTION IN WALLET...');
 
-        // Send $SEEN token payment using ERC20 transfer
+        // Send USDC payment using ERC20 transfer
         // USDC has 6 decimals
         const usdcAmount = parseUnits(paymentAmount.toFixed(2), USDC_TOKEN_DECIMALS);
         const hash = await writeContract({
@@ -245,19 +245,30 @@ const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDispl
           args: [treasuryAddress, usdcAmount],
         });
 
-        // The hash will be available in txData from useWriteContract
-        // But we also set it in state for the useEffect
-        if (hash) {
-          setPaymentTxHash(hash);
+        // Only proceed if we actually got a transaction hash back
+        if (!hash) {
+          setMessage('TRANSACTION CANCELLED OR REJECTED');
+          setSubmitting(false);
+          setProcessingPayment(false);
+          return;
         }
-        setMessage('PAYMENT SENT! WAITING FOR CONFIRMATION...');
+        
+        // Transaction was signed and submitted - now we have a real hash
+        setPaymentTxHash(hash);
+        setMessage('TRANSACTION SUBMITTED! WAITING FOR CONFIRMATION...');
         
         // Wait for transaction confirmation
         // The useWaitForTransactionReceipt hook will handle this
         // We'll check isConfirmed in the next part
       } catch (error) {
         console.error('Payment error:', error);
-        setMessage('PAYMENT FAILED. PLEASE TRY AGAIN.');
+        // Check for user rejection
+        const errorMsg = error?.message?.toLowerCase() || '';
+        if (errorMsg.includes('rejected') || errorMsg.includes('denied') || errorMsg.includes('cancelled') || errorMsg.includes('user refused')) {
+          setMessage('TRANSACTION REJECTED BY USER');
+        } else {
+          setMessage('PAYMENT FAILED: ' + (error?.shortMessage || error?.message || 'Unknown error'));
+        }
         setSubmitting(false);
         setProcessingPayment(false);
         return;
