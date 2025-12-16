@@ -11,7 +11,7 @@ const DEFAULT_SETTINGS = {
   claimMultiplier: 1, // Multiplier (1x, 2x, 3x, etc.)
   holderMultiplier: 2, // How many claims 30M+ holders get (default 2x)
   cooldownHours: 24, // Personal cooldown in hours
-  minNeynarScore: 0.55, // Minimum Neynar score to claim
+  minNeynarScore: 0.6, // Minimum Neynar score to claim
   claimsEnabled: true, // Master switch for claims
 };
 

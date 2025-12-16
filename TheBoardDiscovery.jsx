@@ -2187,7 +2187,7 @@ const TokenBenefits = () => {
 // DAILY CLAIM
 // ============================================
 const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false, featuredApp = null, hasClickedMiniapp = false, neynarUserScore = null }) => {
-  const MIN_NEYNAR_SCORE = 0.55; // Minimum Neynar user score required to claim
+  const MIN_NEYNAR_SCORE = 0.6; // Minimum Neynar user score required to claim
   const [claimed, setClaimed] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [message, setMessage] = useState('');

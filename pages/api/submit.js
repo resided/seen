@@ -3,7 +3,7 @@ import { submitProject, checkFeaturedPaymentCooldown } from '../../lib/projects'
 import { fetchUserByFid } from '../../lib/neynar'
 import { getMiniAppCreator } from '../../lib/miniapp-utils'
 
-const MIN_NEYNAR_SCORE = 0.55; // Minimum Neynar user score required to submit
+const MIN_NEYNAR_SCORE = 0.6; // Minimum Neynar user score required to submit
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
