@@ -2620,14 +2620,14 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
                 : 'CLAIM EXPIRES WHEN FEATURED PROJECT CHANGES'}
             </div>
             
-            {/* Cooldown Warning */}
+            {/* Cooldown Notice */}
             {personalCooldownRemaining > 0 && claimCount >= maxClaims && (
-              <div className="mb-3 p-3 border border-orange-500/50 bg-orange-500/10">
-                <div className="text-[10px] tracking-[0.2em] text-orange-400 font-bold mb-1">
-                  ON COOLDOWN
+              <div className="mb-3 p-3 border border-white/30 bg-white/5">
+                <div className="text-[10px] tracking-[0.2em] text-gray-400 font-bold mb-1">
+                  CLAIM COOLDOWN ACTIVE
                 </div>
-                <div className="text-xs text-orange-300">
-                  Next claim available in {Math.ceil(personalCooldownRemaining / (1000 * 60 * 60))}h {Math.ceil((personalCooldownRemaining % (1000 * 60 * 60)) / (1000 * 60))}m
+                <div className="text-xs text-white">
+                  Next claim in {Math.ceil(personalCooldownRemaining / (1000 * 60 * 60))}h {Math.ceil((personalCooldownRemaining % (1000 * 60 * 60)) / (1000 * 60))}m
                 </div>
               </div>
             )}
