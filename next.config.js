@@ -18,7 +18,7 @@ const nextConfig = {
   },
   // Experimental optimizations for faster builds
   experimental: {
-    optimizeCss: true, // Faster CSS optimization
+    // optimizeCss requires critters package - removed to avoid build errors
     optimizePackageImports: ['@farcaster/miniapp-sdk', 'wagmi', '@tanstack/react-query'], // Tree-shake unused exports
   },
   // Optimize images
