@@ -55,21 +55,19 @@ export default async function handler(req, res) {
     const featuredAtTimestamp = Math.floor(featuredAt.getTime() / 1000);
 
     // Count total claims for this rotation
-    // Use EXACT same pattern as reset-claims.js which works
+    // COPY EXACT CODE from reset-claims.js line 100-117
     const claimPattern = `claim:featured:${featuredProjectId}:${featuredAtTimestamp}:*`;
     const claimKeys = [];
     let cursor = 0;
     try {
       do {
-        const result = await redis.scan(cursor, {
+        const [nextCursor, foundKeys] = await redis.scan(cursor, {
           MATCH: claimPattern,
           COUNT: 100
         });
-        // Handle both array [cursor, keys] and object {cursor, keys} return types
-        const nextCursor = Array.isArray(result) ? result[0] : (result?.cursor || result?.nextCursor);
-        const foundKeys = Array.isArray(result) ? result[1] : (result?.keys || []);
+        // Cursor might be string "0" or number 0, convert to number for comparison
         cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
-        if (foundKeys && Array.isArray(foundKeys) && foundKeys.length > 0) {
+        if (foundKeys && foundKeys.length > 0) {
           claimKeys.push(...foundKeys);
         }
       } while (cursor !== 0);
@@ -79,20 +77,19 @@ export default async function handler(req, res) {
     }
 
     // Count unique wallets
+    // COPY EXACT CODE from reset-claims.js line 100-117
     const walletPattern = `claim:wallet:${featuredProjectId}:${featuredAtTimestamp}:*`;
     const walletKeys = [];
     cursor = 0;
     try {
       do {
-        const result = await redis.scan(cursor, {
+        const [nextCursor, foundKeys] = await redis.scan(cursor, {
           MATCH: walletPattern,
           COUNT: 100
         });
-        // Handle both array [cursor, keys] and object {cursor, keys} return types
-        const nextCursor = Array.isArray(result) ? result[0] : (result?.cursor || result?.nextCursor);
-        const foundKeys = Array.isArray(result) ? result[1] : (result?.keys || []);
+        // Cursor might be string "0" or number 0, convert to number for comparison
         cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
-        if (foundKeys && Array.isArray(foundKeys) && foundKeys.length > 0) {
+        if (foundKeys && foundKeys.length > 0) {
           walletKeys.push(...foundKeys);
         }
       } while (cursor !== 0);
