@@ -776,7 +776,10 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
           <div className="mt-4 border-2 border-white p-4 bg-black">
             <div className="text-center">
               <div className="text-xs font-black text-white mb-2">
-                STEP 1: CLICK &gt;&gt; OPEN MINI APP &lt;&lt;
+                STEP 1: CLICK THE BUTTON ABOVE
+              </div>
+              <div className="text-sm font-black text-white mb-2">
+                &gt;&gt; OPEN MINI APP &lt;&lt;
               </div>
               <div className="text-[10px] text-gray-400">
                 Then scroll down to Featured Claim to claim $SEEN and any bonus tokens
@@ -2563,8 +2566,11 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
             )}
             {!hasClickedMiniapp && isInFarcaster && (
               <div className="mb-4 p-4 border-2 border-white bg-white/5 animate-pulse">
-                <div className="text-sm font-black text-white mb-2 tracking-[0.1em] text-center">
-                  STEP 1: TAP &gt;&gt; OPEN MINI APP &lt;&lt; ABOVE
+                <div className="text-xs font-black text-white mb-1 text-center">
+                  STEP 1: CLICK THE BUTTON ABOVE
+                </div>
+                <div className="text-sm font-black text-white mb-2 text-center">
+                  &gt;&gt; OPEN MINI APP &lt;&lt;
                 </div>
                 <div className="text-[10px] text-gray-400 text-center">
                   Then scroll back here to claim $SEEN and any bonus tokens
