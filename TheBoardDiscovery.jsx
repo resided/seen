@@ -3228,6 +3228,8 @@ export default function Seen() {
           onClose={() => setShowSubmitForm(false)}
           onSubmit={handleSubmitSuccess}
           userFid={userInfo?.fid || null}
+          userUsername={userInfo?.username || null}
+          userDisplayName={userInfo?.displayName || null}
           isMiniappInstalled={isMiniappInstalled}
           neynarUserScore={userInfo?.neynarUserScore || null}
         />

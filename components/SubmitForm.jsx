@@ -2,14 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { useAccount, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi';
 import { parseEther } from 'viem';
 
-const SubmitForm = ({ onClose, onSubmit, userFid, isMiniappInstalled = false, neynarUserScore = null }) => {
+const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDisplayName = null, isMiniappInstalled = false, neynarUserScore = null }) => {
   const MIN_NEYNAR_SCORE = 0.62; // Minimum Neynar user score required to submit
+  
+  // Auto-fill builder name (prefer displayName, fallback to username)
+  const autoFillBuilder = userDisplayName || (userUsername ? `@${userUsername}` : '');
+  
   const [formData, setFormData] = useState({
     name: '',
     tagline: '',
     description: '',
-    builder: '',
-    builderFid: '',
+    builder: autoFillBuilder,
+    builderFid: userFid ? String(userFid) : '',
     tokenName: '',
     category: 'defi', // Default to defi for free queue (no main/featured category)
     miniapp: '',
