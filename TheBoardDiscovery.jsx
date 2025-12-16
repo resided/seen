@@ -225,11 +225,11 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
     chainId: 8453, // Base
   });
 
-  // Poll balance every 10 seconds for live updates
+  // Poll balance every 2 minutes for live updates
   useEffect(() => {
     const interval = setInterval(() => {
       refetchBalance();
-    }, 10000); // Update every 10 seconds
+    }, 120000); // Update every 2 minutes
     
     return () => clearInterval(interval);
   }, [refetchBalance]);
@@ -446,6 +446,13 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
           <div className="text-[8px] tracking-[0.2em] text-gray-500">TODAY'S FEATURED</div>
         </div>
         <div className="flex items-center gap-3">
+          {/* Treasury Balance */}
+          <div className="text-right">
+            <div className="font-mono text-[10px]">
+              {treasuryBalance ? formatBalance(treasuryBalance) : '...'}
+            </div>
+            <div className="text-[7px] tracking-[0.2em] text-gray-500">TREASURY</div>
+          </div>
           {/* Countdown */}
           <div className="text-right">
             <div className="font-mono text-[10px]">
