@@ -2919,6 +2919,52 @@ export default function Admin() {
                     </div>
                   </div>
 
+                  {/* Token Info Section */}
+                  {(submission.tokenName || submission.tokenContractAddress) && (
+                    <div className="mb-4 p-3 border border-cyan-500/50 bg-cyan-500/5">
+                      <div className="text-[10px] tracking-[0.2em] text-cyan-400 mb-2 font-bold">TOKEN INFO</div>
+                      <div className="space-y-2 text-sm">
+                        {submission.tokenName && (
+                          <div>
+                            <span className="text-gray-500">Token:</span>{' '}
+                            <span className="font-bold text-cyan-400">{submission.tokenName}</span>
+                          </div>
+                        )}
+                        {submission.tokenContractAddress && (
+                          <div>
+                            <span className="text-gray-500">CA:</span>{' '}
+                            <span className="font-mono text-xs text-cyan-300 break-all">{submission.tokenContractAddress}</span>
+                            <a
+                              href={`https://basescan.org/token/${submission.tokenContractAddress}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="ml-2 text-[9px] text-blue-400 hover:underline"
+                            >
+                              [Basescan]
+                            </a>
+                            <a
+                              href={`https://dexscreener.com/base/${submission.tokenContractAddress}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="ml-2 text-[9px] text-green-400 hover:underline"
+                            >
+                              [DexScreener]
+                            </a>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(submission.tokenContractAddress);
+                                setMessage('CA copied to clipboard!');
+                              }}
+                              className="ml-2 text-[9px] text-gray-400 hover:text-white"
+                            >
+                              [Copy]
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {submission.links && (
                     <div className="mb-4 space-y-1 text-sm">
                       {submission.links.miniapp && (
