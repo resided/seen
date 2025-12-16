@@ -32,6 +32,7 @@ export default function Admin() {
     builder: '',
     builderFid: '',
     tokenName: '',
+    tokenContractAddress: '',
     category: 'main',
     status: 'active',
     miniapp: '',
@@ -51,6 +52,7 @@ export default function Admin() {
     builder: '',
     builderFid: '',
     tokenName: '',
+    tokenContractAddress: '',
     category: 'main',
     miniapp: '',
     website: '',
@@ -274,6 +276,7 @@ export default function Admin() {
           builder: freshProject.builder || '',
           builderFid: freshProject.builderFid || '',
           tokenName: freshProject.tokenName || '',
+          tokenContractAddress: freshProject.tokenContractAddress || '',
           category: freshProject.category || 'main',
           status: freshProject.status || 'active',
           miniapp: freshProject.links?.miniapp || '',
@@ -292,6 +295,7 @@ export default function Admin() {
           builder: project.builder || '',
           builderFid: project.builderFid || '',
           tokenName: project.tokenName || '',
+          tokenContractAddress: project.tokenContractAddress || '',
           category: project.category || 'main',
           status: project.status || 'active',
           miniapp: project.links?.miniapp || '',
@@ -983,6 +987,8 @@ export default function Admin() {
           description: '',
           builder: '',
           builderFid: '',
+          tokenName: '',
+          tokenContractAddress: '',
           category: 'main',
           miniapp: '',
           website: '',
@@ -1238,6 +1244,24 @@ export default function Admin() {
                     />
                   </div>
                 </div>
+
+                {editFormData.category === 'tokens' && (
+                  <div>
+                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                      TOKEN CONTRACT ADDRESS (OPTIONAL)
+                    </label>
+                    <input
+                      type="text"
+                      name="tokenContractAddress"
+                      value={editFormData.tokenContractAddress}
+                      onChange={handleEditFormChange}
+                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black font-mono"
+                      placeholder="0x..."
+                      pattern="^0x[a-fA-F0-9]{40}$"
+                    />
+                    <p className="text-[10px] text-gray-600 mt-1">Contract address on Base network</p>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
@@ -1698,6 +1722,24 @@ export default function Admin() {
                     />
                   </div>
                 </div>
+
+                {createFormData.category === 'tokens' && (
+                  <div>
+                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
+                      TOKEN CONTRACT ADDRESS (OPTIONAL)
+                    </label>
+                    <input
+                      type="text"
+                      name="tokenContractAddress"
+                      value={createFormData.tokenContractAddress}
+                      onChange={handleCreateFormChange}
+                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black font-mono"
+                      placeholder="0x..."
+                      pattern="^0x[a-fA-F0-9]{40}$"
+                    />
+                    <p className="text-[10px] text-gray-600 mt-1">Contract address on Base network</p>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">

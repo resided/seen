@@ -84,6 +84,7 @@ export default async function handler(req, res) {
     if (tagline !== undefined) updateData.tagline = tagline;
     if (description !== undefined) updateData.description = description;
     if (tokenName !== undefined) updateData.tokenName = tokenName;
+    if (tokenContractAddress !== undefined) updateData.tokenContractAddress = tokenContractAddress;
     if (category !== undefined) updateData.category = category;
     if (status !== undefined) updateData.status = status;
     if (stats !== undefined) updateData.stats = stats;
