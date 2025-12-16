@@ -2221,22 +2221,6 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
     }
   }, [userFid, address]);
 
-  // Timeout for stuck transactions - reset after 2 minutes
-  useEffect(() => {
-    let timeout;
-    if (claiming && !isClaimTxConfirmed) {
-      timeout = setTimeout(() => {
-        if (claiming && !isClaimTxConfirmed) {
-          setMessage('TRANSACTION TIMEOUT. CHECK YOUR WALLET OR TRY AGAIN.');
-          setClaiming(false);
-        }
-      }, 120000); // 2 minute timeout
-    }
-    return () => {
-      if (timeout) clearTimeout(timeout);
-    };
-  }, [claiming, isClaimTxConfirmed]);
-
   // When claim transaction is confirmed, send txHash to API
   useEffect(() => {
     if (isClaimTxConfirmed && claimTxData && userFid && address) {
@@ -2372,27 +2356,15 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
     try {
       // User signs a transaction to claim (0 ETH transfer with "claim" data)
       // This creates a user transaction for Farcaster rankings
-      const txHash = await sendTransaction({
+      sendTransaction({
         to: treasuryAddress,
         value: parseEther('0'),
         data: stringToHex('claim'),
       });
-      
-      if (txHash) {
-        setMessage('WAITING FOR TRANSACTION CONFIRMATION...');
-      } else {
-        // Transaction wasn't submitted (user might have rejected)
-        setMessage('TRANSACTION CANCELLED OR REJECTED');
-        setClaiming(false);
-      }
+      setMessage('WAITING FOR WALLET...');
     } catch (error) {
       console.error('Error initiating claim transaction:', error);
-      // Check for user rejection
-      if (error?.message?.includes('rejected') || error?.message?.includes('denied') || error?.code === 4001) {
-        setMessage('TRANSACTION REJECTED BY USER');
-      } else {
-        setMessage('ERROR INITIATING CLAIM. PLEASE TRY AGAIN.');
-      }
+      setMessage('ERROR INITIATING CLAIM. PLEASE TRY AGAIN.');
       setClaiming(false);
     }
   };
