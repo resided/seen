@@ -334,9 +334,20 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
   }, [app]);
 
   // Track tip only after transaction is confirmed
+  const [tipProcessed, setTipProcessed] = useState(false);
+  
   useEffect(() => {
-    if (isTipConfirmed && tipTxData && !tipping) {
+    // Reset processed flag when starting a new tip
+    if (tipping && !tipTxData) {
+      setTipProcessed(false);
+    }
+  }, [tipping, tipTxData]);
+  
+  useEffect(() => {
+    if (isTipConfirmed && tipTxData && tipping && !tipProcessed) {
       // Transaction confirmed, now track the tip
+      setTipProcessed(true); // Prevent double processing
+      
       const trackTip = async () => {
         try {
           await fetch('/api/track-tip', {
@@ -348,7 +359,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
               recipientFid: builderData?.fid || app.builderFid,
             }),
           });
-          
+
           // Update local stats
           setLiveStats(prev => ({
             ...prev,
@@ -362,22 +373,22 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
             setCustomTipAmount('');
             setCustomTipAmountUsd('');
             setTipMessage('');
+            setTipping(false);
           }, 3000);
         } catch (error) {
           console.error('Error tracking tip:', error);
           setTipMessage('TIP SENT BUT TRACKING FAILED');
-        } finally {
           setTipping(false);
         }
       };
       
       trackTip();
-    } else if (tipTxData && !isTipConfirmed && !isTipConfirming) {
+    } else if (tipTxData && !isTipConfirmed && !isTipConfirming && tipping) {
       // Transaction was rejected or failed
       setTipMessage('TRANSACTION CANCELLED OR FAILED');
       setTipping(false);
     }
-  }, [isTipConfirmed, tipTxData, isTipConfirming, app.id, customTipAmount, builderData?.fid, app.builderFid, ethPrice, tipping]);
+  }, [isTipConfirmed, tipTxData, isTipConfirming, app.id, customTipAmount, builderData?.fid, app.builderFid, ethPrice, tipping, tipProcessed]);
 
   return (
     <div className="border border-white">
