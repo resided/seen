@@ -61,12 +61,15 @@ export default async function handler(req, res) {
     let cursor = 0;
     try {
       do {
-        const [nextCursor, foundKeys] = await redis.scan(cursor.toString(), {
+        const result = await redis.scan(cursor, {
           MATCH: claimPattern,
-          COUNT: '100'
+          COUNT: 100
         });
+        // Handle both array [cursor, keys] and object {cursor, keys} return types
+        const nextCursor = Array.isArray(result) ? result[0] : (result?.cursor || result?.nextCursor);
+        const foundKeys = Array.isArray(result) ? result[1] : (result?.keys || []);
         cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
-        if (foundKeys && foundKeys.length > 0) {
+        if (foundKeys && Array.isArray(foundKeys) && foundKeys.length > 0) {
           claimKeys.push(...foundKeys);
         }
       } while (cursor !== 0);
@@ -81,12 +84,15 @@ export default async function handler(req, res) {
     cursor = 0;
     try {
       do {
-        const [nextCursor, foundKeys] = await redis.scan(cursor, {
+        const result = await redis.scan(cursor, {
           MATCH: walletPattern,
           COUNT: 100
         });
+        // Handle both array [cursor, keys] and object {cursor, keys} return types
+        const nextCursor = Array.isArray(result) ? result[0] : (result?.cursor || result?.nextCursor);
+        const foundKeys = Array.isArray(result) ? result[1] : (result?.keys || []);
         cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
-        if (foundKeys && foundKeys.length > 0) {
+        if (foundKeys && Array.isArray(foundKeys) && foundKeys.length > 0) {
           walletKeys.push(...foundKeys);
         }
       } while (cursor !== 0);
