@@ -2455,14 +2455,14 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
               </div>
             )}
             {!hasClickedMiniapp && isInFarcaster && (
-              <div className="mb-4 p-4 border-2 border-yellow-500 bg-yellow-500/10">
-                <div className="text-xs font-black text-yellow-400 mb-2 tracking-[0.2em]">
-                  ⚠️ STEP 1 REQUIRED
+              <div className="mb-4 p-4 border-2 border-white bg-black">
+                <div className="text-xs font-black text-white mb-2 tracking-[0.2em]">
+                  STEP 1 REQUIRED
                 </div>
-                <div className="text-[10px] text-yellow-300 mb-3 leading-relaxed">
-                  You must click <span className="font-bold">"OPEN MINI APP"</span> button above first before you can claim tokens.
+                <div className="text-[10px] text-gray-300 mb-3 leading-relaxed">
+                  You must click <span className="font-bold text-white">"OPEN MINI APP"</span> button above first before you can claim tokens.
                 </div>
-                <div className="text-[9px] text-yellow-400/80">
+                <div className="text-[9px] text-gray-500">
                   Look for the button at the top of this page → Click it → Then come back here to claim
                 </div>
               </div>
@@ -2471,7 +2471,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
               {!isInFarcaster 
                 ? 'OPEN IN FARCASTER TO CLAIM' 
                 : !hasClickedMiniapp 
-                ? '⚠️ CLICK "OPEN MINI APP" BUTTON ABOVE FIRST'
+                ? 'CLICK "OPEN MINI APP" BUTTON ABOVE FIRST'
                 : !isConnected 
                 ? 'CONNECT WALLET TO CLAIM' 
                 : 'CLAIM EXPIRES WHEN FEATURED PROJECT CHANGES'}
@@ -2486,7 +2486,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
                   isInFarcaster && hasClickedMiniapp && isConnected && !claiming && !isClaimTxConfirming && !expired && claimCount < 1 && treasuryAddress
                     ? 'bg-white text-black hover:bg-gray-200'
                     : !hasClickedMiniapp && isInFarcaster
-                    ? 'bg-yellow-500/20 text-yellow-400 border-2 border-yellow-500 cursor-not-allowed animate-pulse'
+                    ? 'bg-black text-white border-2 border-white cursor-not-allowed'
                     : 'bg-gray-600 text-gray-400 cursor-not-allowed'
                 }`}
               >
@@ -2497,7 +2497,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
                   : claimCount >= 1 
                   ? 'CLAIM 1 COMPLETE'
                   : !hasClickedMiniapp 
-                  ? '⚠️ CLICK "OPEN MINI APP" FIRST (TOP OF PAGE)' 
+                  ? 'CLICK "OPEN MINI APP" FIRST (TOP OF PAGE)' 
                   : !treasuryAddress
                   ? 'LOADING...'
                   : maxClaims > 1 ? 'CLAIM NOW 1/2' : 'CLAIM NOW'}
