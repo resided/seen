@@ -793,7 +793,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
           <div className="mt-4 border border-white p-3 bg-black">
             <div className="text-center">
               <div className="text-xs font-black tracking-[0.2em] text-white">
-                STEP 1 COMPLETE — SCROLL DOWN TO FEATURED CLAIM
+                SCROLL DOWN TO CLAIM YOUR TOKENS
               </div>
             </div>
           </div>
