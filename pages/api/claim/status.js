@@ -9,7 +9,7 @@ const DEFAULT_CLAIM_SETTINGS = {
   claimMultiplier: 1,
   holderMultiplier: 2,
   cooldownHours: 24,
-  minNeynarScore: 0.6,
+  minNeynarScore: 0.55,
   claimsEnabled: true,
 };
 const CLAIM_SETTINGS_KEY = 'claim:settings';
