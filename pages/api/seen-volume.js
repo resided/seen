@@ -1,15 +1,14 @@
-// API route to get all-time $SEEN trading volume
-// Fetches lifetime volume from DEXScreener/GeckoTerminal
-// Only increases, never decreases (stores max seen value)
+// API route to get cumulative $SEEN trading volume
+// Tracks cumulative volume by accumulating 24h volumes from GeckoTerminal
+// Only increases, never decreases
 
 import { getRedisClient } from '../../lib/redis';
 
 const SEEN_POOL_ADDRESS = '0x9ba2ccc022f9b3e07f5685e23bcd472cfbb5fdbf002461d8c503298dc23310ed';
-const SEEN_TOKEN_ADDRESS = '0x82a56d595cCDFa3A1dc6eEf28d5F0A870f162B07';
-const MAX_VOLUME_KEY = 'seen:alltime:volume:max';
-
-// Known baseline volume (verified from Farcaster wallet/DEX data)
-const BASELINE_VOLUME = 33000; // $33K verified all-time volume
+const CUMULATIVE_VOLUME_KEY = 'seen:cumulative:volume';
+const LAST_24H_VOLUME_KEY = 'seen:last_24h_volume';
+const LAST_UPDATE_KEY = 'seen:volume_last_update';
+const BASELINE_VOLUME = 33000; // $33K verified baseline
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -18,65 +17,22 @@ export default async function handler(req, res) {
 
   try {
     const redis = await getRedisClient();
-    let allTimeVolume = BASELINE_VOLUME; // Start with known baseline
+    let cumulativeVolume = BASELINE_VOLUME;
     let source = 'baseline';
 
-    // Try DEXScreener first
-    try {
-      const dexscreenerResponse = await fetch(
-        `https://api.dexscreener.com/latest/dex/tokens/${SEEN_TOKEN_ADDRESS}`
-      );
-      
-      if (dexscreenerResponse.ok) {
-        const data = await dexscreenerResponse.json();
-        if (data.pairs && data.pairs.length > 0) {
-          // Get Base network pairs and sum their volumes
-          const basePairs = data.pairs.filter(p => p.chainId === 'base');
-          
-          // Sum total volume across all pairs
-          let totalVolume = 0;
-          for (const pair of basePairs) {
-            // DEXScreener might have total volume in different fields
-            const pairVolume = parseFloat(pair.volume?.all || pair.volumeAll || 0);
-            if (pairVolume > 0) {
-              totalVolume += pairVolume;
-            }
-          }
-          
-          if (totalVolume > allTimeVolume) {
-            allTimeVolume = totalVolume;
-            source = 'dexscreener_total';
-          }
-          
-          // If no total volume, check for txns count and estimate
-          if (totalVolume === 0) {
-            const mainPair = basePairs.sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0];
-            if (mainPair) {
-              // Use txns count if available to estimate volume
-              const txns24h = (mainPair.txns?.h24?.buys || 0) + (mainPair.txns?.h24?.sells || 0);
-              const volume24h = parseFloat(mainPair.volume?.h24 || 0);
-              
-              // Average tx size
-              const avgTxSize = txns24h > 0 ? volume24h / txns24h : 50;
-              
-              // Total transactions might indicate lifetime activity
-              const totalTxns = mainPair.txns?.all || mainPair.totalTxns || 0;
-              if (totalTxns > 0) {
-                const estimatedTotal = totalTxns * avgTxSize;
-                if (estimatedTotal > allTimeVolume) {
-                  allTimeVolume = estimatedTotal;
-                  source = 'dexscreener_txns';
-                }
-              }
-            }
-          }
-        }
+    // Get current cumulative volume from Redis
+    if (redis) {
+      const storedCumulative = parseFloat(await redis.get(CUMULATIVE_VOLUME_KEY)) || 0;
+      // Initialize with baseline if nothing stored yet
+      if (storedCumulative === 0 || storedCumulative < BASELINE_VOLUME) {
+        cumulativeVolume = BASELINE_VOLUME;
+        await redis.set(CUMULATIVE_VOLUME_KEY, BASELINE_VOLUME.toString());
+      } else {
+        cumulativeVolume = storedCumulative;
       }
-    } catch (err) {
-      console.warn('DEXScreener volume fetch failed:', err);
     }
 
-    // Try GeckoTerminal for lifetime volume
+    // Fetch 24h volume from GeckoTerminal
     try {
       const geckoTerminalResponse = await fetch(
         `https://api.geckoterminal.com/api/v2/networks/base/pools/${SEEN_POOL_ADDRESS}`,
@@ -90,45 +46,84 @@ export default async function handler(req, res) {
         const pool = data?.data?.attributes;
         
         if (pool) {
-          // Check for lifetime/all-time volume fields
-          const lifetimeVol = parseFloat(
-            pool.lifetime_volume_usd || 
-            pool.all_time_volume_usd || 
-            pool.total_volume_usd ||
-            pool.volume_usd?.all ||
-            0
-          );
+          // GeckoTerminal provides volume_usd.h24 for 24h volume
+          const volume24h = parseFloat(pool.volume_usd?.h24 || 0);
           
-          if (lifetimeVol > allTimeVolume) {
-            allTimeVolume = lifetimeVol;
-            source = 'geckoterminal_lifetime';
+          if (volume24h > 0) {
+            source = 'geckoterminal_24h';
+            
+            if (redis) {
+              const last24hVolume = parseFloat(await redis.get(LAST_24H_VOLUME_KEY)) || 0;
+              
+              // Detect if we've rolled into a new 24h window
+              // If current 24h volume is significantly lower than last stored, window rolled over
+              // Add the previous 24h volume to cumulative
+              if (last24hVolume > 0 && volume24h < last24hVolume * 0.5 && last24hVolume > 100) {
+                // New window detected - add previous day's volume to cumulative
+                cumulativeVolume += last24hVolume;
+                await redis.set(CUMULATIVE_VOLUME_KEY, cumulativeVolume.toString());
+                
+                console.log('New 24h window detected - added to cumulative:', {
+                  previousDayVolume: last24hVolume,
+                  newCumulative: cumulativeVolume,
+                  current24hVolume: volume24h
+                });
+              }
+              
+              // Update current 24h volume tracker (only if it increased or is new)
+              if (volume24h > last24hVolume || last24hVolume === 0) {
+                await redis.set(LAST_24H_VOLUME_KEY, volume24h.toString());
+                await redis.set(LAST_UPDATE_KEY, Date.now().toString());
+              }
+              
+              // Use the updated cumulative volume
+              cumulativeVolume = Math.max(cumulativeVolume, parseFloat(await redis.get(CUMULATIVE_VOLUME_KEY)) || BASELINE_VOLUME);
+            }
           }
         }
       }
     } catch (err) {
       console.warn('GeckoTerminal volume fetch failed:', err);
+      // Fall back to stored cumulative volume
+      if (redis) {
+        const storedCumulative = parseFloat(await redis.get(CUMULATIVE_VOLUME_KEY)) || BASELINE_VOLUME;
+        cumulativeVolume = Math.max(cumulativeVolume, storedCumulative);
+        source = 'redis_stored';
+      }
     }
 
-    // Store max seen volume in Redis (only increases)
+    // Ensure volume never decreases
     if (redis) {
-      const storedMax = parseFloat(await redis.get(MAX_VOLUME_KEY)) || 0;
+      const storedCumulative = parseFloat(await redis.get(CUMULATIVE_VOLUME_KEY)) || BASELINE_VOLUME;
+      cumulativeVolume = Math.max(cumulativeVolume, storedCumulative, BASELINE_VOLUME);
       
-      // Always use the maximum of: fetched volume, stored max, or baseline
-      allTimeVolume = Math.max(allTimeVolume, storedMax, BASELINE_VOLUME);
-      
-      if (allTimeVolume > storedMax) {
-        await redis.set(MAX_VOLUME_KEY, allTimeVolume.toString());
+      // Update if higher
+      if (cumulativeVolume > storedCumulative) {
+        await redis.set(CUMULATIVE_VOLUME_KEY, cumulativeVolume.toString());
       }
     }
 
     return res.status(200).json({ 
-      cumulativeVolume: Math.round(allTimeVolume),
+      cumulativeVolume: Math.round(cumulativeVolume),
       source,
     });
 
   } catch (error) {
     console.error('Error fetching SEEN volume:', error);
-    // Return baseline on error
+    // Return stored volume or baseline on error
+    try {
+      const redis = await getRedisClient();
+      if (redis) {
+        const storedCumulative = parseFloat(await redis.get(CUMULATIVE_VOLUME_KEY)) || BASELINE_VOLUME;
+        return res.status(200).json({ 
+          cumulativeVolume: Math.round(Math.max(storedCumulative, BASELINE_VOLUME)),
+          source: 'redis_fallback',
+        });
+      }
+    } catch (redisErr) {
+      // Fall through to baseline
+    }
+    
     return res.status(200).json({ 
       cumulativeVolume: BASELINE_VOLUME,
       source: 'baseline_fallback',
