@@ -820,16 +820,40 @@ export default async function handler(req, res) {
 
       // Send configurable bonus token if available (works for ANY token - DONUT, or any other token)
       if (bonusTokenAvailable && bonusTokenConfig) {
-        const bonusAmountWei = parseUnits(bonusTokenConfig.amount, parseInt(bonusTokenConfig.decimals || '18'));
-        bonusTokenHash = await walletClient.writeContract({
-          address: bonusTokenConfig.contractAddress,
-          abi: erc20Abi,
-          functionName: 'transfer',
-          args: [walletAddress, bonusAmountWei],
-        });
-        
-        // Increment global bonus token count
-        await redis.incr(bonusTokenCountKey);
+        try {
+          const bonusAmountWei = parseUnits(bonusTokenConfig.amount, parseInt(bonusTokenConfig.decimals || '18'));
+          const checksummedBonusContract = getAddress(bonusTokenConfig.contractAddress);
+          console.log('Sending bonus token:', {
+            token: bonusTokenConfig.tokenName,
+            contract: checksummedBonusContract,
+            amount: bonusTokenConfig.amount,
+            recipient: walletAddress,
+          });
+          bonusTokenHash = await walletClient.writeContract({
+            address: checksummedBonusContract,
+            abi: erc20Abi,
+            functionName: 'transfer',
+            args: [getAddress(walletAddress), bonusAmountWei],
+          });
+          console.log('Bonus token sent successfully:', bonusTokenHash);
+          
+          // Increment global bonus token count
+          await redis.incr(bonusTokenCountKey);
+        } catch (bonusError) {
+          console.error('Bonus token transfer FAILED:', bonusError.message);
+          console.error('Bonus token error details:', {
+            errorName: bonusError.name,
+            errorCause: bonusError.cause?.message || bonusError.cause,
+            contractAddress: bonusTokenConfig.contractAddress,
+            recipientAddress: walletAddress,
+            amount: bonusTokenConfig.amount,
+          });
+          // Release the user lock since transfer failed
+          if (userBonusTokenKey) {
+            await redis.del(userBonusTokenKey);
+          }
+          // DON'T fail the claim - SEEN was already sent successfully
+        }
       } else if (userBonusTokenKey && bonusTokenConfig && 
                  await redis.get(userBonusTokenKey) === '1' && 
                  parseInt(await redis.get(bonusTokenCountKey) || '0') >= parseInt(bonusTokenConfig.maxSupply || '0')) {
