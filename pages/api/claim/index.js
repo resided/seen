@@ -751,11 +751,22 @@ export default async function handler(req, res) {
       }
       
       // Send SEEN tokens first
+      // Checksum addresses to ensure proper format
+      const checksummedTokenContract = getAddress(TOKEN_CONTRACT);
+      const checksummedRecipientForSeen = getAddress(walletAddress);
+      
+      console.log('Sending SEEN tokens:', {
+        tokenContract: checksummedTokenContract,
+        recipient: checksummedRecipientForSeen,
+        amount: TOKEN_AMOUNT,
+        amountWei: seenAmountWei.toString(),
+      });
+      
       const seenHash = await walletClient.writeContract({
-        address: TOKEN_CONTRACT,
+        address: checksummedTokenContract,
         abi: erc20Abi,
         functionName: 'transfer',
-        args: [walletAddress, seenAmountWei],
+        args: [checksummedRecipientForSeen, seenAmountWei],
       });
 
       // Send DONUT token if available (1 per user max) - CURRENT CAMPAIGN ONLY
@@ -974,6 +985,18 @@ export default async function handler(req, res) {
       let errorMessage = 'Failed to send tokens';
       let errorDetails = txError.message;
 
+      // Log full error details for debugging
+      console.error('Token transfer error details:', {
+        errorMessage: txError.message,
+        errorName: txError.name,
+        errorCause: txError.cause?.message || txError.cause,
+        tokenContract: TOKEN_CONTRACT,
+        recipient: walletAddress,
+        amount: TOKEN_AMOUNT,
+        amountWei: seenAmountWei?.toString(),
+        treasuryAddress: account?.address,
+      });
+
       if (txError.message?.includes('insufficient funds') || txError.message?.includes('balance')) {
         errorMessage = 'Insufficient token balance in treasury wallet';
         errorDetails = 'The treasury wallet does not have enough tokens to send. Please add tokens to the treasury wallet.';
@@ -982,7 +1005,7 @@ export default async function handler(req, res) {
         errorDetails = 'The token contract rejected the transfer. This could mean: (1) Invalid contract address, (2) Contract is not an ERC20 token, (3) Contract is paused, or (4) Transfer function failed.';
       } else if (txError.message?.includes('invalid address') || txError.message?.includes('address')) {
         errorMessage = 'Invalid contract address';
-        errorDetails = 'The token contract address is not valid or the contract does not exist on Base network.';
+        errorDetails = `The token contract address (${TOKEN_CONTRACT}) is not valid or the contract does not exist on Base network.`;
       }
 
       // Release lock before returning error
