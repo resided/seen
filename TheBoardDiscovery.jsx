@@ -2202,6 +2202,8 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
   const [claimed, setClaimed] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const claimInProgress = useRef(false); // Synchronous lock to prevent double-clicks
+  // Clear status tracking: 'idle' | 'preparing' | 'wallet' | 'confirming' | 'processing' | 'success' | 'error'
+  const [claimStatus, setClaimStatus] = useState('idle');
   const [message, setMessage] = useState('');
   const [expirationTime, setExpirationTime] = useState(null);
   const [expired, setExpired] = useState(false);
@@ -2327,19 +2329,43 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
   useEffect(() => {
     if (isClaimTxError && claiming) {
       console.log('Claim transaction error:', claimTxError);
-      setMessage(claimTxError?.message?.includes('rejected') || claimTxError?.message?.includes('denied') 
-        ? 'TRANSACTION CANCELLED' 
-        : 'TRANSACTION FAILED. TRY AGAIN.');
+      const errorMsg = claimTxError?.message?.includes('rejected') || claimTxError?.message?.includes('denied') 
+        ? 'TRANSACTION CANCELLED BY USER' 
+        : 'WALLET ERROR - TRY AGAIN';
+      setMessage(errorMsg);
+      setClaimStatus('error');
       setClaiming(false);
       claimInProgress.current = false;
-      resetClaimTx(); // Reset hook state for next attempt
+      // Reset after 3 seconds so user can try again
+      setTimeout(() => {
+        setClaimStatus('idle');
+        setMessage('');
+        resetClaimTx();
+      }, 3000);
     }
   }, [isClaimTxError, claimTxError, claiming, resetClaimTx]);
+
+  // Track when transaction is pending in wallet
+  useEffect(() => {
+    if (isClaimTxPending && claiming) {
+      setClaimStatus('wallet');
+      setMessage('WAITING FOR WALLET APPROVAL...');
+    }
+  }, [isClaimTxPending, claiming]);
+
+  // Track when transaction is confirming on chain
+  useEffect(() => {
+    if (isClaimTxConfirming && claimTxData) {
+      setClaimStatus('confirming');
+      setMessage('TRANSACTION SENT - CONFIRMING ON CHAIN...');
+    }
+  }, [isClaimTxConfirming, claimTxData]);
 
   // When claim transaction is confirmed, send txHash to API
   useEffect(() => {
     if (isClaimTxConfirmed && claimTxData && userFid && address) {
-      setMessage('TRANSACTION CONFIRMED! PROCESSING CLAIM...');
+      setClaimStatus('processing');
+      setMessage('CONFIRMED! SENDING YOUR TOKENS...');
       // Transaction confirmed, now send to API to process claim
       fetch('/api/claim', {
         method: 'POST',
@@ -2407,34 +2433,52 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
             }
             
             // For 30M+ holders, check if they can claim again
+            setClaimStatus('success');
             if (data.canClaimAgain) {
               setClaimed(false); // Can still claim more
-              const bonusMsg = data.bonusTokenIncluded && data.bonusTokenName ? ` + ${data.bonusTokenAmount || ''} ${data.bonusTokenName} BONUS!` : '';
-              setMessage(`CLAIM ${data.claimCount} COMPLETE! TOKENS SENT${bonusMsg}`);
+              const bonusMsg = data.bonusTokenIncluded && data.bonusTokenName ? ` + ${data.bonusTokenAmount || ''} ${data.bonusTokenName}!` : '';
+              setMessage(`CLAIM ${data.claimCount}/${data.maxClaims} COMPLETE!${bonusMsg}`);
             } else {
               setClaimed(true); // Fully claimed
-              const bonusMsg = data.bonusTokenIncluded && data.bonusTokenName ? ` + ${data.bonusTokenAmount || ''} ${data.bonusTokenName} BONUS!` : '';
-              setMessage(`ALL CLAIMS COMPLETE! TOKENS SENT${bonusMsg}`);
+              const bonusMsg = data.bonusTokenIncluded && data.bonusTokenName ? ` + ${data.bonusTokenAmount || ''} ${data.bonusTokenName}!` : '';
+              setMessage(`ALL CLAIMS COMPLETE!${bonusMsg}`);
             }
             if (data.expirationTime) {
               setExpirationTime(new Date(data.expirationTime));
             }
+            // Reset status after 5 seconds
+            setTimeout(() => {
+              setClaimStatus('idle');
+              resetClaimTx();
+            }, 5000);
           } else {
+            setClaimStatus('error');
             if (data.expired) {
               setExpired(true);
-              setMessage('CLAIM WINDOW EXPIRED. WAIT FOR NEXT FEATURED PROJECT.');
+              setMessage('CLAIM WINDOW EXPIRED');
             } else {
-              setMessage(data.error || 'CLAIM FAILED');
+              setMessage(data.error || 'CLAIM FAILED - TRY AGAIN');
             }
+            // Reset status after 4 seconds
+            setTimeout(() => {
+              setClaimStatus('idle');
+              resetClaimTx();
+            }, 4000);
           }
           setClaiming(false);
           claimInProgress.current = false;
         })
         .catch(error => {
           console.error('Error processing claim:', error);
-          setMessage('ERROR PROCESSING CLAIM');
+          setClaimStatus('error');
+          setMessage('SERVER ERROR - TRY AGAIN');
           setClaiming(false);
           claimInProgress.current = false;
+          // Reset status after 4 seconds
+          setTimeout(() => {
+            setClaimStatus('idle');
+            resetClaimTx();
+          }, 4000);
         });
     }
   }, [isClaimTxConfirmed, claimTxData, userFid, address]);
@@ -2491,7 +2535,8 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
     }
 
     setClaiming(true);
-    setMessage('PREPARING TRANSACTION...');
+    setClaimStatus('preparing');
+    setMessage('PREPARING CLAIM...');
 
     try {
       // User signs a transaction to claim (0 ETH transfer with "claim" data)
@@ -2501,12 +2546,18 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
         value: parseEther('0'),
         data: stringToHex('claim'),
       });
-      setMessage('WAITING FOR WALLET...');
+      // Status will update via useEffects watching isClaimTxPending, isClaimTxConfirming, etc.
     } catch (error) {
       console.error('Error initiating claim transaction:', error);
-      setMessage('ERROR INITIATING CLAIM. PLEASE TRY AGAIN.');
+      setClaimStatus('error');
+      setMessage('ERROR - TRY AGAIN');
       setClaiming(false);
       claimInProgress.current = false;
+      // Reset after 3 seconds
+      setTimeout(() => {
+        setClaimStatus('idle');
+        setMessage('');
+      }, 3000);
     }
   };
 
@@ -2753,34 +2804,59 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
               const canClaimThis = claimCount === claimNum - 1 && canClaimAgain && !expired;
               const showButton = claimNum === 1 || claimCount >= claimNum - 1;
               
+              // Is ANY claim operation in progress?
+              const isClaimBusy = claimStatus !== 'idle' && claimStatus !== 'success' && claimStatus !== 'error';
+              
               if (!showButton) return null;
+              
+              // Get button text based on claim status
+              const getButtonText = () => {
+                // Show status messages during claim process
+                if (isClaimBusy) {
+                  switch (claimStatus) {
+                    case 'preparing': return 'PREPARING...';
+                    case 'wallet': return 'APPROVE IN WALLET...';
+                    case 'confirming': return 'CONFIRMING ON CHAIN...';
+                    case 'processing': return 'SENDING TOKENS...';
+                    default: return 'PLEASE WAIT...';
+                  }
+                }
+                
+                // Show success/error briefly
+                if (claimStatus === 'success') return 'SUCCESS!';
+                if (claimStatus === 'error') return 'FAILED - TRY AGAIN';
+                
+                // Normal states
+                if (expired) return 'EXPIRED';
+                if (isThisClaimComplete) return `CLAIM ${claimNum} COMPLETE`;
+                if (!hasClickedMiniapp) return 'TAP >> OPEN MINI APP << FIRST';
+                if (!treasuryAddress) return 'LOADING...';
+                if (personalCooldownRemaining > 0 && !canClaimAgain) return 'ON COOLDOWN';
+                return maxClaims > 1 ? `CLAIM NOW ${claimNum}/${maxClaims}` : 'CLAIM NOW';
+              };
+              
+              // Determine button style based on status
+              const getButtonStyle = () => {
+                if (isClaimBusy) return 'bg-yellow-600 text-black cursor-wait animate-pulse';
+                if (claimStatus === 'success') return 'bg-green-600 text-white';
+                if (claimStatus === 'error') return 'bg-red-600 text-white';
+                if (isInFarcaster && hasClickedMiniapp && isConnected && canClaimThis && treasuryAddress) {
+                  return 'bg-white text-black hover:bg-gray-200';
+                }
+                if (!hasClickedMiniapp && isInFarcaster) {
+                  return 'bg-black text-white border-2 border-white cursor-not-allowed';
+                }
+                return 'bg-gray-600 text-gray-400 cursor-not-allowed';
+              };
               
               return (
                 <div key={claimNum} className={claimNum > 1 ? 'mt-2' : 'mb-3'}>
                   <button
                     onClick={handleClaim}
-                    disabled={!isInFarcaster || !hasClickedMiniapp || !isConnected || claiming || isClaimTxConfirming || isClaimTxPending || expired || isThisClaimComplete || !canClaimThis || !treasuryAddress}
-                    className={`w-full ${claimNum === 1 ? 'py-4' : 'py-3'} font-black text-sm tracking-[0.2em] transition-all ${
-                      isInFarcaster && hasClickedMiniapp && isConnected && !claiming && !isClaimTxConfirming && !isClaimTxPending && canClaimThis && treasuryAddress
-                        ? 'bg-white text-black hover:bg-gray-200'
-                        : !hasClickedMiniapp && isInFarcaster
-                        ? 'bg-black text-white border-2 border-white cursor-not-allowed'
-                        : 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                    }`}
+                    disabled={!isInFarcaster || !hasClickedMiniapp || !isConnected || isClaimBusy || expired || isThisClaimComplete || !canClaimThis || !treasuryAddress || claimStatus === 'success' || claimStatus === 'error'}
+                    className={`w-full ${claimNum === 1 ? 'py-4' : 'py-3'} font-black text-sm tracking-[0.2em] transition-all ${getButtonStyle()}`}
                   >
-                    {claiming || isClaimTxConfirming || isClaimTxPending
-                      ? (isClaimTxConfirming ? 'CONFIRMING...' : isClaimTxPending ? 'SIGN IN WALLET...' : 'PREPARING...')
-                      : expired 
-                      ? 'EXPIRED' 
-                      : isThisClaimComplete 
-                      ? `CLAIM ${claimNum} COMPLETE`
-                      : !hasClickedMiniapp 
-                      ? 'TAP >> OPEN MINI APP << FIRST' 
-                      : !treasuryAddress
-                      ? 'LOADING...'
-                      : personalCooldownRemaining > 0 && !canClaimAgain
-                      ? 'ON COOLDOWN'
-                      : maxClaims > 1 ? `CLAIM NOW ${claimNum}/${maxClaims}` : 'CLAIM NOW'}
+                    {getButtonText()}
                   </button>
                 </div>
               );
