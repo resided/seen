@@ -50,6 +50,22 @@ export default function Admin() {
     claimsEnabled: true,
   });
   const [loadingClaimSettings, setLoadingClaimSettings] = useState(false);
+  // New Campaign Wizard
+  const [showCampaignWizard, setShowCampaignWizard] = useState(false);
+  const [campaignStep, setCampaignStep] = useState(1);
+  const [campaignData, setCampaignData] = useState({
+    selectedProject: null,
+    useBonusToken: false,
+    bonusTokenPreset: 'donut', // 'donut', 'custom', or 'none'
+    customBonusToken: {
+      tokenName: '',
+      contractAddress: '',
+      amount: '1',
+      decimals: 18,
+      maxSupply: 1000,
+    },
+  });
+  const [launchingCampaign, setLaunchingCampaign] = useState(false);
   const [editFormData, setEditFormData] = useState({
     name: '',
     tagline: '',
@@ -1016,6 +1032,115 @@ export default function Admin() {
     }
   };
 
+  // ========================================
+  // NEW CAMPAIGN WIZARD
+  // ========================================
+  const startCampaignWizard = () => {
+    setCampaignStep(1);
+    setCampaignData({
+      selectedProject: null,
+      useBonusToken: true,
+      bonusTokenPreset: 'donut',
+      customBonusToken: {
+        tokenName: '',
+        contractAddress: '',
+        amount: '1',
+        decimals: 18,
+        maxSupply: 1000,
+      },
+    });
+    setShowCampaignWizard(true);
+  };
+
+  const launchCampaign = async () => {
+    if (!campaignData.selectedProject) {
+      setMessage('Please select a project to feature');
+      return;
+    }
+
+    setLaunchingCampaign(true);
+    setMessage('Launching campaign...');
+
+    try {
+      // Step 1: Configure bonus token if enabled
+      if (campaignData.useBonusToken) {
+        let bonusConfig;
+        if (campaignData.bonusTokenPreset === 'donut') {
+          bonusConfig = {
+            enabled: true,
+            tokenName: 'DONUT',
+            contractAddress: '0xAE4a37d554C6D6F3E398546d8566B25052e0169C',
+            amount: '1',
+            decimals: 18,
+            maxSupply: 1000,
+          };
+        } else if (campaignData.bonusTokenPreset === 'custom') {
+          bonusConfig = {
+            enabled: true,
+            ...campaignData.customBonusToken,
+          };
+        } else {
+          bonusConfig = { enabled: false };
+        }
+
+        const bonusRes = await fetch('/api/admin/bonus-token-config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...bonusConfig, fid: userFid || null }),
+          credentials: 'include',
+        });
+        if (!bonusRes.ok) {
+          throw new Error('Failed to configure bonus token');
+        }
+        setMessage('Bonus token configured...');
+      }
+
+      // Step 2: Set project as featured
+      const updateRes = await fetch('/api/admin/update-project', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: campaignData.selectedProject.id,
+          status: 'featured',
+          fid: userFid || null,
+        }),
+        credentials: 'include',
+      });
+      if (!updateRes.ok) {
+        throw new Error('Failed to set project as featured');
+      }
+      setMessage('Project featured...');
+
+      // Step 3: Reset all claims (including bonus tokens)
+      const resetRes = await fetch('/api/admin/reset-claims', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          confirm: 'RESET',
+          resetDonut: true, // Always reset bonus eligibility for new campaign
+          fid: userFid || null,
+        }),
+        credentials: 'include',
+      });
+      if (!resetRes.ok) {
+        throw new Error('Failed to reset claims');
+      }
+
+      setMessage(`🎉 CAMPAIGN LAUNCHED! "${campaignData.selectedProject.name}" is now featured with fresh claims.`);
+      setShowCampaignWizard(false);
+      
+      // Refresh data
+      fetchLiveProjects();
+      fetchCurrentFeatured();
+      
+    } catch (error) {
+      console.error('Error launching campaign:', error);
+      setMessage(`Error: ${error.message}`);
+    } finally {
+      setLaunchingCampaign(false);
+    }
+  };
+
   // Automation functions
   const fetchCurrentFeatured = async () => {
     try {
@@ -1499,6 +1624,268 @@ export default function Admin() {
       <Head>
         <title>Admin - Seen. Submissions</title>
       </Head>
+      
+      {/* NEW CAMPAIGN WIZARD MODAL */}
+      {showCampaignWizard && (
+        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-900 border-2 border-green-500 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-6">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-2xl font-black text-white">🚀 NEW CAMPAIGN WIZARD</h2>
+                  <p className="text-green-100 text-sm">Step {campaignStep} of 3</p>
+                </div>
+                <button 
+                  onClick={() => setShowCampaignWizard(false)}
+                  className="text-white hover:text-red-300 text-2xl font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+              {/* Progress bar */}
+              <div className="mt-4 h-2 bg-green-900 rounded-full">
+                <div 
+                  className="h-full bg-white rounded-full transition-all duration-300"
+                  style={{ width: `${(campaignStep / 3) * 100}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Step 1: Select Project */}
+            {campaignStep === 1 && (
+              <div className="p-6">
+                <h3 className="text-xl font-bold mb-4 text-green-400">STEP 1: SELECT PROJECT TO FEATURE</h3>
+                <p className="text-gray-400 text-sm mb-4">Choose a project from your live listings to feature as the new campaign.</p>
+                
+                <div className="max-h-60 overflow-y-auto space-y-2 border border-gray-700 p-2">
+                  {liveProjects.filter(p => p.status !== 'featured' && p.status !== 'archived').length === 0 ? (
+                    <div className="text-gray-500 text-center py-4">No projects available. Create a project first.</div>
+                  ) : (
+                    liveProjects
+                      .filter(p => p.status !== 'featured' && p.status !== 'archived')
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map(project => (
+                        <button
+                          key={project.id}
+                          onClick={() => setCampaignData({ ...campaignData, selectedProject: project })}
+                          className={`w-full p-3 text-left border transition-all ${
+                            campaignData.selectedProject?.id === project.id
+                              ? 'border-green-500 bg-green-500/20'
+                              : 'border-gray-700 hover:border-gray-500 bg-gray-800'
+                          }`}
+                        >
+                          <div className="font-bold">{project.name}</div>
+                          <div className="text-xs text-gray-400">{project.tagline}</div>
+                        </button>
+                      ))
+                  )}
+                </div>
+
+                {/* Currently featured */}
+                {liveProjects.find(p => p.status === 'featured') && (
+                  <div className="mt-4 p-3 border border-yellow-500/50 bg-yellow-500/10">
+                    <div className="text-xs text-yellow-400 mb-1">CURRENTLY FEATURED:</div>
+                    <div className="font-bold text-yellow-300">{liveProjects.find(p => p.status === 'featured')?.name}</div>
+                    <div className="text-xs text-gray-400">This will be moved to queue when new campaign launches.</div>
+                  </div>
+                )}
+
+                <div className="mt-6 flex justify-end">
+                  <button
+                    onClick={() => campaignData.selectedProject && setCampaignStep(2)}
+                    disabled={!campaignData.selectedProject}
+                    className="px-6 py-3 bg-green-600 text-white font-bold hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    NEXT →
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 2: Configure Bonus Token */}
+            {campaignStep === 2 && (
+              <div className="p-6">
+                <h3 className="text-xl font-bold mb-4 text-green-400">STEP 2: BONUS TOKEN (OPTIONAL)</h3>
+                <p className="text-gray-400 text-sm mb-4">Include a bonus token with claims? Users get 1 bonus token + 80,000 SEEN per claim.</p>
+                
+                <div className="space-y-3">
+                  <button
+                    onClick={() => setCampaignData({ ...campaignData, useBonusToken: true, bonusTokenPreset: 'donut' })}
+                    className={`w-full p-4 text-left border transition-all ${
+                      campaignData.useBonusToken && campaignData.bonusTokenPreset === 'donut'
+                        ? 'border-green-500 bg-green-500/20'
+                        : 'border-gray-700 hover:border-gray-500 bg-gray-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">🍩</span>
+                      <div>
+                        <div className="font-bold">DONUT BONUS (Recommended)</div>
+                        <div className="text-xs text-gray-400">1 DONUT per claim • Max 1000 total • Contract: 0xAE4a...0169C</div>
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => setCampaignData({ ...campaignData, useBonusToken: true, bonusTokenPreset: 'custom' })}
+                    className={`w-full p-4 text-left border transition-all ${
+                      campaignData.useBonusToken && campaignData.bonusTokenPreset === 'custom'
+                        ? 'border-green-500 bg-green-500/20'
+                        : 'border-gray-700 hover:border-gray-500 bg-gray-800'
+                    }`}
+                  >
+                    <div className="font-bold">CUSTOM BONUS TOKEN</div>
+                    <div className="text-xs text-gray-400">Configure your own token</div>
+                  </button>
+
+                  {/* Custom token form */}
+                  {campaignData.useBonusToken && campaignData.bonusTokenPreset === 'custom' && (
+                    <div className="ml-4 p-4 border border-gray-700 space-y-3">
+                      <input
+                        type="text"
+                        placeholder="Token Name (e.g., BONUS)"
+                        value={campaignData.customBonusToken.tokenName}
+                        onChange={(e) => setCampaignData({
+                          ...campaignData,
+                          customBonusToken: { ...campaignData.customBonusToken, tokenName: e.target.value }
+                        })}
+                        className="w-full p-2 bg-black border border-gray-600 text-white"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Contract Address (0x...)"
+                        value={campaignData.customBonusToken.contractAddress}
+                        onChange={(e) => setCampaignData({
+                          ...campaignData,
+                          customBonusToken: { ...campaignData.customBonusToken, contractAddress: e.target.value }
+                        })}
+                        className="w-full p-2 bg-black border border-gray-600 text-white"
+                      />
+                      <div className="grid grid-cols-3 gap-2">
+                        <input
+                          type="number"
+                          placeholder="Amount"
+                          value={campaignData.customBonusToken.amount}
+                          onChange={(e) => setCampaignData({
+                            ...campaignData,
+                            customBonusToken: { ...campaignData.customBonusToken, amount: e.target.value }
+                          })}
+                          className="p-2 bg-black border border-gray-600 text-white"
+                        />
+                        <input
+                          type="number"
+                          placeholder="Decimals"
+                          value={campaignData.customBonusToken.decimals}
+                          onChange={(e) => setCampaignData({
+                            ...campaignData,
+                            customBonusToken: { ...campaignData.customBonusToken, decimals: parseInt(e.target.value) || 18 }
+                          })}
+                          className="p-2 bg-black border border-gray-600 text-white"
+                        />
+                        <input
+                          type="number"
+                          placeholder="Max Supply"
+                          value={campaignData.customBonusToken.maxSupply}
+                          onChange={(e) => setCampaignData({
+                            ...campaignData,
+                            customBonusToken: { ...campaignData.customBonusToken, maxSupply: parseInt(e.target.value) || 1000 }
+                          })}
+                          className="p-2 bg-black border border-gray-600 text-white"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => setCampaignData({ ...campaignData, useBonusToken: false, bonusTokenPreset: 'none' })}
+                    className={`w-full p-4 text-left border transition-all ${
+                      !campaignData.useBonusToken
+                        ? 'border-green-500 bg-green-500/20'
+                        : 'border-gray-700 hover:border-gray-500 bg-gray-800'
+                    }`}
+                  >
+                    <div className="font-bold">NO BONUS TOKEN</div>
+                    <div className="text-xs text-gray-400">Only SEEN tokens (80,000 per claim)</div>
+                  </button>
+                </div>
+
+                <div className="mt-6 flex justify-between">
+                  <button
+                    onClick={() => setCampaignStep(1)}
+                    className="px-6 py-3 bg-gray-700 text-white font-bold hover:bg-gray-600"
+                  >
+                    ← BACK
+                  </button>
+                  <button
+                    onClick={() => setCampaignStep(3)}
+                    className="px-6 py-3 bg-green-600 text-white font-bold hover:bg-green-500"
+                  >
+                    NEXT →
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Confirm & Launch */}
+            {campaignStep === 3 && (
+              <div className="p-6">
+                <h3 className="text-xl font-bold mb-4 text-green-400">STEP 3: CONFIRM & LAUNCH</h3>
+                <p className="text-gray-400 text-sm mb-4">Review your campaign settings before launching.</p>
+                
+                <div className="space-y-4">
+                  {/* Summary */}
+                  <div className="p-4 border border-green-500/50 bg-green-500/10">
+                    <div className="text-xs text-green-400 mb-2">FEATURED PROJECT:</div>
+                    <div className="font-bold text-xl">{campaignData.selectedProject?.name}</div>
+                    <div className="text-sm text-gray-400">{campaignData.selectedProject?.tagline}</div>
+                  </div>
+
+                  <div className="p-4 border border-gray-700">
+                    <div className="text-xs text-gray-400 mb-2">BONUS TOKEN:</div>
+                    {campaignData.useBonusToken ? (
+                      campaignData.bonusTokenPreset === 'donut' ? (
+                        <div className="font-bold">🍩 DONUT - 1 per claim (max 1000)</div>
+                      ) : (
+                        <div className="font-bold">{campaignData.customBonusToken.tokenName || 'Custom Token'} - {campaignData.customBonusToken.amount} per claim</div>
+                      )
+                    ) : (
+                      <div className="font-bold text-gray-500">None (SEEN only)</div>
+                    )}
+                  </div>
+
+                  <div className="p-4 border border-yellow-500/50 bg-yellow-500/10">
+                    <div className="text-xs text-yellow-400 mb-2">THIS WILL:</div>
+                    <ul className="text-sm space-y-1">
+                      <li>✓ Set "{campaignData.selectedProject?.name}" as featured</li>
+                      <li>✓ Configure bonus token (if selected)</li>
+                      <li>✓ Reset ALL claims - everyone can claim fresh</li>
+                      <li>✓ Reset bonus token eligibility</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex justify-between">
+                  <button
+                    onClick={() => setCampaignStep(2)}
+                    className="px-6 py-3 bg-gray-700 text-white font-bold hover:bg-gray-600"
+                  >
+                    ← BACK
+                  </button>
+                  <button
+                    onClick={launchCampaign}
+                    disabled={launchingCampaign}
+                    className="px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-black text-lg hover:from-green-400 hover:to-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {launchingCampaign ? 'LAUNCHING...' : '🚀 LAUNCH CAMPAIGN'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="min-h-screen bg-black text-white p-8">
         <div className="max-w-6xl mx-auto">
           <div className="mb-8 flex items-center justify-between">
@@ -1510,6 +1897,14 @@ export default function Admin() {
               )}
             </div>
             <div className="flex gap-3 flex-wrap">
+              {/* NEW CAMPAIGN WIZARD - Primary Action */}
+              <button
+                onClick={startCampaignWizard}
+                className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-black text-lg hover:from-green-400 hover:to-emerald-500 transition-all shadow-lg border-2 border-green-400"
+                title="Launch a new featured campaign with guided setup"
+              >
+                🚀 NEW CAMPAIGN
+              </button>
               <button
                 onClick={() => setShowCreateForm(!showCreateForm)}
                 className="px-4 py-2 bg-yellow-500 text-black font-bold hover:bg-yellow-400 transition-all"
