@@ -1,5 +1,5 @@
 // API route to fetch projects
-import { getFeaturedProject, getQueuedProjects, getProjectStatsToday } from '../../lib/projects'
+import { getFeaturedProject, getQueuedProjects, getProjectStatsToday, getAllProjects } from '../../lib/projects'
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -9,6 +9,12 @@ export default async function handler(req, res) {
   try {
     const featured = await getFeaturedProject()
     const queue = await getQueuedProjects()
+    const allProjects = await getAllProjects()
+    
+    // Count all non-archived listings (featured, queued, active)
+    const totalListings = allProjects.filter(p => 
+      p.status !== 'archived' && p.status !== 'pending'
+    ).length;
 
     // Merge real-time stats with stored stats for featured project
     // Use window stats from Redis if available (they include manual overrides), otherwise use stored stats
@@ -25,7 +31,8 @@ export default async function handler(req, res) {
 
     res.status(200).json({
       featured,
-      queue
+      queue,
+      totalListings
     })
   } catch (error) {
     console.error('Error fetching projects:', error)

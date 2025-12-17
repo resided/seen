@@ -95,11 +95,11 @@ const formatTipsUsd = (ethAmount, ethPrice) => {
 // ============================================
 // ACTIVITY TICKER
 // ============================================
-const ActivityTicker = () => {
+const ActivityTicker = ({ totalListings = 0 }) => {
   const items = [
+    `${totalListings} MINI APPS LISTED`,
     'ACCEPTING SUBMISSIONS',
     'TIPS GO DIRECTLY TO THE MINIAPP CREATOR',
-    '23K+ INSTALLS TODAY',
     'BUILT FOR FARCASTER MINI APPS',
     'GET YOUR APP SEEN',
   ];
@@ -2763,6 +2763,7 @@ export default function Seen() {
   const [featuredApp, setFeaturedApp] = useState(null);
   const [queue, setQueue] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [totalListings, setTotalListings] = useState(0);
   const [showSubmitForm, setShowSubmitForm] = useState(false);
   const [userInfo, setUserInfo] = useState(null);
   const [lastMessageTimestamp, setLastMessageTimestamp] = useState(null);
@@ -3089,6 +3090,7 @@ export default function Seen() {
         const data = await response.json();
         setFeaturedApp(data.featured);
         setQueue(data.queue);
+        setTotalListings(data.totalListings || 0);
       } catch (error) {
         console.error('Error fetching projects:', error);
       } finally {
@@ -3177,6 +3179,7 @@ export default function Seen() {
       .then(data => {
         setFeaturedApp(data.featured);
         setQueue(data.queue);
+        setTotalListings(data.totalListings || 0);
       });
   };
 
@@ -3259,7 +3262,7 @@ export default function Seen() {
       
       {/* Ticker */}
       <div className="shrink-0">
-        <ActivityTicker />
+        <ActivityTicker totalListings={totalListings} />
       </div>
       
       {/* Category nav */}
