@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import { sdk } from '@farcaster/miniapp-sdk';
 
@@ -23,6 +23,7 @@ export default function Admin() {
   const [showArchived, setShowArchived] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
   const [updating, setUpdating] = useState(false);
+  const editFormRef = useRef(null); // Ref for scrolling to edit form
   const [ethPrice, setEthPrice] = useState(null);
   const [tipsUsdDisplay, setTipsUsdDisplay] = useState({ edit: '', create: '' }); // Store USD values for display
   const [claimsDisabled, setClaimsDisabled] = useState(null); // null = loading, true/false = state
@@ -278,6 +279,15 @@ export default function Admin() {
       setArchivedProjectsLoading(false);
     }
   };
+
+  // Auto-scroll to edit form when it opens
+  useEffect(() => {
+    if (editingProject && editFormRef.current) {
+      setTimeout(() => {
+        editFormRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
+  }, [editingProject]);
 
   const handleEdit = async (project) => {
     // Fetch fresh project data by ID to ensure we have the latest
@@ -2054,9 +2064,9 @@ export default function Admin() {
             </div>
           )}
 
-          {/* Edit Project Modal */}
+          {/* Edit Project Form */}
           {editingProject && (
-            <div className="mb-8 border border-white p-6 bg-black">
+            <div ref={editFormRef} className="mb-8 border-2 border-white p-6 bg-black shadow-lg">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-2xl font-black">EDIT PROJECT: {editingProject.name}</h2>
@@ -2361,9 +2371,15 @@ export default function Admin() {
           )}
 
           {/* Live Projects Section */}
+          {/* ═══════════════════════════════════════════════════════════ */}
+          {/* SECTION 1: LIVE PROJECTS - Featured + Queued, sorted A-Z */}
+          {/* ═══════════════════════════════════════════════════════════ */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-black">LIVE PROJECTS</h2>
+              <div>
+                <h2 className="text-2xl font-black">1. LIVE PROJECTS</h2>
+                <p className="text-xs text-gray-500 mt-1">Currently active projects (Featured + Queued) - Sorted A-Z</p>
+              </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => {
@@ -2475,11 +2491,16 @@ export default function Admin() {
             )}
           </div>
 
-          {/* Archived Projects Section */}
+          {/* ═══════════════════════════════════════════════════════════ */}
+          {/* SECTION 2: ARCHIVED PROJECTS - Hidden from public */}
+          {/* ═══════════════════════════════════════════════════════════ */}
           {showArchived && (
-            <div className="mb-8 border-t border-white pt-8">
+            <div className="mb-8 border-t-2 border-white pt-8">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-black">ARCHIVED PROJECTS</h2>
+                <div>
+                  <h2 className="text-2xl font-black">2. ARCHIVED PROJECTS</h2>
+                  <p className="text-xs text-gray-500 mt-1">Hidden from public - Can be restored anytime</p>
+                </div>
                 <button
                   onClick={fetchArchivedProjects}
                   className="px-4 py-2 border border-white text-sm hover:bg-white hover:text-black transition-all"
@@ -2553,8 +2574,14 @@ export default function Admin() {
             </div>
           )}
 
-          <div className="mb-8 border-t border-white pt-8">
-            <h2 className="text-2xl font-black mb-4">PENDING SUBMISSIONS</h2>
+          {/* ═══════════════════════════════════════════════════════════ */}
+          {/* SECTION 3: PENDING SUBMISSIONS - User submitted, awaiting review */}
+          {/* ═══════════════════════════════════════════════════════════ */}
+          <div className="mb-8 border-t-2 border-white pt-8">
+            <div className="mb-4">
+              <h2 className="text-2xl font-black">3. PENDING SUBMISSIONS</h2>
+              <p className="text-xs text-gray-500 mt-1">User submissions awaiting your approval - Approve to make live</p>
+            </div>
           </div>
 
           {showCreateForm && (
