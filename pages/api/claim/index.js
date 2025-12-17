@@ -666,20 +666,7 @@ export default async function handler(req, res) {
         console.error('Error reading bonus token config:', error);
       }
 
-      // ATOMIC CHECK: Check DONUT availability (global count and per-user) - CURRENT CAMPAIGN
-      // Use SET with NX to atomically check and mark user as having received DONUT
-      const userDonutLockResult = await redis.set(userDonutKey, '1', { NX: true }); // SET if Not eXists (atomic)
-      // Returns "OK" if key was set (user didn't have DONUT), null if key already exists (user already has DONUT)
-      userCanGetDonut = userDonutLockResult === 'OK';
-      
-      // Check global DONUT count
-      const donutCountGiven = parseInt(await redis.get(DONUT_COUNT_KEY) || '0');
-      const donutGlobalAvailable = donutCountGiven < DONUT_MAX_SUPPLY;
-      
-      // User can get DONUT if: global available AND we just marked them (they didn't have it before)
-      const donutAvailable = donutGlobalAvailable && userCanGetDonut;
-
-      // Check configurable bonus token (works for ANY token - DONUT, or any other token someone wants to feature)
+      // Check configurable bonus token FIRST (works for ANY token - DONUT, or any other token someone wants to feature)
       let bonusTokenAvailable = false;
       
       if (bonusTokenConfig && bonusTokenConfig.enabled && bonusTokenConfig.contractAddress) {
@@ -694,6 +681,26 @@ export default async function handler(req, res) {
         const bonusGlobalAvailable = bonusCountGiven < parseInt(bonusTokenConfig.maxSupply || '0');
         
         bonusTokenAvailable = bonusGlobalAvailable && userCanGetBonus;
+      }
+      
+      // Check if bonus token is DONUT - if so, SKIP hardcoded DONUT system to prevent duplicates
+      const bonusTokenIsDonut = bonusTokenConfig?.contractAddress?.toLowerCase() === DONUT_TOKEN_CONTRACT.toLowerCase();
+      
+      // HARDCODED DONUT - ONLY runs if bonus token is NOT DONUT (prevents double-sending)
+      let donutAvailable = false;
+      const donutCountGiven = parseInt(await redis.get(DONUT_COUNT_KEY) || '0');
+      const donutGlobalAvailable = donutCountGiven < DONUT_MAX_SUPPLY;
+      
+      if (!bonusTokenIsDonut) {
+        // Only check hardcoded DONUT if we're not already sending DONUT as bonus token
+        const userDonutLockResult = await redis.set(userDonutKey, '1', { NX: true }); // SET if Not eXists (atomic)
+        // Returns "OK" if key was set (user didn't have DONUT), null if key already exists (user already has DONUT)
+        userCanGetDonut = userDonutLockResult === 'OK';
+        
+        // User can get DONUT if: global available AND we just marked them (they didn't have it before)
+        donutAvailable = donutGlobalAvailable && userCanGetDonut;
+      } else {
+        console.log('Skipping hardcoded DONUT - bonus token IS DONUT');
       }
       
       // If user already had DONUT, nothing to do (lock result was null)
