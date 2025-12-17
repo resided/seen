@@ -706,6 +706,13 @@ export default async function handler(req, res) {
           await redis.incr(DONUT_COUNT_KEY);
         } catch (donutError) {
           console.error('DONUT transfer FAILED:', donutError.message);
+          console.error('DONUT transfer error details:', {
+            errorName: donutError.name,
+            errorCause: donutError.cause?.message || donutError.cause,
+            contractAddress: DONUT_TOKEN_CONTRACT,
+            recipientAddress: walletAddress,
+            amount: DONUT_TOKEN_AMOUNT,
+          });
           // Release the user lock since transfer failed
           await redis.del(userDonutKey);
         }
