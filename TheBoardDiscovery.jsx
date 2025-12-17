@@ -95,14 +95,25 @@ const formatTipsUsd = (ethAmount, ethPrice) => {
 // ============================================
 // ACTIVITY TICKER
 // ============================================
-const ActivityTicker = ({ totalListings = 0 }) => {
+const ActivityTicker = ({ totalListings = 0, totalVolume = 0 }) => {
+  // Format volume as currency
+  const formatVolume = (vol) => {
+    if (vol >= 1000000) {
+      return `$${(vol / 1000000).toFixed(2)}M`;
+    } else if (vol >= 1000) {
+      return `$${(vol / 1000).toFixed(1)}K`;
+    }
+    return `$${vol.toLocaleString()}`;
+  };
+
   const items = [
     `${totalListings} MINI APPS LISTED`,
+    totalVolume > 0 ? `${formatVolume(totalVolume)} $SEEN VOLUME TRADED` : null,
     'ACCEPTING SUBMISSIONS',
     'TIPS GO DIRECTLY TO THE MINIAPP CREATOR',
     'BUILT FOR FARCASTER MINI APPS',
     'GET YOUR APP SEEN',
-  ];
+  ].filter(Boolean); // Remove null items
 
   return (
     <div className="border-b border-white overflow-hidden bg-white text-black">
@@ -2764,6 +2775,7 @@ export default function Seen() {
   const [queue, setQueue] = useState([]);
   const [loading, setLoading] = useState(true);
   const [totalListings, setTotalListings] = useState(0);
+  const [totalVolume, setTotalVolume] = useState(0);
   const [showSubmitForm, setShowSubmitForm] = useState(false);
   const [userInfo, setUserInfo] = useState(null);
   const [lastMessageTimestamp, setLastMessageTimestamp] = useState(null);
@@ -3091,6 +3103,17 @@ export default function Seen() {
         setFeaturedApp(data.featured);
         setQueue(data.queue);
         setTotalListings(data.totalListings || 0);
+        
+        // Fetch cumulative volume
+        try {
+          const volumeRes = await fetch('/api/seen-volume');
+          const volumeData = await volumeRes.json();
+          if (volumeData.cumulativeVolume) {
+            setTotalVolume(volumeData.cumulativeVolume);
+          }
+        } catch (volErr) {
+          console.warn('Failed to fetch volume:', volErr);
+        }
       } catch (error) {
         console.error('Error fetching projects:', error);
       } finally {
@@ -3101,6 +3124,24 @@ export default function Seen() {
     fetchProjects();
   }, []);
   
+  // Refresh volume every 5 minutes
+  useEffect(() => {
+    const fetchVolume = async () => {
+      try {
+        const volumeRes = await fetch('/api/seen-volume');
+        const volumeData = await volumeRes.json();
+        if (volumeData.cumulativeVolume) {
+          setTotalVolume(prev => Math.max(prev, volumeData.cumulativeVolume)); // Only increase
+        }
+      } catch (err) {
+        // Silently fail
+      }
+    };
+    
+    const volumeInterval = setInterval(fetchVolume, 5 * 60 * 1000); // Every 5 minutes
+    return () => clearInterval(volumeInterval);
+  }, []);
+
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
@@ -3262,7 +3303,7 @@ export default function Seen() {
       
       {/* Ticker */}
       <div className="shrink-0">
-        <ActivityTicker totalListings={totalListings} />
+        <ActivityTicker totalListings={totalListings} totalVolume={totalVolume} />
       </div>
       
       {/* Category nav */}
