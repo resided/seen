@@ -2220,7 +2220,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
   const [canClaimAgain, setCanClaimAgain] = useState(true);
   const [personalCooldownRemaining, setPersonalCooldownRemaining] = useState(0);
   const { address } = useAccount();
-  const { sendTransaction, data: claimTxData } = useSendTransaction();
+  const { sendTransaction, data: claimTxData, isPending: isClaimTxPending, isError: isClaimTxError, error: claimTxError, reset: resetClaimTx } = useSendTransaction();
   const { isLoading: isClaimTxConfirming, isSuccess: isClaimTxConfirmed } = useWaitForTransactionReceipt({
     hash: claimTxData,
   });
@@ -2322,6 +2322,19 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
       };
     }
   }, [userFid, address]);
+
+  // Handle transaction rejection/error
+  useEffect(() => {
+    if (isClaimTxError && claiming) {
+      console.log('Claim transaction error:', claimTxError);
+      setMessage(claimTxError?.message?.includes('rejected') || claimTxError?.message?.includes('denied') 
+        ? 'TRANSACTION CANCELLED' 
+        : 'TRANSACTION FAILED. TRY AGAIN.');
+      setClaiming(false);
+      claimInProgress.current = false;
+      resetClaimTx(); // Reset hook state for next attempt
+    }
+  }, [isClaimTxError, claimTxError, claiming, resetClaimTx]);
 
   // When claim transaction is confirmed, send txHash to API
   useEffect(() => {
@@ -2746,17 +2759,17 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
                 <div key={claimNum} className={claimNum > 1 ? 'mt-2' : 'mb-3'}>
                   <button
                     onClick={handleClaim}
-                    disabled={!isInFarcaster || !hasClickedMiniapp || !isConnected || claiming || isClaimTxConfirming || expired || isThisClaimComplete || !canClaimThis || !treasuryAddress}
+                    disabled={!isInFarcaster || !hasClickedMiniapp || !isConnected || claiming || isClaimTxConfirming || isClaimTxPending || expired || isThisClaimComplete || !canClaimThis || !treasuryAddress}
                     className={`w-full ${claimNum === 1 ? 'py-4' : 'py-3'} font-black text-sm tracking-[0.2em] transition-all ${
-                      isInFarcaster && hasClickedMiniapp && isConnected && !claiming && !isClaimTxConfirming && canClaimThis && treasuryAddress
+                      isInFarcaster && hasClickedMiniapp && isConnected && !claiming && !isClaimTxConfirming && !isClaimTxPending && canClaimThis && treasuryAddress
                         ? 'bg-white text-black hover:bg-gray-200'
                         : !hasClickedMiniapp && isInFarcaster
                         ? 'bg-black text-white border-2 border-white cursor-not-allowed'
                         : 'bg-gray-600 text-gray-400 cursor-not-allowed'
                     }`}
                   >
-                    {claiming || isClaimTxConfirming 
-                      ? (isClaimTxConfirming ? 'CONFIRMING...' : 'PREPARING...')
+                    {claiming || isClaimTxConfirming || isClaimTxPending
+                      ? (isClaimTxConfirming ? 'CONFIRMING...' : isClaimTxPending ? 'SIGN IN WALLET...' : 'PREPARING...')
                       : expired 
                       ? 'EXPIRED' 
                       : isThisClaimComplete 
