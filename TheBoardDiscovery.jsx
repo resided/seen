@@ -2260,8 +2260,10 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
       })
         .then(res => res.json())
         .then(data => {
-          if (data.claimed) {
-            setClaimed(true);
+          // CRITICAL: Update claimed state in both directions (true AND false)
+          // This allows admin reset to properly clear the claimed state
+          if (data.claimed !== undefined) {
+            setClaimed(data.claimed);
           }
           if (data.expired) {
             setExpired(true);
@@ -2834,7 +2836,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
             <div className="text-sm font-bold mb-2">CLAIMED</div>
             {expirationTime && getTimeUntilExpiration() && getTimeUntilExpiration() !== 'EXPIRED' && (
               <div className="text-[10px] tracking-[0.2em] text-gray-500 mb-4">
-                EXPIRES IN {getTimeUntilExpiration()}
+                FEATURED ENDS IN {getTimeUntilExpiration()}
               </div>
             )}
             <button
