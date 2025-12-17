@@ -102,9 +102,23 @@ export default async function handler(req, res) {
       personalClaimCount = parseInt(await redis.get(personalClaimCountKey) || '0');
     }
     
-    // User is "fully claimed" when they've used all their personal claims in the 24h window
-    const fullyClaimed = personalClaimCount >= maxClaims && personalCooldownRemaining > 0;
-    const canClaimAgain = personalClaimCount < maxClaims || personalCooldownRemaining === 0;
+    // ALSO check rotation-based claim count (what preflight/claim API checks)
+    // This is the authoritative source for claims against THIS featured project
+    const rotationId = featuredProject.rotationId || `legacy_${featuredProject.id}`;
+    const globalWalletClaimCountKey = walletAddress ? `claim:wallet:global:${walletAddress.toLowerCase()}:${rotationId}` : null;
+    let rotationClaimCount = 0;
+    
+    if (globalWalletClaimCountKey) {
+      rotationClaimCount = parseInt(await redis.get(globalWalletClaimCountKey) || '0');
+    }
+    
+    // Use the HIGHER of personal or rotation count to be conservative
+    // This ensures UI matches what preflight will check
+    const effectiveClaimCount = Math.max(personalClaimCount, rotationClaimCount);
+    
+    // User is "fully claimed" when they've used all their claims for this rotation
+    const fullyClaimed = effectiveClaimCount >= maxClaims;
+    const canClaimAgain = effectiveClaimCount < maxClaims && !expired;
 
     // Check bonus token availability (generic - configured via admin panel)
     let bonusTokenConfig = null;
@@ -143,17 +157,21 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       claimed: fullyClaimed,
-      claimCount: personalClaimCount, // Use personal claim count
+      claimCount: effectiveClaimCount, // Use higher of personal or rotation count
       maxClaims,
       canClaimAgain: canClaimAgain,
       expired,
       featuredProjectId,
+      rotationId,
       featuredAt: featuredAt.toISOString(),
       expirationTime: expirationTime.toISOString(),
       timeRemaining: expired ? 0 : Math.max(0, expirationTime - now),
       // Personal 24-hour cooldown info
       personalCooldownRemaining,
       personalCooldownEndsAt,
+      // Rotation-based claim count (authoritative for this featured project)
+      rotationClaimCount,
+      personalClaimCount,
       isHolder,
       holderThreshold: HOLDER_THRESHOLD,
       // Generic bonus token info (configured via admin panel)
