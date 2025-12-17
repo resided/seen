@@ -319,6 +319,9 @@ export default async function handler(req, res) {
     // This prevents exploits within a single featured rotation
     const globalWalletClaimCountKey = `claim:wallet:global:${featuredProjectId}:${rotationId}:${walletAddress.toLowerCase()}`;
     
+    // SECURITY: Claim lock to prevent race conditions (multiple simultaneous claims)
+    const claimLockKey = `claim:lock:${walletAddress.toLowerCase()}`;
+    
     // SECURITY: Test bypass removed - no FID gets special treatment
     const isBypassEnabled = false;
     
@@ -334,6 +337,22 @@ export default async function handler(req, res) {
       maxClaims
     });
     
+    // SECURITY: Acquire lock to prevent race conditions
+    // Lock expires after 30 seconds in case of crash
+    const lockAcquired = await redis.set(claimLockKey, '1', { NX: true, EX: 30 });
+    if (!lockAcquired) {
+      console.warn('SECURITY: Claim lock not acquired (concurrent request in progress):', {
+        fid,
+        walletAddress: walletAddress?.slice(0, 10) + '...',
+      });
+      return res.status(429).json({ 
+        error: 'Please wait a moment and try again. Your previous claim is still processing.',
+      });
+    }
+    
+    // Wrap the rest in try/finally to ensure lock is released
+    try {
+    
     // SECURITY: Check per-rotation wallet claim count to enforce limit for this featured project
     const globalWalletClaimCount = await redis.incr(globalWalletClaimCountKey);
     
@@ -345,6 +364,8 @@ export default async function handler(req, res) {
     if (globalWalletClaimCount > maxClaims && !isBypassEnabled) {
       // Rollback the increment
       await redis.decr(globalWalletClaimCountKey);
+      // Release lock before returning
+      await redis.del(claimLockKey);
       console.warn('SECURITY: Wallet claim limit exceeded for this rotation:', {
         fid,
         walletAddress: walletAddress?.slice(0, 10) + '...',
@@ -370,6 +391,8 @@ export default async function handler(req, res) {
       // Rollback the increments
       await redis.decr(walletClaimCountKey);
       await redis.decr(globalWalletClaimCountKey);
+      // Release lock before returning
+      await redis.del(claimLockKey);
       console.warn('SECURITY: Wallet claim limit exceeded for rotation (possible FID spoofing attempt):', {
         fid,
         walletAddress: walletAddress?.slice(0, 10) + '...',
@@ -415,6 +438,8 @@ export default async function handler(req, res) {
       await redis.decr(claimCountKey);
       await redis.decr(walletClaimCountKey);
       await redis.decr(globalWalletClaimCountKey);
+      // Release lock before returning
+      await redis.del(claimLockKey);
       console.warn('Claim rejected - FID exceeded max:', {
         fid,
         walletAddress: walletAddress?.slice(0, 10) + '...',
@@ -660,6 +685,8 @@ export default async function handler(req, res) {
         if (txHash) {
           await redis.del(`claim:txhash:${txHash.toLowerCase()}`);
         }
+        // Release claim lock before returning
+        await redis.del(claimLockKey);
         return res.status(400).json({ 
           error: 'Featured project changed during claim. Please try again.',
           featuredProjectChanged: true
@@ -823,6 +850,9 @@ export default async function handler(req, res) {
       successMessage = `Tokens sent successfully! (Claim ${newClaimCount}/${maxClaims} - 30M+ holder benefit)`;
     }
 
+    // Release lock before returning success
+    await redis.del(claimLockKey);
+    
     return res.status(200).json({
       success: true,
       message: successMessage,
@@ -893,6 +923,9 @@ export default async function handler(req, res) {
         errorDetails = 'The token contract address is not valid or the contract does not exist on Base network.';
       }
 
+      // Release lock before returning error
+      await redis.del(claimLockKey);
+      
       return res.status(500).json({ 
         error: errorMessage,
         details: errorDetails,
@@ -904,6 +937,14 @@ export default async function handler(req, res) {
           checkNetwork: 'Verify the contract is on Base network (not Ethereum mainnet)',
         }
       });
+    }
+    } finally {
+      // ALWAYS release the lock when done (in case any code path missed it)
+      try {
+        await redis.del(claimLockKey);
+      } catch (lockError) {
+        console.warn('Error releasing claim lock:', lockError);
+      }
     }
   } catch (error) {
     console.error('Error processing claim:', error);
