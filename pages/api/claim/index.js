@@ -166,12 +166,33 @@ export default async function handler(req, res) {
       }
     }
 
-    // Check Neynar user score (30M+ holders bypass this requirement)
+    // Check Neynar user score and account age (30M+ holders bypass these requirements)
     const apiKey = process.env.NEYNAR_API_KEY;
-    if (apiKey && !isHolder) { // Only check Neynar score if not a 30M+ holder
+    const MIN_ACCOUNT_AGE_DAYS = 2; // Minimum account age in days
+    
+    if (apiKey && !isHolder) { // Only check Neynar score/age if not a 30M+ holder
       try {
         const user = await fetchUserByFid(fid, apiKey);
         if (user) {
+          // Check account age first (accounts less than 2 days old cannot claim)
+          // Neynar provides 'fid' which correlates to registration order, and sometimes 'timestamp'
+          // We'll use the FID registration timestamp if available
+          const registeredAt = user.registered_at || user.timestamp || user.profile?.timestamp;
+          if (registeredAt) {
+            const accountCreated = new Date(registeredAt);
+            const accountAgeMs = Date.now() - accountCreated.getTime();
+            const accountAgeDays = accountAgeMs / (1000 * 60 * 60 * 24);
+            
+            if (accountAgeDays < MIN_ACCOUNT_AGE_DAYS) {
+              return res.status(403).json({
+                error: `Your Farcaster account is too new. Accounts must be at least ${MIN_ACCOUNT_AGE_DAYS} days old to claim. Your account is ${accountAgeDays.toFixed(1)} days old.`,
+                accountAgeDays: accountAgeDays,
+                minAgeDays: MIN_ACCOUNT_AGE_DAYS
+              });
+            }
+          }
+          
+          // Check Neynar score
           const userScore = user.experimental?.neynar_user_score;
           
           // If score exists and is below threshold, reject claim
@@ -194,7 +215,7 @@ export default async function handler(req, res) {
         // You might want to change this to reject if score checking is critical
       }
     } else if (isHolder) {
-      console.log(`30M+ holder ${fid} bypassing Neynar score requirement`);
+      console.log(`30M+ holder ${fid} bypassing Neynar score and account age requirements`);
     }
 
     // Get current featured project to determine claim window
