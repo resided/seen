@@ -13,11 +13,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing projectId' });
     }
 
-    // Get project to check if it's featured and has featuredAt
+    // Get project to check if it's featured and has rotationId
     const project = await getProjectById(parseInt(projectId));
-    const featuredAt = project?.status === 'featured' ? project?.featuredAt : null;
+    const rotationId = project?.status === 'featured' ? project?.rotationId : null;
     
-    const stats = await getProjectStatsToday(parseInt(projectId), featuredAt);
+    const stats = await getProjectStatsToday(parseInt(projectId), rotationId);
 
     res.status(200).json({
       success: true,

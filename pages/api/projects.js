@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     // Merge real-time stats with stored stats for featured project
     // Use window stats from Redis if available (they include manual overrides), otherwise use stored stats
     if (featured?.id) {
-      const windowStats = await getProjectStatsToday(featured.id, featured.featuredAt);
+      const windowStats = await getProjectStatsToday(featured.id, featured.rotationId);
       // Always use window stats (they reflect manual overrides and continue counting)
       // If window stats exist, use them; otherwise fall back to stored stats
         featured.stats = {

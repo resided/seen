@@ -146,11 +146,10 @@ export default async function handler(req, res) {
           const currentStoredTotal = currentProject?.stats?.clicks || 0;
           const newTotal = stats.clicks;
           
-          // Use window key based on featuredAt for featured projects, calendar date for others
+          // Use window key based on rotationId for featured projects (stable across timer changes)
           let windowKey;
-          if (currentProject?.status === 'featured' && currentProject?.featuredAt) {
-            const featuredDate = new Date(currentProject.featuredAt);
-            windowKey = Math.floor(featuredDate.getTime() / 1000).toString();
+          if (currentProject?.status === 'featured' && currentProject?.rotationId) {
+            windowKey = currentProject.rotationId;
           } else {
             windowKey = new Date().toISOString().split('T')[0];
           }
@@ -187,11 +186,10 @@ export default async function handler(req, res) {
           const currentStoredTotal = currentProject?.stats?.views || 0;
           const newTotal = stats.views;
           
-          // Use window key based on featuredAt for featured projects, calendar date for others
+          // Use window key based on rotationId for featured projects (stable across timer changes)
           let windowKey;
-          if (currentProject?.status === 'featured' && currentProject?.featuredAt) {
-            const featuredDate = new Date(currentProject.featuredAt);
-            windowKey = Math.floor(featuredDate.getTime() / 1000).toString();
+          if (currentProject?.status === 'featured' && currentProject?.rotationId) {
+            windowKey = currentProject.rotationId;
           } else {
             windowKey = new Date().toISOString().split('T')[0];
           }

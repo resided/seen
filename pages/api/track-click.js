@@ -51,16 +51,14 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, tracked: false });
     }
 
-    // Get project to check if it's featured and has featuredAt
+    // Get project to check if it's featured and has rotationId
     const { getProjectById } = await import('../../lib/projects');
     const project = await getProjectById(projectIdNum);
     
-    // For featured projects, use 24-hour window from featuredAt instead of calendar date
+    // For featured projects, use rotationId as the window key (stable across timer changes)
     let windowKey;
-    if (project?.status === 'featured' && project?.featuredAt) {
-      const featuredDate = new Date(project.featuredAt);
-      const windowStart = Math.floor(featuredDate.getTime() / 1000);
-      windowKey = windowStart.toString();
+    if (project?.status === 'featured' && project?.rotationId) {
+      windowKey = project.rotationId;
     } else {
       // For non-featured projects, use calendar date (backward compatibility)
       windowKey = new Date().toISOString().split('T')[0];
