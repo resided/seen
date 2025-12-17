@@ -156,13 +156,22 @@ export default async function handler(req, res) {
 
     // Check if user is a 30M+ holder first (holders bypass Neynar score requirement)
     let isHolder = false;
+    let actualBalance = 0;
     if (walletAddress) {
       try {
-        const { isHolder: holderStatus } = await getTokenBalance(walletAddress);
+        const { isHolder: holderStatus, balanceFormatted } = await getTokenBalance(walletAddress);
         isHolder = holderStatus;
+        actualBalance = balanceFormatted;
+        console.log('Holder check:', {
+          walletAddress: walletAddress.slice(0, 10) + '...',
+          balance: balanceFormatted,
+          isHolder: holderStatus,
+          threshold: 30000000,
+        });
       } catch (balanceError) {
         console.error('Error checking holder status for Neynar bypass:', balanceError);
         // Continue to check Neynar score if we can't verify holder status
+        isHolder = false; // Ensure holder is false on error
       }
     }
 
@@ -816,13 +825,14 @@ export default async function handler(req, res) {
       donutTxHash: donutHash, // DONUT transaction hash if sent (current campaign)
       bonusTokenTxHash: bonusTokenHash, // Configurable bonus token transaction hash if sent
       amount: seenAmount, // Actual SEEN amount sent
-      donutIncluded: donutAvailable && (!bonusTokenConfig || !bonusTokenConfig.enabled), // Whether DONUT was included (only if no bonus token configured)
+      donutIncluded: donutAvailable, // Whether DONUT was included
       bonusTokenIncluded: bonusTokenAvailable, // Whether configurable bonus token was included
       bonusTokenName: bonusTokenConfig?.tokenName || null, // Name of bonus token if sent
       donutRemaining: Math.max(0, DONUT_MAX_SUPPLY - donutCountGiven - (donutAvailable ? 1 : 0)), // Remaining DONUT tokens
       claimCount: newClaimCount,
       maxClaims,
       isHolder,
+      holderBalance: actualBalance, // Actual token balance at time of claim
       canClaimAgain: newClaimCount < maxClaims,
     });
     
