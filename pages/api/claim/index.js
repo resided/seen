@@ -39,15 +39,8 @@ const TREASURY_PRIVATE_KEY = process.env.TREASURY_PRIVATE_KEY; // Private key of
 const TREASURY_ADDRESS = process.env.TREASURY_ADDRESS; // Treasury wallet address (for verification) - REQUIRED
 const REQUIRE_USER_TX = process.env.REQUIRE_USER_TX !== 'false'; // Allow disabling in env if needed
 
-// DONUT token bonus configuration (one-time feature - current campaign)
-const DONUT_TOKEN_CONTRACT = '0xAE4a37d554C6D6F3E398546d8566B25052e0169C'; // DONUT token address
-const DONUT_TOKEN_AMOUNT = '1'; // 1 DONUT per person
-const DONUT_TOKEN_DECIMALS = 18; // Standard ERC20 decimals
-const DONUT_MAX_SUPPLY = 1000; // Maximum 1,000 DONUT tokens to give out
-// DONUT is just an add-on - doesn't change SEEN amount (always 80k per claim)
-const DONUT_COUNT_KEY = 'donut:count:given'; // Redis key to track DONUT tokens given
-
-// Configurable bonus token system (for future campaigns)
+// Configurable bonus token system - ALL bonus tokens configured via admin panel
+// No more hardcoded tokens - everything is dynamic and configurable
 const BONUS_TOKEN_CONFIG_KEY = 'bonus:token:config'; // Redis key for bonus token config
 
 export default async function handler(req, res) {
@@ -620,8 +613,6 @@ export default async function handler(req, res) {
 
     // Send tokens from treasury wallet
     // Declare variables outside try block for rollback access
-    const userDonutKey = `donut:user:${fid}`;
-    let userCanGetDonut = false;
     let bonusTokenHash = null;
     let userBonusTokenKey = null;
     let bonusTokenCountKey = null;
@@ -655,7 +646,7 @@ export default async function handler(req, res) {
         transport: http(),
       });
 
-      // Get configurable bonus token config (for future campaigns)
+      // Get configurable bonus token config from admin panel
       let bonusTokenConfig = null;
       try {
         const bonusConfigJson = await redis.get(BONUS_TOKEN_CONFIG_KEY);
@@ -666,14 +657,14 @@ export default async function handler(req, res) {
         console.error('Error reading bonus token config:', error);
       }
 
-      // Check configurable bonus token FIRST (works for ANY token - DONUT, or any other token someone wants to feature)
+      // Check configurable bonus token (ALL bonus tokens configured via admin panel now)
       let bonusTokenAvailable = false;
       
       if (bonusTokenConfig && bonusTokenConfig.enabled && bonusTokenConfig.contractAddress) {
-        // Any bonus token configured - use that (could be DONUT, or any other token)
         userBonusTokenKey = `bonus:user:${walletAddress.toLowerCase()}:${bonusTokenConfig.contractAddress.toLowerCase()}`;
         bonusTokenCountKey = `bonus:count:given:${bonusTokenConfig.contractAddress.toLowerCase()}`;
         
+        // Atomic check - only mark user if they haven't received this bonus token yet
         const userBonusLockResult = await redis.set(userBonusTokenKey, '1', { NX: true });
         const userCanGetBonus = userBonusLockResult === 'OK';
         
@@ -681,51 +672,34 @@ export default async function handler(req, res) {
         const bonusGlobalAvailable = bonusCountGiven < parseInt(bonusTokenConfig.maxSupply || '0');
         
         bonusTokenAvailable = bonusGlobalAvailable && userCanGetBonus;
-      }
-      
-      // Check if bonus token is DONUT - if so, SKIP hardcoded DONUT system to prevent duplicates
-      const bonusTokenIsDonut = bonusTokenConfig?.contractAddress?.toLowerCase() === DONUT_TOKEN_CONTRACT.toLowerCase();
-      
-      // HARDCODED DONUT - ONLY runs if bonus token is NOT DONUT (prevents double-sending)
-      let donutAvailable = false;
-      const donutCountGiven = parseInt(await redis.get(DONUT_COUNT_KEY) || '0');
-      const donutGlobalAvailable = donutCountGiven < DONUT_MAX_SUPPLY;
-      
-      if (!bonusTokenIsDonut) {
-        // Only check hardcoded DONUT if we're not already sending DONUT as bonus token
-        const userDonutLockResult = await redis.set(userDonutKey, '1', { NX: true }); // SET if Not eXists (atomic)
-        // Returns "OK" if key was set (user didn't have DONUT), null if key already exists (user already has DONUT)
-        userCanGetDonut = userDonutLockResult === 'OK';
         
-        // User can get DONUT if: global available AND we just marked them (they didn't have it before)
-        donutAvailable = donutGlobalAvailable && userCanGetDonut;
-      } else {
-        console.log('Skipping hardcoded DONUT - bonus token IS DONUT');
+        console.log('Bonus token check:', {
+          token: bonusTokenConfig.tokenName,
+          contract: bonusTokenConfig.contractAddress,
+          userCanGetBonus,
+          bonusCountGiven,
+          maxSupply: bonusTokenConfig.maxSupply,
+          available: bonusTokenAvailable,
+        });
       }
-      
-      // If user already had DONUT, nothing to do (lock result was null)
       
       // SEEN amount is ALWAYS 80,000 per claim - no exceptions
       // - Regular users: 1 claim = 80,000 SEEN
       // - 30M+ holders: 2 claims = 2 x 80,000 = 160,000 SEEN total (but each TX is 80k)
-      // DONUT is just an add-on: 1 DONUT per person, once only, while supply lasts
+      // Bonus token (if configured): 1 per person, once only, while supply lasts
       const seenAmount = TOKEN_AMOUNT; // Always 80,000
       const seenAmountWei = parseUnits(seenAmount, TOKEN_DECIMALS);
       
       console.log('Sending tokens:', {
-        donutAvailable,
-        donutCountGiven,
-        donutMaxSupply: DONUT_MAX_SUPPLY,
         bonusTokenAvailable,
         bonusTokenConfig: bonusTokenConfig ? {
           enabled: bonusTokenConfig.enabled,
           contract: bonusTokenConfig.contractAddress,
           amount: bonusTokenConfig.amount,
+          maxSupply: bonusTokenConfig.maxSupply,
         } : null,
         seenContract: TOKEN_CONTRACT,
         seenAmount,
-        donutContract: donutAvailable ? DONUT_TOKEN_CONTRACT : null,
-        donutAmount: donutAvailable ? DONUT_TOKEN_AMOUNT : null,
         bonusContract: bonusTokenAvailable ? bonusTokenConfig?.contractAddress : null,
         bonusAmount: bonusTokenAvailable ? bonusTokenConfig?.amount : null,
         to: walletAddress,
@@ -739,9 +713,6 @@ export default async function handler(req, res) {
         await redis.decr(claimCountKey);
         await redis.decr(walletClaimCountKey);
         await redis.decr(globalWalletClaimCountKey);
-        if (userCanGetDonut) {
-          await redis.del(userDonutKey);
-        }
         if (userBonusTokenKey) {
           await redis.del(userBonusTokenKey);
         }
@@ -776,56 +747,7 @@ export default async function handler(req, res) {
         args: [checksummedRecipientForSeen, seenAmountWei],
       });
 
-      // Send DONUT token if available (1 per user max) - CURRENT CAMPAIGN ONLY
-      // DONUT is always sent (if available) regardless of other bonus tokens
-      let donutHash = null;
-      console.log('DONUT check:', {
-        donutAvailable,
-        userCanGetDonut,
-        donutGlobalAvailable,
-        donutCountGiven,
-        donutMaxSupply: DONUT_MAX_SUPPLY,
-        donutContract: DONUT_TOKEN_CONTRACT,
-        fid,
-        userDonutKey,
-      });
-      
-      if (donutAvailable) {
-        // Send DONUT as long as user hasn't received one yet and supply available
-        try {
-          const donutAmountWei = parseUnits(DONUT_TOKEN_AMOUNT, DONUT_TOKEN_DECIMALS);
-          const checksummedRecipient = getAddress(walletAddress);
-          const checksummedDonutContract = getAddress(DONUT_TOKEN_CONTRACT);
-          console.log('Sending DONUT:', { amount: DONUT_TOKEN_AMOUNT, to: checksummedRecipient, contract: checksummedDonutContract });
-          donutHash = await walletClient.writeContract({
-            address: checksummedDonutContract,
-            abi: erc20Abi,
-            functionName: 'transfer',
-            args: [checksummedRecipient, donutAmountWei],
-          });
-          console.log('DONUT sent successfully:', donutHash);
-          
-          // Increment global DONUT count (persistent, doesn't expire)
-          // User is already marked via SETNX above
-          await redis.incr(DONUT_COUNT_KEY);
-        } catch (donutError) {
-          console.error('DONUT transfer FAILED:', donutError.message);
-          console.error('DONUT transfer error details:', {
-            errorName: donutError.name,
-            errorCause: donutError.cause?.message || donutError.cause,
-            contractAddress: DONUT_TOKEN_CONTRACT,
-            recipientAddress: walletAddress,
-            amount: DONUT_TOKEN_AMOUNT,
-          });
-          // Release the user lock since transfer failed
-          await redis.del(userDonutKey);
-        }
-      } else if (userCanGetDonut && !donutGlobalAvailable) {
-        // Race condition: user got lock but DONUT ran out - release the lock
-        await redis.del(userDonutKey);
-      }
-
-      // Send configurable bonus token if available (works for ANY token - DONUT, or any other token)
+      // Send bonus token if available (configured via admin panel)
       if (bonusTokenAvailable && bonusTokenConfig) {
         try {
           const bonusAmountWei = parseUnits(bonusTokenConfig.amount, parseInt(bonusTokenConfig.decimals || '18'));
@@ -943,8 +865,6 @@ export default async function handler(req, res) {
     if (bonusTokenAvailable && bonusTokenConfig) {
       const bonusName = bonusTokenConfig.tokenName || 'Bonus Token';
       successMessage = `Tokens sent successfully! Bonus: ${bonusTokenConfig.amount} ${bonusName} + ${seenAmount} $SEEN`;
-    } else if (donutAvailable) {
-      successMessage = `Tokens sent successfully! Bonus: 1 DONUT + ${seenAmount} $SEEN`;
     } else if (isHolder) {
       successMessage = `Tokens sent successfully! (Claim ${newClaimCount}/${maxClaims} - 30M+ holder benefit)`;
     }
@@ -957,6 +877,13 @@ export default async function handler(req, res) {
       await redis.del(reservationKey);
     }
     
+    // Calculate bonus token remaining
+    let bonusTokenRemaining = 0;
+    if (bonusTokenConfig && bonusTokenCountKey) {
+      const bonusCountGiven = parseInt(await redis.get(bonusTokenCountKey) || '0');
+      bonusTokenRemaining = Math.max(0, parseInt(bonusTokenConfig.maxSupply || '0') - bonusCountGiven);
+    }
+    
     return res.status(200).json({
       success: true,
       message: successMessage,
@@ -964,25 +891,18 @@ export default async function handler(req, res) {
       featuredProjectId,
       txHash: txHash || hash, // Return user's txHash if provided, otherwise treasury tx hash
       treasuryTxHash: hash, // Also return treasury transaction hash
-      donutTxHash: donutHash, // DONUT transaction hash if sent (current campaign)
-      bonusTokenTxHash: bonusTokenHash, // Configurable bonus token transaction hash if sent
+      bonusTokenTxHash: bonusTokenHash, // Bonus token transaction hash if sent
       amount: seenAmount, // Actual SEEN amount sent
-      donutIncluded: donutAvailable, // Whether DONUT was included
-      bonusTokenIncluded: bonusTokenAvailable, // Whether configurable bonus token was included
+      bonusTokenIncluded: bonusTokenAvailable, // Whether bonus token was included
       bonusTokenName: bonusTokenConfig?.tokenName || null, // Name of bonus token if sent
-      donutRemaining: Math.max(0, DONUT_MAX_SUPPLY - donutCountGiven - (donutAvailable ? 1 : 0)), // Remaining DONUT tokens
+      bonusTokenAmount: bonusTokenConfig?.amount || null, // Amount of bonus token sent
+      bonusTokenRemaining, // Remaining bonus tokens
       claimCount: newClaimCount,
       maxClaims,
       isHolder,
       holderBalance: actualBalance, // Actual token balance at time of claim
       canClaimAgain: newClaimCount < maxClaims,
     });
-    
-    // Calculate bonus token remaining (after response to avoid blocking)
-    if (bonusTokenConfig && bonusTokenCountKey) {
-      const bonusCountGiven = parseInt(await redis.get(bonusTokenCountKey) || '0');
-      console.log('Bonus token remaining:', Math.max(0, parseInt(bonusTokenConfig.maxSupply || '0') - bonusCountGiven));
-    }
     } catch (txError) {
       console.error('Error sending tokens:', {
         error: txError,
@@ -999,15 +919,15 @@ export default async function handler(req, res) {
         await redis.decr(claimCountKey);
         await redis.decr(walletClaimCountKey); // Also rollback wallet claim count
         await redis.decr(globalWalletClaimCountKey); // Also rollback global wallet claim count
-        // Also rollback DONUT user lock if we set it
-        if (userCanGetDonut) {
-          await redis.del(userDonutKey);
+        // Also rollback bonus token user lock if we set it
+        if (userBonusTokenKey) {
+          await redis.del(userBonusTokenKey);
         }
         // Release txHash lock so user can retry with same txHash
         if (txHash) {
           await redis.del(`claim:txhash:${txHash.toLowerCase()}`);
         }
-        // If we incremented global DONUT count, rollback (but we only increment after successful send, so this shouldn't happen)
+        // If we incremented global bonus token count, rollback (but we only increment after successful send, so this shouldn't happen)
       } catch (rollbackError) {
         console.error('Error rolling back claim:', rollbackError);
       }
