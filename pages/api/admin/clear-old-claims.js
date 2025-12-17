@@ -56,24 +56,35 @@ export default async function handler(req, res) {
       'claim:txhash:*',
     ];
 
-    // Helper function to scan Redis keys with v5 compatibility
+    // Helper function to scan Redis keys - uses SCAN command with cursor
     const scanKeys = async (pattern) => {
       const foundKeys = [];
+      let cursor = 0;
+      
       try {
-        // Try scanIterator first (node-redis v5)
-        for await (const key of redis.scanIterator({ MATCH: pattern, COUNT: 100 })) {
-          foundKeys.push(key);
-        }
-      } catch (err) {
-        // Fallback to manual scan
-        let cursor = '0';
         do {
+          // node-redis v4+ scan returns { cursor, keys } object
           const result = await redis.scan(cursor, { MATCH: pattern, COUNT: 100 });
-          cursor = String(result.cursor ?? result[0] ?? '0');
-          const keys = result.keys || result[1] || [];
-          if (keys.length > 0) foundKeys.push(...keys);
-        } while (cursor !== '0');
+          
+          // Handle both object format (v4/v5) and array format (older versions)
+          if (typeof result === 'object' && !Array.isArray(result)) {
+            cursor = result.cursor;
+            if (result.keys && result.keys.length > 0) {
+              foundKeys.push(...result.keys);
+            }
+          } else if (Array.isArray(result)) {
+            cursor = parseInt(result[0]);
+            if (result[1] && result[1].length > 0) {
+              foundKeys.push(...result[1]);
+            }
+          } else {
+            break; // Unexpected format
+          }
+        } while (cursor !== 0);
+      } catch (err) {
+        console.error(`Error scanning pattern ${pattern}:`, err.message);
       }
+      
       return foundKeys;
     };
 
@@ -83,48 +94,51 @@ export default async function handler(req, res) {
       allKeys.push(...keys);
     }
 
-    // Check TTL for each key - only delete if expired or very old (> 7 days)
-    const now = Math.floor(Date.now() / 1000);
-    const expiredKeys = [];
-    const oldKeys = [];
+    // For old claim keys, check if they have old rotationId or timestamp
+    // Keys like claim:wallet:global:0x...:rotation-1234567890
+    const now = Date.now();
+    const sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
+    const keysToDelete = [];
 
     for (const key of allKeys) {
-      const ttl = await redis.ttl(key);
-      if (ttl === -1) {
-        // Key has no expiration - check if it's old by looking at timestamp in key
-        // Keys like claim:featured:123:1234567890:456 have timestamp
-        const parts = key.split(':');
-        if (parts.length >= 4 && parts[2] && parts[3]) {
-          const timestamp = parseInt(parts[3]);
-          if (timestamp && now - timestamp > 7 * 24 * 60 * 60) {
-            oldKeys.push(key);
-          }
-        } else {
-          // No timestamp, consider it old if it exists
-          oldKeys.push(key);
+      // Extract timestamp from rotationId if present (format: rotation-{timestamp})
+      const rotationMatch = key.match(/rotation-(\d+)/);
+      if (rotationMatch) {
+        const timestamp = parseInt(rotationMatch[1]);
+        if (timestamp < sevenDaysAgo) {
+          keysToDelete.push(key);
         }
-      } else if (ttl === -2) {
-        // Key doesn't exist (shouldn't happen)
-        continue;
-      } else if (ttl < 0 || (ttl > 0 && ttl < 60)) {
-        // Expired or expiring soon
-        expiredKeys.push(key);
+      } else {
+        // For keys without rotation pattern, check if they have a timestamp segment
+        const parts = key.split(':');
+        for (const part of parts) {
+          const timestamp = parseInt(part);
+          // If it looks like a timestamp (13 digits for ms, 10 for seconds)
+          if (timestamp > 1600000000000 && timestamp < sevenDaysAgo) {
+            keysToDelete.push(key);
+            break;
+          } else if (timestamp > 1600000000 && timestamp < sevenDaysAgo / 1000) {
+            keysToDelete.push(key);
+            break;
+          }
+        }
       }
     }
-
-    const keysToDelete = [...expiredKeys, ...oldKeys];
     
     if (keysToDelete.length > 0) {
-      // node-redis v5 requires spread operator for del
-      await redis.del(...keysToDelete);
+      // Delete in batches to avoid issues with large arrays
+      const batchSize = 100;
+      for (let i = 0; i < keysToDelete.length; i += batchSize) {
+        const batch = keysToDelete.slice(i, i + batchSize);
+        await redis.del(...batch);
+      }
     }
 
     return res.status(200).json({
       success: true,
-      message: `Cleared ${keysToDelete.length} old/expired claim key(s)`,
-      expired: expiredKeys.length,
-      old: oldKeys.length,
-      total: keysToDelete.length,
+      message: `Cleared ${keysToDelete.length} old claim key(s) from ${allKeys.length} total scanned`,
+      keysDeleted: keysToDelete.length,
+      keysScanned: allKeys.length,
     });
   } catch (error) {
     console.error('Error clearing old claims:', error);
