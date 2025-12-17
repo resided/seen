@@ -1771,7 +1771,7 @@ export default function Admin() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-2xl font-black">BONUS TOKEN CONFIGURATION</h2>
-                  <p className="text-xs text-gray-500 mt-1">Configure ANY bonus token to be sent alongside $SEEN claims. Works for any ERC20 token on Base - DONUT, or any token someone wants to feature.</p>
+                  <p className="text-xs text-gray-500 mt-1">Configure a bonus token to be sent alongside $SEEN claims. Works for any ERC20 token on Base.</p>
                 </div>
                 <button
                   onClick={() => setShowBonusTokenConfig(false)}
@@ -1780,6 +1780,27 @@ export default function Admin() {
                   ×
                 </button>
               </div>
+              
+              {/* Quick Setup for DONUT */}
+              <div className="mb-4 p-4 border border-purple-500/50 bg-purple-500/10">
+                <div className="text-sm font-bold text-purple-400 mb-2">QUICK SETUP: DONUT</div>
+                <p className="text-xs text-gray-400 mb-3">Click to auto-fill DONUT configuration:</p>
+                <button
+                  onClick={() => setBonusTokenConfig({
+                    enabled: true,
+                    tokenName: 'DONUT',
+                    contractAddress: '0xAE4a37d554C6D6F3E398546d8566B25052e0169C',
+                    amount: '1',
+                    decimals: 18,
+                    maxSupply: 1000,
+                  })}
+                  className="px-4 py-2 bg-purple-600 text-white font-bold text-sm hover:bg-purple-500 transition-all"
+                >
+                  USE DONUT PRESET
+                </button>
+                <p className="text-[10px] text-gray-500 mt-2">Sets: 1 DONUT per wallet, max 1000 total</p>
+              </div>
+              
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
                   <input
@@ -1790,14 +1811,14 @@ export default function Admin() {
                     className="w-5 h-5"
                   />
                   <label htmlFor="bonusEnabled" className="text-sm font-bold">
-                    ENABLE BONUS TOKEN (will override DONUT for new claims)
+                    ENABLE BONUS TOKEN
                   </label>
                 </div>
                 {bonusTokenConfig.enabled && (
                   <>
                     <div>
                       <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                        TOKEN NAME (OPTIONAL)
+                        TOKEN NAME (displayed in UI)
                       </label>
                       <input
                         type="text"
@@ -1819,7 +1840,7 @@ export default function Admin() {
                         placeholder="0x..."
                         pattern="^0x[a-fA-F0-9]{40}$"
                       />
-                      <p className="text-[10px] text-gray-600 mt-1">Token contract address on Base network</p>
+                      <p className="text-[10px] text-gray-600 mt-1">Token contract address on Base network (DONUT: 0xAE4a37d554C6D6F3E398546d8566B25052e0169C)</p>
                     </div>
                     <div className="grid grid-cols-3 gap-4">
                       <div>
@@ -1833,6 +1854,7 @@ export default function Admin() {
                           className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
                           placeholder="1"
                         />
+                        <p className="text-[10px] text-gray-500 mt-1">1 per wallet</p>
                       </div>
                       <div>
                         <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
@@ -1847,6 +1869,7 @@ export default function Admin() {
                           className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
                           placeholder="18"
                         />
+                        <p className="text-[10px] text-gray-500 mt-1">Usually 18</p>
                       </div>
                       <div>
                         <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
@@ -1860,12 +1883,17 @@ export default function Admin() {
                           className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
                           placeholder="1000"
                         />
+                        <p className="text-[10px] text-gray-500 mt-1">Total to give out</p>
                       </div>
                     </div>
-                    <div className="p-3 bg-yellow-900/20 border border-yellow-500 text-yellow-400 text-xs">
-                      <strong>NOTE:</strong> When enabled, this bonus token will be sent alongside $SEEN for all new claims. 
-                      Each wallet can receive the bonus token once. Works for ANY token - DONUT, or any other token someone wants to feature. 
-                      The bonus token system takes priority over the hardcoded DONUT campaign.
+                    <div className="p-3 bg-green-900/20 border border-green-500 text-green-400 text-xs">
+                      <strong>HOW IT WORKS:</strong>
+                      <ul className="mt-1 space-y-1 list-disc list-inside">
+                        <li>Each wallet can receive the bonus token <strong>once</strong></li>
+                        <li>Sent automatically alongside $SEEN on each claim</li>
+                        <li>Stops when MAX SUPPLY is reached</li>
+                        <li>Treasury must have enough tokens to send</li>
+                      </ul>
                     </div>
                   </>
                 )}
