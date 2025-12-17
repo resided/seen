@@ -2201,6 +2201,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
   const MIN_NEYNAR_SCORE = 0.6; // Minimum Neynar user score required to claim
   const [claimed, setClaimed] = useState(false);
   const [claiming, setClaiming] = useState(false);
+  const claimInProgress = useRef(false); // Synchronous lock to prevent double-clicks
   const [message, setMessage] = useState('');
   const [expirationTime, setExpirationTime] = useState(null);
   const [expired, setExpired] = useState(false);
@@ -2414,49 +2415,65 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
             }
           }
           setClaiming(false);
+          claimInProgress.current = false;
         })
         .catch(error => {
           console.error('Error processing claim:', error);
           setMessage('ERROR PROCESSING CLAIM');
           setClaiming(false);
+          claimInProgress.current = false;
         });
     }
   }, [isClaimTxConfirmed, claimTxData, userFid, address]);
 
   const handleClaim = async () => {
+    // CRITICAL: Synchronous check to prevent double-clicks/race conditions
+    if (claimInProgress.current) {
+      console.log('Claim already in progress, ignoring click');
+      return;
+    }
+    claimInProgress.current = true; // Set immediately (synchronous)
+    
     if (!isInFarcaster) {
       setMessage('OPEN IN FARCASTER TO CLAIM');
+      claimInProgress.current = false;
       return;
     }
 
     if (!hasClickedMiniapp) {
       setMessage('TAP >> OPEN MINI APP << FIRST');
+      claimInProgress.current = false;
       return;
     }
 
     if (!isConnected || !userFid || !address) {
       setMessage('CONNECT WALLET TO CLAIM');
+      claimInProgress.current = false;
       return;
     }
 
     // Validate address format
     if (!address || !address.startsWith('0x') || address.length !== 42) {
       setMessage('INVALID WALLET ADDRESS. PLEASE RECONNECT WALLET.');
+      claimInProgress.current = false;
       return;
     }
 
     if (!treasuryAddress) {
       setMessage('LOADING TREASURY ADDRESS...');
+      claimInProgress.current = false;
       return;
     }
 
     if (claimed) {
       setMessage('ALREADY CLAIMED FOR THIS FEATURED PROJECT');
+      claimInProgress.current = false;
       return;
     }
 
     if (expired) {
       setMessage('CLAIM WINDOW EXPIRED. WAIT FOR NEXT FEATURED PROJECT.');
+      claimInProgress.current = false;
       return;
     }
 
@@ -2476,6 +2493,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
       console.error('Error initiating claim transaction:', error);
       setMessage('ERROR INITIATING CLAIM. PLEASE TRY AGAIN.');
       setClaiming(false);
+      claimInProgress.current = false;
     }
   };
 
