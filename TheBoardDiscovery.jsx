@@ -2453,13 +2453,57 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
             }, 5000);
           } else {
             setClaimStatus('error');
+            
+            // Update state from error response if available (prevents re-clicking)
+            if (data.claimCount !== undefined) {
+              setClaimCount(data.claimCount);
+            }
+            if (data.maxClaims !== undefined) {
+              setMaxClaims(data.maxClaims);
+            }
+            
+            // Check if user has fully claimed based on error
+            const userFullyClaimed = data.claimCount !== undefined && 
+              data.maxClaims !== undefined && 
+              data.claimCount >= data.maxClaims;
+            
             if (data.expired) {
               setExpired(true);
               setMessage('CLAIM WINDOW EXPIRED');
+            } else if (userFullyClaimed || data.error?.includes('Already claimed') || data.error?.includes('already claimed')) {
+              setClaimed(true);
+              setCanClaimAgain(false);
+              setMessage('ALREADY CLAIMED - CHECK WALLET');
+            } else if (data.cooldownRemaining) {
+              setPersonalCooldownRemaining(data.cooldownRemaining);
+              setCanClaimAgain(false);
+              setMessage('ON COOLDOWN - TRY LATER');
             } else {
               setMessage(data.error || 'CLAIM FAILED - TRY AGAIN');
             }
-            // Reset status after 4 seconds
+            
+            // Re-fetch claim status to get accurate state
+            fetch('/api/claim/status', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ fid: userFid, walletAddress: address }),
+            })
+              .then(res => res.json())
+              .then(statusData => {
+                if (statusData.claimCount !== undefined) setClaimCount(statusData.claimCount);
+                if (statusData.maxClaims !== undefined) setMaxClaims(statusData.maxClaims);
+                if (statusData.canClaimAgain !== undefined) {
+                  setCanClaimAgain(statusData.canClaimAgain);
+                  setClaimed(!statusData.canClaimAgain);
+                }
+                if (statusData.claimed) setClaimed(true);
+                if (statusData.personalCooldownRemaining !== undefined) {
+                  setPersonalCooldownRemaining(statusData.personalCooldownRemaining);
+                }
+              })
+              .catch(() => {}); // Silently fail status re-fetch
+            
+            // Reset status after 4 seconds (but state updates persist)
             setTimeout(() => {
               setClaimStatus('idle');
               resetClaimTx();
@@ -2474,6 +2518,25 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
           setMessage('SERVER ERROR - TRY AGAIN');
           setClaiming(false);
           claimInProgress.current = false;
+          
+          // Re-fetch status on server error too
+          fetch('/api/claim/status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fid: userFid, walletAddress: address }),
+          })
+            .then(res => res.json())
+            .then(statusData => {
+              if (statusData.claimCount !== undefined) setClaimCount(statusData.claimCount);
+              if (statusData.maxClaims !== undefined) setMaxClaims(statusData.maxClaims);
+              if (statusData.canClaimAgain !== undefined) {
+                setCanClaimAgain(statusData.canClaimAgain);
+                setClaimed(!statusData.canClaimAgain);
+              }
+              if (statusData.claimed) setClaimed(true);
+            })
+            .catch(() => {});
+            
           // Reset status after 4 seconds
           setTimeout(() => {
             setClaimStatus('idle');

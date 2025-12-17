@@ -377,6 +377,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ 
         error: `This wallet has already claimed the maximum allowed (${maxClaims}) for this featured project.`,
         featuredProjectId,
+        claimCount: globalWalletClaimCount - 1,
         globalWalletClaimCount: globalWalletClaimCount - 1,
         maxClaims,
         isHolder,
@@ -405,6 +406,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ 
         error: 'This wallet has already claimed the maximum allowed for this featured project',
         featuredProjectId,
+        claimCount: walletClaimCount - 1,
         walletClaimCount: walletClaimCount - 1,
         globalWalletClaimCount: globalWalletClaimCount - 1,
         maxClaims,
