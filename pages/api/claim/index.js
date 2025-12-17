@@ -3,7 +3,7 @@ import { getRedisClient } from '../../../lib/redis';
 import { getFeaturedProject, getRotationId } from '../../../lib/projects';
 import { fetchUserByFid } from '../../../lib/neynar';
 import { getTokenBalance } from '../../../lib/token-balance';
-import { createWalletClient, createPublicClient, http, parseUnits } from 'viem';
+import { createWalletClient, createPublicClient, http, parseUnits, getAddress } from 'viem';
 import { base } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 import { erc20Abi } from 'viem';
@@ -692,12 +692,14 @@ export default async function handler(req, res) {
         // Send DONUT as long as user hasn't received one yet and supply available
         try {
           const donutAmountWei = parseUnits(DONUT_TOKEN_AMOUNT, DONUT_TOKEN_DECIMALS);
-          console.log('Sending DONUT:', { amount: DONUT_TOKEN_AMOUNT, to: walletAddress });
+          const checksummedRecipient = getAddress(walletAddress);
+          const checksummedDonutContract = getAddress(DONUT_TOKEN_CONTRACT);
+          console.log('Sending DONUT:', { amount: DONUT_TOKEN_AMOUNT, to: checksummedRecipient, contract: checksummedDonutContract });
           donutHash = await walletClient.writeContract({
-            address: DONUT_TOKEN_CONTRACT,
+            address: checksummedDonutContract,
             abi: erc20Abi,
             functionName: 'transfer',
-            args: [walletAddress, donutAmountWei],
+            args: [checksummedRecipient, donutAmountWei],
           });
           console.log('DONUT sent successfully:', donutHash);
           
