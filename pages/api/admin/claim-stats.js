@@ -54,49 +54,37 @@ export default async function handler(req, res) {
     const featuredAt = featuredProject.featuredAt ? new Date(featuredProject.featuredAt) : new Date();
     const featuredAtTimestamp = Math.floor(featuredAt.getTime() / 1000);
 
-    // Count total claims for this rotation
-    // COPY EXACT CODE from reset-claims.js line 100-117
-    const claimPattern = `claim:featured:${featuredProjectId}:${featuredAtTimestamp}:*`;
-    const claimKeys = [];
-    let cursor = 0;
-    try {
-      do {
-        const [nextCursor, foundKeys] = await redis.scan(cursor, {
-          MATCH: claimPattern,
-          COUNT: 100
-        });
-        // Cursor might be string "0" or number 0, convert to number for comparison
-        cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
-        if (foundKeys && foundKeys.length > 0) {
-          claimKeys.push(...foundKeys);
+    // Helper function to scan Redis keys with v5 compatibility
+    const scanKeys = async (pattern) => {
+      const foundKeys = [];
+      try {
+        // Try scanIterator first (node-redis v5)
+        for await (const key of redis.scanIterator({ MATCH: pattern, COUNT: 100 })) {
+          foundKeys.push(key);
         }
-      } while (cursor !== 0);
-    } catch (scanError) {
-      console.error('Error scanning for claim keys:', scanError);
-      throw new Error(`Failed to scan for claim keys: ${scanError.message}`);
-    }
+      } catch (err) {
+        // Fallback to manual scan
+        let cursor = '0';
+        do {
+          const result = await redis.scan(cursor, { MATCH: pattern, COUNT: 100 });
+          cursor = String(result.cursor ?? result[0] ?? '0');
+          const keys = result.keys || result[1] || [];
+          if (keys.length > 0) foundKeys.push(...keys);
+        } while (cursor !== '0');
+      }
+      return foundKeys;
+    };
 
-    // Count unique wallets
-    // COPY EXACT CODE from reset-claims.js line 100-117
-    const walletPattern = `claim:wallet:${featuredProjectId}:${featuredAtTimestamp}:*`;
-    const walletKeys = [];
-    cursor = 0;
-    try {
-      do {
-        const [nextCursor, foundKeys] = await redis.scan(cursor, {
-          MATCH: walletPattern,
-          COUNT: 100
-        });
-        // Cursor might be string "0" or number 0, convert to number for comparison
-        cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
-        if (foundKeys && foundKeys.length > 0) {
-          walletKeys.push(...foundKeys);
-        }
-      } while (cursor !== 0);
-    } catch (scanError) {
-      console.error('Error scanning for wallet keys:', scanError);
-      throw new Error(`Failed to scan for wallet keys: ${scanError.message}`);
-    }
+    // Use rotationId instead of featuredAtTimestamp for consistency with other APIs
+    const rotationId = featuredProject.rotationId || `legacy_${featuredProjectId}`;
+
+    // Count total claims for this rotation
+    const claimPattern = `claim:featured:${featuredProjectId}:${rotationId}:*`;
+    const claimKeys = await scanKeys(claimPattern);
+
+    // Count unique wallets (global wallet counts per rotation)
+    const walletPattern = `claim:wallet:global:*:${rotationId}`;
+    const walletKeys = await scanKeys(walletPattern);
 
     // Count holder claims (claims > 1 per wallet)
     let holderClaims = 0;

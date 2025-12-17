@@ -56,19 +56,31 @@ export default async function handler(req, res) {
       'claim:txhash:*',
     ];
 
+    // Helper function to scan Redis keys with v5 compatibility
+    const scanKeys = async (pattern) => {
+      const foundKeys = [];
+      try {
+        // Try scanIterator first (node-redis v5)
+        for await (const key of redis.scanIterator({ MATCH: pattern, COUNT: 100 })) {
+          foundKeys.push(key);
+        }
+      } catch (err) {
+        // Fallback to manual scan
+        let cursor = '0';
+        do {
+          const result = await redis.scan(cursor, { MATCH: pattern, COUNT: 100 });
+          cursor = String(result.cursor ?? result[0] ?? '0');
+          const keys = result.keys || result[1] || [];
+          if (keys.length > 0) foundKeys.push(...keys);
+        } while (cursor !== '0');
+      }
+      return foundKeys;
+    };
+
     const allKeys = [];
     for (const pattern of patterns) {
-      let cursor = 0;
-      do {
-        const [nextCursor, foundKeys] = await redis.scan(cursor, {
-          MATCH: pattern,
-          COUNT: 100
-        });
-        cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
-        if (foundKeys && foundKeys.length > 0) {
-          allKeys.push(...foundKeys);
-        }
-      } while (cursor !== 0);
+      const keys = await scanKeys(pattern);
+      allKeys.push(...keys);
     }
 
     // Check TTL for each key - only delete if expired or very old (> 7 days)
@@ -103,7 +115,8 @@ export default async function handler(req, res) {
     const keysToDelete = [...expiredKeys, ...oldKeys];
     
     if (keysToDelete.length > 0) {
-      await redis.del(keysToDelete);
+      // node-redis v5 requires spread operator for del
+      await redis.del(...keysToDelete);
     }
 
     return res.status(200).json({
