@@ -71,7 +71,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    let { fid, walletAddress, txHash } = req.body;
+    let { fid, walletAddress, txHash, reservationId } = req.body;
 
     // Validate and sanitize inputs
     if (!fid) {
@@ -132,6 +132,61 @@ export default async function handler(req, res) {
     const redis = await getRedisClient();
     if (!redis) {
       return res.status(500).json({ error: 'Service unavailable' });
+    }
+
+    // RESERVATION VALIDATION
+    // If a reservationId is provided, validate it and use reservation data
+    let reservation = null;
+    const reservationKey = walletAddress ? `claim:reservation:${walletAddress}` : null;
+    
+    if (reservationId && reservationKey) {
+      const reservationData = await redis.get(reservationKey);
+      
+      if (!reservationData) {
+        return res.status(400).json({ 
+          error: 'Reservation expired or not found. Please start a new claim.',
+          code: 'RESERVATION_EXPIRED'
+        });
+      }
+      
+      reservation = JSON.parse(reservationData);
+      
+      // Verify reservation matches
+      if (reservation.id !== reservationId) {
+        return res.status(400).json({ 
+          error: 'Reservation ID mismatch. Please start a new claim.',
+          code: 'RESERVATION_MISMATCH'
+        });
+      }
+      
+      // Verify wallet matches
+      if (reservation.walletAddress !== walletAddress) {
+        return res.status(400).json({ 
+          error: 'Wallet address does not match reservation.',
+          code: 'WALLET_MISMATCH'
+        });
+      }
+      
+      // Check if reservation is still valid (within 2 minutes)
+      const reservationAge = Date.now() - reservation.createdAt;
+      if (reservationAge > 120000) {
+        await redis.del(reservationKey);
+        return res.status(400).json({ 
+          error: 'Reservation expired. Please start a new claim.',
+          code: 'RESERVATION_EXPIRED'
+        });
+      }
+      
+      // Mark reservation as being used (prevent double-use)
+      reservation.status = 'executing';
+      await redis.set(reservationKey, JSON.stringify(reservation), { XX: true, EX: 30 });
+      
+      console.log('Valid reservation found:', {
+        reservationId,
+        walletAddress: walletAddress.slice(0, 10) + '...',
+        claimNum: reservation.claimNum,
+        maxClaims: reservation.maxClaims
+      });
     }
 
     // Get dynamic claim settings from Redis
@@ -854,6 +909,11 @@ export default async function handler(req, res) {
 
     // Release lock before returning success
     await redis.del(claimLockKey);
+    
+    // Clear reservation if one was used (claim completed successfully)
+    if (reservationKey) {
+      await redis.del(reservationKey);
+    }
     
     return res.status(200).json({
       success: true,

@@ -2221,6 +2221,10 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
   const [seenAmountPerClaim, setSeenAmountPerClaim] = useState('80000');
   const [canClaimAgain, setCanClaimAgain] = useState(true);
   const [personalCooldownRemaining, setPersonalCooldownRemaining] = useState(0);
+  // Reservation system for bulletproof claims
+  const [reservationId, setReservationId] = useState(null);
+  const [preflightPassed, setPreflightPassed] = useState(false);
+  const [preflightError, setPreflightError] = useState(null);
   const { address } = useAccount();
   const { sendTransaction, data: claimTxData, isPending: isClaimTxPending, isError: isClaimTxError, error: claimTxError, reset: resetClaimTx } = useSendTransaction();
   const { isLoading: isClaimTxConfirming, isSuccess: isClaimTxConfirmed } = useWaitForTransactionReceipt({
@@ -2336,11 +2340,13 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
       setClaimStatus('error');
       setClaiming(false);
       claimInProgress.current = false;
-      // Reset after 3 seconds so user can try again
+      // Reset after 3 seconds so user can try again (reservation will expire on its own)
       setTimeout(() => {
         setClaimStatus('idle');
         setMessage('');
         resetClaimTx();
+        setReservationId(null);
+        setPreflightPassed(false);
       }, 3000);
     }
   }, [isClaimTxError, claimTxError, claiming, resetClaimTx]);
@@ -2361,19 +2367,20 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
     }
   }, [isClaimTxConfirming, claimTxData]);
 
-  // When claim transaction is confirmed, send txHash to API
+  // When claim transaction is confirmed, send txHash to API with reservation
   useEffect(() => {
     if (isClaimTxConfirmed && claimTxData && userFid && address) {
       setClaimStatus('processing');
       setMessage('CONFIRMED! SENDING YOUR TOKENS...');
-      // Transaction confirmed, now send to API to process claim
+      // Transaction confirmed, now send to API to process claim WITH reservation ID
       fetch('/api/claim', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           fid: userFid,
           walletAddress: address,
-          txHash: claimTxData
+          txHash: claimTxData,
+          reservationId: reservationId // Include reservation for guaranteed claim
         }),
       })
         .then(res => res.json().then(data => ({ ok: res.ok, data })))
@@ -2450,6 +2457,8 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
             setTimeout(() => {
               setClaimStatus('idle');
               resetClaimTx();
+              setReservationId(null); // Clear reservation
+              setPreflightPassed(false);
             }, 5000);
           } else {
             setClaimStatus('error');
@@ -2507,6 +2516,8 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
             setTimeout(() => {
               setClaimStatus('idle');
               resetClaimTx();
+              setReservationId(null);
+              setPreflightPassed(false);
             }, 4000);
           }
           setClaiming(false);
@@ -2541,10 +2552,12 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
           setTimeout(() => {
             setClaimStatus('idle');
             resetClaimTx();
+            setReservationId(null);
+            setPreflightPassed(false);
           }, 4000);
         });
     }
-  }, [isClaimTxConfirmed, claimTxData, userFid, address]);
+  }, [isClaimTxConfirmed, claimTxData, userFid, address, reservationId]);
 
   const handleClaim = async () => {
     // CRITICAL: Synchronous check to prevent double-clicks/race conditions
@@ -2599,9 +2612,87 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
 
     setClaiming(true);
     setClaimStatus('preparing');
-    setMessage('PREPARING CLAIM...');
+    setMessage('CHECKING ELIGIBILITY...');
 
     try {
+      // STEP 1: PREFLIGHT CHECK - Verify eligibility before any transaction
+      const preflightRes = await fetch('/api/claim/preflight', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          fid: userFid, 
+          walletAddress: address,
+          neynarScore: neynarUserScore,
+        }),
+      });
+      const preflight = await preflightRes.json();
+      
+      if (!preflight.canClaim) {
+        console.log('Preflight failed:', preflight);
+        setClaimStatus('error');
+        setMessage(preflight.reason || 'NOT ELIGIBLE TO CLAIM');
+        setPreflightError(preflight.code);
+        
+        // Update state based on preflight response
+        if (preflight.code === 'MAX_CLAIMS_REACHED' || preflight.code === 'ON_COOLDOWN') {
+          setClaimed(true);
+          setCanClaimAgain(false);
+          if (preflight.claimCount !== undefined) setClaimCount(preflight.claimCount);
+          if (preflight.maxClaims !== undefined) setMaxClaims(preflight.maxClaims);
+          if (preflight.cooldownRemaining !== undefined) setPersonalCooldownRemaining(preflight.cooldownRemaining);
+        }
+        if (preflight.code === 'EXPIRED') {
+          setExpired(true);
+        }
+        
+        setClaiming(false);
+        claimInProgress.current = false;
+        setTimeout(() => {
+          setClaimStatus('idle');
+          setMessage('');
+        }, 4000);
+        return;
+      }
+      
+      setPreflightPassed(true);
+      setMessage('RESERVING CLAIM SLOT...');
+      
+      // STEP 2: RESERVE CLAIM SLOT - Atomic reservation before wallet sign
+      const reserveRes = await fetch('/api/claim/reserve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          fid: userFid, 
+          walletAddress: address,
+        }),
+      });
+      const reservation = await reserveRes.json();
+      
+      if (!reservation.success) {
+        console.log('Reservation failed:', reservation);
+        setClaimStatus('error');
+        setMessage(reservation.error || 'FAILED TO RESERVE CLAIM');
+        
+        // Update state from reservation error
+        if (reservation.claimCount !== undefined) setClaimCount(reservation.claimCount);
+        if (reservation.maxClaims !== undefined) setMaxClaims(reservation.maxClaims);
+        
+        setClaiming(false);
+        claimInProgress.current = false;
+        setTimeout(() => {
+          setClaimStatus('idle');
+          setMessage('');
+        }, 4000);
+        return;
+      }
+      
+      // Store reservation ID for use after transaction confirms
+      setReservationId(reservation.reservationId);
+      console.log('Reservation created:', reservation.reservationId, 'Claim', reservation.claimNum, '/', reservation.maxClaims);
+      
+      setMessage('SIGN TRANSACTION TO CLAIM...');
+      
+      // STEP 3: PROMPT WALLET SIGNATURE
       // User signs a transaction to claim (0 ETH transfer with "claim" data)
       // This creates a user transaction for Farcaster rankings
       sendTransaction({
@@ -2611,7 +2702,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
       });
       // Status will update via useEffects watching isClaimTxPending, isClaimTxConfirming, etc.
     } catch (error) {
-      console.error('Error initiating claim transaction:', error);
+      console.error('Error initiating claim:', error);
       setClaimStatus('error');
       setMessage('ERROR - TRY AGAIN');
       setClaiming(false);
