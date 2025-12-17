@@ -1208,6 +1208,43 @@ export default function Admin() {
     }
   };
 
+  const handleResetBonusEligibility = async () => {
+    if (!confirm('Reset bonus token eligibility ONLY?\n\nThis will:\n✓ Clear all bonus token user flags\n✓ Reset bonus token counters\n✓ Allow users to receive bonus tokens again\n\nThis will NOT:\n✗ Reset claims\n✗ Change featured project\n✗ Affect claim counts')) {
+      return;
+    }
+
+    const confirmation = prompt('Type RESET_BONUS to confirm:');
+    if (confirmation !== 'RESET_BONUS') {
+      if (confirmation !== null) {
+        setMessage('Confirmation failed. You must type "RESET_BONUS" exactly.');
+      }
+      return;
+    }
+
+    try {
+      setMessage('Resetting bonus eligibility...');
+      const response = await fetch('/api/admin/reset-bonus-eligibility', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          confirm: 'RESET_BONUS',
+          fid: userFid || null 
+        }),
+        credentials: 'include',
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setMessage(data.message || 'Bonus eligibility reset successfully! Users can now receive bonus tokens again.');
+      } else {
+        setMessage(data.error || 'Failed to reset bonus eligibility');
+      }
+    } catch (error) {
+      console.error('Error resetting bonus eligibility:', error);
+      setMessage(`Error: ${error.message || 'Failed to reset bonus eligibility'}`);
+    }
+  };
+
   const handleClearOldClaims = async () => {
     if (!confirm('Clear all expired claim data? This will remove old claim locks and counters that have expired.')) {
       return;
@@ -1932,6 +1969,13 @@ export default function Admin() {
                 REFRESH FEATURED
               </button>
               <button
+                onClick={handleResetBonusEligibility}
+                className="px-4 py-2 bg-pink-600 text-white font-bold hover:bg-pink-500 transition-all"
+                title="Reset bonus token eligibility only (does NOT reset claims)"
+              >
+                RESET BONUS ELIGIBILITY
+              </button>
+              <button
                 onClick={handleClearOldClaims}
                 className="px-4 py-2 bg-orange-600 text-white font-bold hover:bg-orange-500 transition-all"
               >
@@ -2066,6 +2110,18 @@ export default function Admin() {
                     <li>• Sent alongside $SEEN automatically</li>
                   </ul>
                   <div className="text-[9px] text-gray-500 mt-2">Configure per campaign, 1 bonus per wallet</div>
+                </div>
+
+                {/* Reset Bonus Eligibility */}
+                <div className="border border-pink-500/50 bg-pink-500/5 p-3">
+                  <div className="text-[10px] tracking-[0.2em] text-pink-400 mb-2 font-bold">🌸 RESET BONUS ELIGIBILITY</div>
+                  <ul className="text-xs space-y-1 text-gray-300">
+                    <li>• <span className="text-pink-400 font-bold">Clears</span> - All bonus user flags</li>
+                    <li>• <span className="text-pink-400 font-bold">Resets</span> - Bonus token counters</li>
+                    <li>• <span className="text-pink-400 font-bold">Allows</span> - Users to get bonus again</li>
+                    <li>• <span className="text-green-400 font-bold">SAFE</span> - Does NOT reset claims</li>
+                  </ul>
+                  <div className="text-[9px] text-gray-500 mt-2">Use when bonus tokens aren't distributing correctly</div>
                 </div>
 
                 {/* Personal Cooldown */}
