@@ -181,8 +181,9 @@ export default async function handler(req, res) {
     }
 
     // Check rotation-based claim count
+    // CRITICAL: Must match key format in claim/index.js
     const rotationId = featuredProject.rotationId || `legacy_${featuredProject.id}`;
-    const globalWalletClaimCountKey = `claim:wallet:global:${walletLower}:${rotationId}`;
+    const globalWalletClaimCountKey = `claim:wallet:global:${featuredProject.id}:${rotationId}:${walletLower}`;
     const currentGlobalCount = parseInt(await redis.get(globalWalletClaimCountKey) || '0');
     
     if (currentGlobalCount >= maxClaims) {

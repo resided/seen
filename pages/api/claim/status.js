@@ -104,8 +104,9 @@ export default async function handler(req, res) {
     
     // ALSO check rotation-based claim count (what preflight/claim API checks)
     // This is the authoritative source for claims against THIS featured project
+    // CRITICAL: Key format must match claim/index.js
     const rotationId = featuredProject.rotationId || `legacy_${featuredProject.id}`;
-    const globalWalletClaimCountKey = walletAddress ? `claim:wallet:global:${walletAddress.toLowerCase()}:${rotationId}` : null;
+    const globalWalletClaimCountKey = walletAddress ? `claim:wallet:global:${featuredProject.id}:${rotationId}:${walletAddress.toLowerCase()}` : null;
     let rotationClaimCount = 0;
     
     if (globalWalletClaimCountKey) {

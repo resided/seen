@@ -83,7 +83,8 @@ export default async function handler(req, res) {
     const claimKeys = await scanKeys(claimPattern);
 
     // Count unique wallets (global wallet counts per rotation)
-    const walletPattern = `claim:wallet:global:*:${rotationId}`;
+    // CRITICAL: Key format must match claim/index.js: claim:wallet:global:${projectId}:${rotationId}:${wallet}
+    const walletPattern = `claim:wallet:global:${featuredProjectId}:${rotationId}:*`;
     const walletKeys = await scanKeys(walletPattern);
 
     // Count holder claims (claims > 1 per wallet)

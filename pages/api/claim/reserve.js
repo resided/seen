@@ -98,9 +98,10 @@ export default async function handler(req, res) {
       console.error('Error checking holder status:', e);
     }
 
+    // CRITICAL: Key format must match claim/index.js
     const rotationId = featuredProject.rotationId || `legacy_${featuredProject.id}`;
     const reservationKey = `claim:reservation:${walletLower}`;
-    const globalWalletClaimCountKey = `claim:wallet:global:${walletLower}:${rotationId}`;
+    const globalWalletClaimCountKey = `claim:wallet:global:${featuredProject.id}:${rotationId}:${walletLower}`;
 
     // ATOMIC RESERVATION
     // Use Lua script for atomic check-and-reserve to prevent race conditions
