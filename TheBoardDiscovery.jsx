@@ -2835,18 +2835,18 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
                 return maxClaims > 1 ? `CLAIM NOW ${claimNum}/${maxClaims}` : 'CLAIM NOW';
               };
               
-              // Determine button style based on status
+              // Determine button style based on status (black/white theme only)
               const getButtonStyle = () => {
-                if (isClaimBusy) return 'bg-yellow-600 text-black cursor-wait animate-pulse';
-                if (claimStatus === 'success') return 'bg-green-600 text-white';
-                if (claimStatus === 'error') return 'bg-red-600 text-white';
+                if (isClaimBusy) return 'bg-white text-black cursor-wait animate-pulse border-2 border-white';
+                if (claimStatus === 'success') return 'bg-white text-black border-2 border-white';
+                if (claimStatus === 'error') return 'bg-black text-white border-2 border-white';
                 if (isInFarcaster && hasClickedMiniapp && isConnected && canClaimThis && treasuryAddress) {
                   return 'bg-white text-black hover:bg-gray-200';
                 }
                 if (!hasClickedMiniapp && isInFarcaster) {
                   return 'bg-black text-white border-2 border-white cursor-not-allowed';
                 }
-                return 'bg-gray-600 text-gray-400 cursor-not-allowed';
+                return 'bg-gray-800 text-gray-500 cursor-not-allowed';
               };
               
               return (
