@@ -134,12 +134,34 @@ export default async function handler(req, res) {
       }
     }
 
+    // Fetch builder username from Neynar if we have a FID
+    let builderUsername = null;
+    const effectiveBuilderFid = builderFid || submitterFid;
+    
+    if (effectiveBuilderFid) {
+      try {
+        const neynarResponse = await fetch(`https://api.neynar.com/v2/farcaster/user/bulk?fids=${effectiveBuilderFid}`, {
+          headers: { 'api_key': process.env.NEYNAR_API_KEY }
+        });
+        
+        if (neynarResponse.ok) {
+          const neynarData = await neynarResponse.json();
+          if (neynarData.users && neynarData.users.length > 0) {
+            builderUsername = neynarData.users[0].username; // Clean username without emojis
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching builder username:', error);
+      }
+    }
+
     const project = await submitProject({
       name: name.toUpperCase(),
       tagline: tagline.toUpperCase(),
       description,
       builder,
-      builderFid: builderFid || 0,
+      builderUsername, // Clean username from Neynar
+      builderFid: effectiveBuilderFid || 0,
       tokenName: tokenName || '',
       tokenContractAddress: tokenContractAddress || '',
       category: category.toLowerCase(),

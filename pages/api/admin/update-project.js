@@ -97,15 +97,20 @@ export default async function handler(req, res) {
     // Handle builder and builderFid - auto-populate from FID if FID provided but builder not
     let finalBuilder = builder;
     let finalBuilderFid = builderFid !== undefined ? (builderFid ? parseInt(builderFid) : 0) : undefined;
+    let finalBuilderUsername = null;
     
-    if (finalBuilderFid !== undefined && finalBuilderFid > 0 && (!finalBuilder || finalBuilder.trim() === '')) {
+    if (finalBuilderFid !== undefined && finalBuilderFid > 0) {
       const apiKey = process.env.NEYNAR_API_KEY;
       if (apiKey) {
         try {
           const user = await fetchUserByFid(finalBuilderFid, apiKey);
           if (user) {
-            // Use display_name (.eth name) if available, otherwise username
-            finalBuilder = user.display_name || user.username || '';
+            // Always store the clean username (without emojis)
+            finalBuilderUsername = user.username || null;
+            // Only auto-populate builder name if it's empty
+            if (!finalBuilder || finalBuilder.trim() === '') {
+              finalBuilder = user.display_name || user.username || '';
+            }
             finalBuilderFid = user.fid || finalBuilderFid;
           }
         } catch (error) {
@@ -116,6 +121,7 @@ export default async function handler(req, res) {
     }
     
     if (builder !== undefined) updateData.builder = finalBuilder || builder;
+    if (finalBuilderUsername) updateData.builderUsername = finalBuilderUsername;
     if (builderFid !== undefined) updateData.builderFid = finalBuilderFid !== undefined ? finalBuilderFid : (builderFid ? parseInt(builderFid) : 0);
 
     // Update links if any are provided

@@ -1552,16 +1552,22 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
             </div>
             <p className="text-sm text-gray-500 mb-2">{project.tagline}</p>
 
-            {project.builder && (
+            {(project.builder || project.builderUsername || project.builderFid) && (
               <div className="text-[11px] text-gray-400 mb-2">
                 BUILDER:{' '}
                 <a
-                  href={`https://warpcast.com/${encodeURIComponent(project.builder.replace(/^@/, ''))}`}
+                  href={`https://warpcast.com/${encodeURIComponent(
+                    (project.builderUsername || project.builder || '').replace(/^@/, '') || 
+                    (project.builderFid ? `~/profiles/${project.builderFid}` : '')
+                  )}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-white font-semibold underline hover:text-gray-300"
                 >
-                  {project.builder}
+                  {/* Prefer clean username over display name */}
+                  {project.builderUsername 
+                    ? (project.builderUsername.startsWith('@') ? project.builderUsername : `@${project.builderUsername}`)
+                    : project.builder || `FID ${project.builderFid}`}
                 </a>
                 {project.builderFid ? (
                   <span className="ml-1 text-gray-500">(FID {project.builderFid})</span>
