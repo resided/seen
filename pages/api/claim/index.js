@@ -202,24 +202,111 @@ export default async function handler(req, res) {
       return res.status(503).json({ error: 'Claims are currently disabled by admin' });
     }
 
-    // Check if user is a 30M+ holder first (holders bypass Neynar score requirement)
+    // SECURITY: Check holder status per FID (not per wallet)
+    // This prevents exploit where users transfer 30M to different connected wallets
+    // We check ALL connected wallets for the FID and track holder status per FID
     let isHolder = false;
     let actualBalance = 0;
-    if (walletAddress) {
-      try {
-        const { isHolder: holderStatus, balanceFormatted } = await getTokenBalance(walletAddress);
-        isHolder = holderStatus;
-        actualBalance = balanceFormatted;
-        console.log('Holder check:', {
-          walletAddress: walletAddress.slice(0, 10) + '...',
-          balance: balanceFormatted,
-          isHolder: holderStatus,
-          threshold: 30000000,
-        });
-      } catch (balanceError) {
-        console.error('Error checking holder status for Neynar bypass:', balanceError);
-        // Continue to check Neynar score if we can't verify holder status
-        isHolder = false; // Ensure holder is false on error
+    let holderWalletAddress = null;
+    
+    // Check if this FID has already been verified as a holder (cached)
+    const fidHolderCacheKey = `claim:fid:holder:${fid}`;
+    const cachedHolderStatus = redis ? await redis.get(fidHolderCacheKey) : null;
+    
+    if (cachedHolderStatus === 'true') {
+      // FID already verified as holder in this rotation
+      isHolder = true;
+      console.log('FID already verified as holder in this rotation:', { fid });
+    } else {
+      // Need to check all connected wallets for this FID
+      const apiKey = process.env.NEYNAR_API_KEY;
+      if (apiKey && fid) {
+        try {
+          const user = await fetchUserByFid(fid, apiKey);
+          if (user) {
+            // Get ALL connected Ethereum wallets for this FID
+            const verifiedAddresses = user.verified_addresses?.eth_addresses || [];
+            const custodyAddress = user.custody_address;
+            
+            // Combine all addresses (verified + custody if exists)
+            const allWallets = [...verifiedAddresses];
+            if (custodyAddress && !allWallets.includes(custodyAddress)) {
+              allWallets.push(custodyAddress);
+            }
+            
+            console.log('Checking all connected wallets for FID:', {
+              fid,
+              walletCount: allWallets.length,
+              wallets: allWallets.map(w => w.slice(0, 10) + '...')
+            });
+            
+            // Check balance of ALL connected wallets
+            let maxBalance = 0;
+            let holderWallet = null;
+            
+            for (const wallet of allWallets) {
+              try {
+                const { isHolder: walletIsHolder, balanceFormatted } = await getTokenBalance(wallet);
+                if (walletIsHolder && balanceFormatted > maxBalance) {
+                  maxBalance = balanceFormatted;
+                  holderWallet = wallet;
+                  isHolder = true;
+                }
+              } catch (walletError) {
+                console.warn(`Error checking wallet ${wallet.slice(0, 10)}...:`, walletError.message);
+                // Continue checking other wallets
+              }
+            }
+            
+            if (isHolder) {
+              actualBalance = maxBalance;
+              holderWalletAddress = holderWallet;
+              
+              // Cache holder status per FID (prevents re-checking all wallets on subsequent claims)
+              // Use a simple key that doesn't depend on rotation (holder status is per FID, not per rotation)
+              const fidHolderCacheKey = `claim:fid:holder:${fid}`;
+              await redis.set(fidHolderCacheKey, 'true', 'EX', 86400); // Cache for 24h
+              
+              console.log('HOLDER DETECTED - FID has 30M+ in connected wallets:', {
+                fid,
+                holderWallet: holderWallet?.slice(0, 10) + '...',
+                balance: maxBalance,
+                totalWalletsChecked: allWallets.length
+              });
+            } else {
+              console.log('NOT A HOLDER - No connected wallet has 30M+:', {
+                fid,
+                walletsChecked: allWallets.length,
+                maxBalanceFound: maxBalance
+              });
+            }
+          }
+        } catch (neynarError) {
+          console.error('Error fetching FID wallets from Neynar:', neynarError);
+          // Fallback: check only the provided wallet address
+          if (walletAddress) {
+            try {
+              const { isHolder: holderStatus, balanceFormatted } = await getTokenBalance(walletAddress);
+              isHolder = holderStatus;
+              actualBalance = balanceFormatted;
+              holderWalletAddress = walletAddress;
+            } catch (balanceError) {
+              console.error('Error checking holder status (fallback):', balanceError);
+              isHolder = false;
+            }
+          }
+        }
+      } else if (walletAddress) {
+        // Fallback if no Neynar API key: check only provided wallet
+        try {
+          const { isHolder: holderStatus, balanceFormatted } = await getTokenBalance(walletAddress);
+          isHolder = holderStatus;
+          actualBalance = balanceFormatted;
+          holderWalletAddress = walletAddress;
+        } catch (balanceError) {
+          console.error('Error checking holder status:', balanceError);
+          isHolder = false;
+        }
       }
     }
 

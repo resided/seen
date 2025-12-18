@@ -210,7 +210,10 @@ export default async function handler(req, res) {
     const personalCooldownKeys = await scanKeys('claim:cooldown:*');
     const personalClaimCountKeys = await scanKeys('claim:count:personal:*');
     
-    const allPersonalKeys = [...personalCooldownKeys, ...personalClaimCountKeys];
+    // Also clear FID holder cache (forces re-check of all connected wallets)
+    const fidHolderCacheKeys = await scanKeys('claim:fid:holder:*');
+    
+    const allPersonalKeys = [...personalCooldownKeys, ...personalClaimCountKeys, ...fidHolderCacheKeys];
     const personalCooldownsReset = await deleteKeys(allPersonalKeys);
 
     console.log('Reset complete:', {

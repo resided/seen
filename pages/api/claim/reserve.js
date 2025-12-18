@@ -84,18 +84,30 @@ export default async function handler(req, res) {
       });
     }
 
-    // Check holder status for max claims
+    // Check holder status per FID (not per wallet)
+    // First check cached holder status, then check provided wallet as fallback
     let isHolder = false;
     let maxClaims = 1;
     
-    try {
-      const { isHolder: holderStatus } = await getTokenBalance(walletAddress);
-      isHolder = holderStatus;
-      if (isHolder) {
-        maxClaims = holderMultiplier;
+    // Check if this FID has already been verified as a holder (cached)
+    const fidHolderCacheKey = `claim:fid:holder:${parseInt(fid)}`;
+    const cachedHolderStatus = await redis.get(fidHolderCacheKey);
+    
+    if (cachedHolderStatus === 'true') {
+      // FID already verified as holder (cached)
+      isHolder = true;
+      maxClaims = holderMultiplier;
+    } else {
+      // Not cached - check the provided wallet (main claim will do full check of all wallets)
+      try {
+        const { isHolder: holderStatus } = await getTokenBalance(walletAddress);
+        isHolder = holderStatus;
+        if (isHolder) {
+          maxClaims = holderMultiplier;
+        }
+      } catch (e) {
+        console.error('Error checking holder status:', e);
       }
-    } catch (e) {
-      console.error('Error checking holder status:', e);
     }
 
     // CRITICAL: Key format must match claim/index.js
