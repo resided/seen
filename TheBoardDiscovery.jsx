@@ -2226,7 +2226,6 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
   const [userHasBonusToken, setUserHasBonusToken] = useState(false);
   const [seenAmountPerClaim, setSeenAmountPerClaim] = useState('80000');
   const [canClaimAgain, setCanClaimAgain] = useState(true);
-  const [personalCooldownRemaining, setPersonalCooldownRemaining] = useState(0);
   // Reservation system for bulletproof claims
   const [reservationId, setReservationId] = useState(null);
   const [preflightPassed, setPreflightPassed] = useState(false);
@@ -2304,12 +2303,9 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
           if (data.seenAmountPerClaim !== undefined) {
             setSeenAmountPerClaim(data.seenAmountPerClaim);
           }
-          // Track if user can claim again (respects personal cooldown)
+          // Track if user can claim again (one claim per FID per rotation)
           if (data.canClaimAgain !== undefined) {
             setCanClaimAgain(data.canClaimAgain);
-          }
-          if (data.personalCooldownRemaining !== undefined) {
-            setPersonalCooldownRemaining(data.personalCooldownRemaining);
           }
         })
         .catch(() => {});
@@ -2490,11 +2486,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
             } else if (userFullyClaimed || data.error?.includes('Already claimed') || data.error?.includes('already claimed')) {
               setClaimed(true);
               setCanClaimAgain(false);
-              setMessage('ALREADY CLAIMED - CHECK WALLET');
-            } else if (data.cooldownRemaining) {
-              setPersonalCooldownRemaining(data.cooldownRemaining);
-              setCanClaimAgain(false);
-              setMessage('ON COOLDOWN - TRY LATER');
+              setMessage('ALREADY CLAIMED - WAIT FOR NEXT FEATURED PROJECT');
             } else {
               setMessage(data.error || 'CLAIM FAILED - TRY AGAIN');
             }
@@ -2642,12 +2634,11 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
         setPreflightError(preflight.code);
         
         // Update state based on preflight response
-        if (preflight.code === 'MAX_CLAIMS_REACHED' || preflight.code === 'ON_COOLDOWN') {
+        if (preflight.code === 'MAX_CLAIMS_REACHED') {
           setClaimed(true);
           setCanClaimAgain(false);
           if (preflight.claimCount !== undefined) setClaimCount(preflight.claimCount);
           if (preflight.maxClaims !== undefined) setMaxClaims(preflight.maxClaims);
-          if (preflight.cooldownRemaining !== undefined) setPersonalCooldownRemaining(preflight.cooldownRemaining);
         }
         if (preflight.code === 'EXPIRED') {
           setExpired(true);
@@ -2948,18 +2939,6 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
                 : 'CLAIM EXPIRES WHEN FEATURED PROJECT CHANGES'}
             </div>
             
-            {/* Cooldown Notice */}
-            {personalCooldownRemaining > 0 && claimCount >= maxClaims && (
-              <div className="mb-3 p-3 border border-white/30 bg-white/5">
-                <div className="text-[10px] tracking-[0.2em] text-gray-400 font-bold mb-1">
-                  CLAIM COOLDOWN ACTIVE
-                </div>
-                <div className="text-xs text-white">
-                  Next claim in {Math.ceil(personalCooldownRemaining / (1000 * 60 * 60))}h {Math.ceil((personalCooldownRemaining % (1000 * 60 * 60)) / (1000 * 60))}m
-                </div>
-              </div>
-            )}
-            
             {/* Dynamic Claim Buttons - based on maxClaims */}
             {Array.from({ length: maxClaims }, (_, i) => i + 1).map((claimNum) => {
               const isThisClaimComplete = claimCount >= claimNum;
@@ -2993,7 +2972,6 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
                 if (isThisClaimComplete) return `CLAIM ${claimNum} COMPLETE`;
                 if (!hasClickedMiniapp) return 'TAP >> OPEN MINI APP << FIRST';
                 if (!treasuryAddress) return 'LOADING...';
-                if (personalCooldownRemaining > 0 && !canClaimAgain) return 'ON COOLDOWN';
                 return maxClaims > 1 ? `CLAIM NOW ${claimNum}/${maxClaims}` : 'CLAIM NOW';
               };
               

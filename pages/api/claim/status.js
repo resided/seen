@@ -82,27 +82,8 @@ export default async function handler(req, res) {
       }
     }
     
-    // Check PERSONAL 24-hour cooldown (independent of featured project timer)
-    const personalCooldownKey = walletAddress ? `claim:cooldown:${walletAddress.toLowerCase()}` : null;
-    const personalClaimCountKey = walletAddress ? `claim:count:personal:${walletAddress.toLowerCase()}` : null;
-    
-    let personalCooldownRemaining = 0;
-    let personalCooldownEndsAt = null;
-    let personalClaimCount = 0;
-    
-    if (personalCooldownKey) {
-      const cooldownData = await redis.get(personalCooldownKey);
-      if (cooldownData) {
-        const cooldownExpiry = parseInt(cooldownData);
-        const now = Date.now();
-        personalCooldownRemaining = Math.max(0, cooldownExpiry - now);
-        personalCooldownEndsAt = personalCooldownRemaining > 0 ? new Date(cooldownExpiry).toISOString() : null;
-      }
-      
-      personalClaimCount = parseInt(await redis.get(personalClaimCountKey) || '0');
-    }
-    
-    // ALSO check rotation-based claim count (what preflight/claim API checks)
+    // SIMPLIFIED: One claim per FID per featured campaign (rotation)
+    // Check rotation-based claim count (what preflight/claim API checks)
     // This is the authoritative source for claims against THIS featured project
     // CRITICAL: Key format must match claim/index.js
     const rotationId = featuredProject.rotationId || `legacy_${featuredProject.id}`;
@@ -113,9 +94,9 @@ export default async function handler(req, res) {
       rotationClaimCount = parseInt(await redis.get(globalWalletClaimCountKey) || '0');
     }
     
-    // Use the HIGHER of personal or rotation count to be conservative
-    // This ensures UI matches what preflight will check
-    const effectiveClaimCount = Math.max(personalClaimCount, rotationClaimCount);
+    // SIMPLIFIED: One claim per FID per rotation
+    // Use rotation-based claim count (FID-based tracking)
+    const effectiveClaimCount = rotationClaimCount;
     
     // User is "fully claimed" when they've used all their claims for this rotation
     const fullyClaimed = effectiveClaimCount >= maxClaims;
@@ -167,12 +148,8 @@ export default async function handler(req, res) {
       featuredAt: featuredAt.toISOString(),
       expirationTime: expirationTime.toISOString(),
       timeRemaining: expired ? 0 : Math.max(0, expirationTime - now),
-      // Personal 24-hour cooldown info
-      personalCooldownRemaining,
-      personalCooldownEndsAt,
-      // Rotation-based claim count (authoritative for this featured project)
+      // Rotation-based claim count (FID-based, resets with new featured project)
       rotationClaimCount,
-      personalClaimCount,
       isHolder,
       holderThreshold: HOLDER_THRESHOLD,
       // Generic bonus token info (configured via admin panel)

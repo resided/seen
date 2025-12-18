@@ -432,43 +432,9 @@ export default async function handler(req, res) {
       });
     }
     
-    // PERSONAL COOLDOWN - Independent of featured project timer
-    // This cooldown is per-wallet and lasts for the configured cooldown hours
-    // Timer extensions do NOT affect this. Only manual RESET CLAIMS overrides it.
-    const personalCooldownKey = `claim:cooldown:${walletAddress.toLowerCase()}`;
-    const personalClaimCountKey = `claim:count:personal:${walletAddress.toLowerCase()}`;
-    
-    // Check if wallet is on cooldown AND has used all claims
-    const cooldownData = await redis.get(personalCooldownKey);
-    const currentPersonalClaimCount = parseInt(await redis.get(personalClaimCountKey) || '0');
-    
-    if (cooldownData) {
-      const cooldownExpiry = parseInt(cooldownData);
-      const now = Date.now();
-      const remainingMs = cooldownExpiry - now;
-      
-      if (remainingMs > 0 && currentPersonalClaimCount >= maxClaims) {
-        const remainingHours = Math.floor(remainingMs / (1000 * 60 * 60));
-        const remainingMins = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
-        
-        console.warn('PERSONAL COOLDOWN: Wallet on cooldown with max claims used:', {
-          fid,
-          walletAddress: walletAddress?.slice(0, 10) + '...',
-          remainingHours,
-          remainingMins,
-          claimCount: currentPersonalClaimCount,
-          maxClaims,
-        });
-        return res.status(400).json({
-          error: `You've already claimed ${maxClaims}x. Next claim in ${remainingHours}h ${remainingMins}m.`,
-          cooldownRemaining: remainingMs,
-          cooldownEndsAt: new Date(cooldownExpiry).toISOString(),
-          claimCount: currentPersonalClaimCount,
-          maxClaims,
-        });
-      }
-    }
-
+    // SIMPLIFIED: One claim per FID per featured campaign (rotation)
+    // No personal cooldown - FID can only claim once per rotation
+    // New featured project = new rotation = everyone can claim again
     // Track claim by featured project ID + rotation ID + FID AND wallet
     // This prevents FID spoofing attacks - claims tracked by both FID and wallet
     // rotationId only changes on explicit reset or new featured project (not timer changes)
@@ -923,35 +889,8 @@ export default async function handler(req, res) {
         await redis.set(`claim:txhash:${txHash.toLowerCase()}`, 'used');
       }
       
-      // SET PERSONAL COOLDOWN
-      // This is independent of the featured project timer - uses configured cooldown hours
-      const cooldownExpiry = Date.now() + (COOLDOWN_SECONDS * 1000);
-      const personalCooldownKey = `claim:cooldown:${walletAddress.toLowerCase()}`;
-      const personalClaimCountKey = `claim:count:personal:${walletAddress.toLowerCase()}`;
-      
-      // Set or update the cooldown expiry time
-      // IMPORTANT: Cooldown is set from FIRST claim only - don't extend on subsequent claims
-      const existingCooldown = await redis.get(personalCooldownKey);
-      if (!existingCooldown) {
-        // First claim - set the cooldown
-        await redis.setEx(personalCooldownKey, COOLDOWN_SECONDS, cooldownExpiry.toString());
-      }
-      // If cooldown already exists, keep the original expiry (don't extend)
-      
-      // Track personal claim count (how many claims used in this cooldown window)
-      const personalClaimCount = await redis.incr(personalClaimCountKey);
-      if (personalClaimCount === 1) {
-        // First claim in this window, set expiry to match cooldown
-        await redis.expire(personalClaimCountKey, COOLDOWN_SECONDS);
-      }
-      // Subsequent claims: count expiry stays synced with original cooldown
-      
-      console.log('Personal 24h cooldown set:', {
-        wallet: walletAddress?.slice(0, 10) + '...',
-        cooldownExpiry: new Date(cooldownExpiry).toISOString(),
-        personalClaimCount,
-        maxClaims,
-      });
+      // SIMPLIFIED: No personal cooldown - FID can only claim once per rotation
+      // New featured project = new rotation = everyone can claim again
 
       // Track a click when user successfully claims (they opened the miniapp to claim)
       try {

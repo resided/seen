@@ -174,32 +174,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // Check personal cooldown
-    const personalCooldownKey = `claim:cooldown:${walletLower}`;
-    const personalClaimCountKey = `claim:count:personal:${walletLower}`;
-    
-    const cooldownData = await redis.get(personalCooldownKey);
-    const personalClaimCount = parseInt(await redis.get(personalClaimCountKey) || '0');
-    
-    if (cooldownData) {
-      const cooldownExpiry = parseInt(cooldownData);
-      const remainingMs = cooldownExpiry - Date.now();
-      
-      if (remainingMs > 0 && personalClaimCount >= maxClaims) {
-        const remainingHours = Math.floor(remainingMs / (1000 * 60 * 60));
-        const remainingMins = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
-        
-        return res.status(200).json({ 
-          canClaim: false, 
-          reason: `Cooldown active. Next claim in ${remainingHours}h ${remainingMins}m`,
-          code: 'ON_COOLDOWN',
-          cooldownRemaining: remainingMs,
-          cooldownEndsAt: new Date(cooldownExpiry).toISOString(),
-          claimCount: personalClaimCount,
-          maxClaims
-        });
-      }
-    }
+    // SIMPLIFIED: No personal cooldown - FID can only claim once per rotation
 
     // Check rotation-based claim count
     // CRITICAL: Must match key format in claim/index.js
