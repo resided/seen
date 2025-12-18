@@ -102,32 +102,7 @@ export default async function handler(req, res) {
 
     // CRITICAL: Key format must match claim/index.js
     const rotationId = featuredProject.rotationId || `legacy_${featuredProject.id}`;
-    const reservationKey = `claim:reservation:${walletLower}`;
     const globalWalletClaimCountKey = `claim:wallet:global:${featuredProject.id}:${rotationId}:${walletLower}`;
-
-    // ATOMIC RESERVATION
-    // Use Lua script for atomic check-and-reserve to prevent race conditions
-    // This ensures only one reservation can be made at a time
-    
-    // First, check if there's already a valid reservation
-    const existingReservation = await redis.get(reservationKey);
-    if (existingReservation) {
-      const reservation = JSON.parse(existingReservation);
-      const reservationAge = Date.now() - reservation.createdAt;
-      
-      if (reservationAge < RESERVATION_TTL_SECONDS * 1000) {
-        // Return existing reservation (idempotent)
-        return res.status(200).json({
-          success: true,
-          reservationId: reservation.id,
-          message: 'Existing reservation returned',
-          existing: true,
-          expiresIn: Math.floor((RESERVATION_TTL_SECONDS * 1000 - reservationAge) / 1000),
-          claimNum: reservation.claimNum,
-          maxClaims: reservation.maxClaims
-        });
-      }
-    }
 
     // Check current claim count
     const currentCount = parseInt(await redis.get(globalWalletClaimCountKey) || '0');
@@ -144,6 +119,9 @@ export default async function handler(req, res) {
     // Create reservation with atomic set (NX = only if not exists)
     const reservationId = crypto.randomUUID();
     const nextClaimNum = currentCount + 1;
+    
+    // CRITICAL: Use reservation ID in key (not wallet) to match claim/index.js
+    const reservationKey = `claim:reserve:${reservationId}`;
     
     const reservation = {
       id: reservationId,
