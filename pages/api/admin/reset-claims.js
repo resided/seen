@@ -61,13 +61,17 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { confirm, resetDonut } = req.body;
+    const { confirm, resetDonut, nuclearReset } = req.body;
     
     if (confirm !== 'RESET') {
       return res.status(400).json({ 
         error: 'Must confirm with confirm: "RESET" to reset claims for the current featured project rotation' 
       });
     }
+    
+    // NUCLEAR RESET: Clear ALL claim-related keys regardless of rotation
+    // Use this if normal reset isn't working
+    const useNuclearReset = nuclearReset === true;
 
     const redis = await getRedisClient();
     if (!redis) {
@@ -121,35 +125,53 @@ export default async function handler(req, res) {
       return foundKeys;
     };
 
-    // Find all claim keys for this specific featured rotation
-    // Pattern includes rotation ID to only reset current rotation
-    const pattern = `claim:featured:${featuredProjectId}:${currentRotationId}:*`;
-    const keys = await scanKeys(pattern);
+    // Find all claim keys
+    // If nuclearReset, clear ALL claim keys regardless of rotation
+    // Otherwise, only clear keys for current rotation
+    let keys, txKeys, countKeys, walletKeys, globalWalletKeys;
+    
+    if (useNuclearReset) {
+      console.log('🔴 NUCLEAR RESET - clearing ALL claim keys');
+      keys = await scanKeys('claim:featured:*');
+      txKeys = await scanKeys('claim:tx:*');
+      countKeys = await scanKeys('claim:count:*');
+      walletKeys = await scanKeys('claim:wallet:*');
+      globalWalletKeys = await scanKeys('claim:wallet:global:*');
+    } else {
+      // Standard reset - only current rotation
+      const pattern = `claim:featured:${featuredProjectId}:${currentRotationId}:*`;
+      keys = await scanKeys(pattern);
 
-    // Also find transaction hash keys for this specific featured rotation
-    const txPattern = `claim:tx:${featuredProjectId}:${currentRotationId}:*`;
-    const txKeys = await scanKeys(txPattern);
+      const txPattern = `claim:tx:${featuredProjectId}:${currentRotationId}:*`;
+      txKeys = await scanKeys(txPattern);
 
-    // Also find claim count keys for this specific featured rotation
-    const countPattern = `claim:count:${featuredProjectId}:${currentRotationId}:*`;
-    const countKeys = await scanKeys(countPattern);
+      const countPattern = `claim:count:${featuredProjectId}:${currentRotationId}:*`;
+      countKeys = await scanKeys(countPattern);
 
-    // Also find wallet claim count keys for this specific featured rotation (security feature)
-    const walletPattern = `claim:wallet:${featuredProjectId}:${currentRotationId}:*`;
-    const walletKeys = await scanKeys(walletPattern);
+      const walletPattern = `claim:wallet:${featuredProjectId}:${currentRotationId}:*`;
+      walletKeys = await scanKeys(walletPattern);
 
-    // CRITICAL: Also find claim lock keys (prevents concurrent claims)
+      const globalWalletPattern = `claim:wallet:global:${featuredProjectId}:${currentRotationId}:*`;
+      globalWalletKeys = await scanKeys(globalWalletPattern);
+    }
+
+    // ALWAYS clear these regardless (they're not rotation-specific)
     const claimLockPattern = `claim:lock:*`;
     const claimLockKeys = await scanKeys(claimLockPattern);
     
-    // CRITICAL: Also find reservation keys (from preflight/reserve system)
     const reservationPattern = `claim:reserve:*`;
     const reservationKeys = await scanKeys(reservationPattern);
-
-    // CRITICAL: Also find global wallet claim count keys (prevents cross-rotation exploits)
-    // Format: claim:wallet:global:${projectId}:${rotationId}:${wallet}
-    const globalWalletPattern = `claim:wallet:global:${featuredProjectId}:${currentRotationId}:*`;
-    const globalWalletKeys = await scanKeys(globalWalletPattern);
+    
+    console.log('Keys to delete:', {
+      nuclearReset: useNuclearReset,
+      keys: keys.length,
+      txKeys: txKeys.length,
+      countKeys: countKeys.length,
+      walletKeys: walletKeys.length,
+      globalWalletKeys: globalWalletKeys.length,
+      claimLockKeys: claimLockKeys.length,
+      reservationKeys: reservationKeys.length,
+    });
 
     // Helper function to delete keys (handles node-redis v5 compatibility)
     const deleteKeys = async (keysToDelete) => {

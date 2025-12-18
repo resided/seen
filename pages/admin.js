@@ -957,31 +957,34 @@ export default function Admin() {
     }
   };
 
-  const handleResetClaims = async () => {
-    if (!confirm('Are you sure you want to reset ALL claims for the current featured project? This will allow everyone to claim again.')) {
+  const handleResetClaims = async (useNuclearReset = false) => {
+    const resetType = useNuclearReset ? 'NUCLEAR RESET (ALL claims ever)' : 'normal reset (current rotation only)';
+    
+    if (!confirm(`Are you sure you want to ${resetType}?\n\nThis will allow everyone to claim again.${useNuclearReset ? '\n\n⚠️ NUCLEAR RESET clears ALL claim data, not just current rotation.' : ''}`)) {
       return;
     }
 
     // Require typing "RESET" to confirm
-    const confirmation = prompt('This action cannot be undone. Type RESET to confirm:');
+    const confirmation = prompt(`This action cannot be undone. Type RESET to confirm ${useNuclearReset ? 'NUCLEAR ' : ''}reset:`);
     if (confirmation !== 'RESET') {
-      if (confirmation !== null) { // User didn't cancel, they typed something wrong
+      if (confirmation !== null) {
         setMessage('Confirmation failed. You must type "RESET" exactly to confirm.');
       }
       return;
     }
 
     // Ask if they also want to reset DONUT data
-    const resetDonut = confirm('Also reset DONUT bonus data? This will:\n- Reset global DONUT count (back to 0/1000)\n- Allow all users to receive DONUT again\n\nClick OK to include DONUT reset, or Cancel to reset claims only.');
+    const resetDonut = confirm('Also reset DONUT bonus data? This will:\n- Reset global DONUT count (back to 0/200)\n- Allow all users to receive DONUT again\n\nClick OK to include DONUT reset, or Cancel to reset claims only.');
 
     try {
-      setMessage('Resetting claims...');
+      setMessage(useNuclearReset ? '🔴 NUCLEAR RESET in progress...' : 'Resetting claims...');
       const response = await fetch('/api/admin/reset-claims', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           confirm: 'RESET',
           resetDonut: resetDonut,
+          nuclearReset: useNuclearReset,
           fid: userFid || null 
         }),
         credentials: 'include',
@@ -2085,11 +2088,18 @@ export default function Admin() {
                 {showCreateForm ? 'CANCEL' : '+ CREATE PROJECT'}
               </button>
               <button
-                onClick={handleResetClaims}
+                onClick={() => handleResetClaims(false)}
                 className="px-4 py-2 bg-red-600 text-white font-bold hover:bg-red-500 transition-all"
-                title="Reset all daily claims for current featured project"
+                title="Reset claims for current featured project"
               >
                 RESET CLAIMS
+              </button>
+              <button
+                onClick={() => handleResetClaims(true)}
+                className="px-4 py-2 bg-red-900 text-white font-bold hover:bg-red-800 transition-all border-2 border-red-500"
+                title="NUCLEAR RESET - Clear ALL claim data (use if normal reset doesn't work)"
+              >
+                ☢️ NUCLEAR RESET
               </button>
               <button
                 onClick={fetchClaimStats}
