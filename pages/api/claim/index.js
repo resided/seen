@@ -99,6 +99,12 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Wallet address or transaction hash is required for claiming' });
     }
 
+    // Initialize Redis FIRST before any Redis operations
+    const redis = await getRedisClient();
+    if (!redis) {
+      return res.status(500).json({ error: 'Service unavailable' });
+    }
+
     // SECURITY: Check if FID is blocked
     const BLOCKED_FIDS_KEY = 'admin:blocked:fids';
     const blockedFidsJson = await redis.get(BLOCKED_FIDS_KEY);
@@ -132,11 +138,6 @@ export default async function handler(req, res) {
         console.error('BLOCKED WALLET ATTEMPTED CLAIM:', walletAddress);
         return res.status(403).json({ error: 'Wallet blocked due to suspicious activity' });
       }
-    }
-
-    const redis = await getRedisClient();
-    if (!redis) {
-      return res.status(500).json({ error: 'Service unavailable' });
     }
 
     // RESERVATION VALIDATION
