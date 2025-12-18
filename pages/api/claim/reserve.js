@@ -4,7 +4,6 @@
 
 import { getRedisClient } from '../../../lib/redis';
 import { getFeaturedProject } from '../../../lib/projects';
-import { getTokenBalance } from '../../../lib/token-balance';
 import crypto from 'crypto';
 
 const RESERVATION_TTL_SECONDS = 120; // 2 minutes
@@ -12,7 +11,6 @@ const RESERVATION_TTL_SECONDS = 120; // 2 minutes
 const DEFAULT_CLAIM_SETTINGS = {
   baseClaimAmount: 80000,
   claimMultiplier: 1,
-  holderMultiplier: 2,
   cooldownHours: 24,
   minNeynarScore: 0.6,
   claimsEnabled: true,
@@ -79,7 +77,7 @@ export default async function handler(req, res) {
     }
 
     const claimSettings = await getClaimSettings(redis);
-    const { holderMultiplier, claimsEnabled } = claimSettings;
+    const { claimsEnabled } = claimSettings;
 
     if (!claimsEnabled) {
       return res.status(400).json({ 
@@ -99,31 +97,8 @@ export default async function handler(req, res) {
       });
     }
 
-    // Check holder status per FID (not per wallet)
-    // First check cached holder status, then check provided wallet as fallback
-    let isHolder = false;
-    let maxClaims = 1;
-    
-    // Check if this FID has already been verified as a holder (cached)
-    const fidHolderCacheKey = `claim:fid:holder:${parseInt(fid)}`;
-    const cachedHolderStatus = await redis.get(fidHolderCacheKey);
-    
-    if (cachedHolderStatus === 'true') {
-      // FID already verified as holder (cached)
-      isHolder = true;
-      maxClaims = holderMultiplier;
-    } else {
-      // Not cached - check the provided wallet (main claim will do full check of all wallets)
-      try {
-        const { isHolder: holderStatus } = await getTokenBalance(walletAddress);
-        isHolder = holderStatus;
-        if (isHolder) {
-          maxClaims = holderMultiplier;
-        }
-      } catch (e) {
-        console.error('Error checking holder status:', e);
-      }
-    }
+    // SIMPLIFIED: Always one claim per FID per featured project
+    const maxClaims = 1;
 
     // CRITICAL: Key format must match claim/index.js
     const rotationId = featuredProject.rotationId || `legacy_${featuredProject.id}`;

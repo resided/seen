@@ -3,14 +3,12 @@
 
 import { getRedisClient } from '../../../lib/redis';
 import { getFeaturedProject } from '../../../lib/projects';
-import { getTokenBalance, HOLDER_THRESHOLD } from '../../../lib/token-balance';
 
 const MIN_ACCOUNT_AGE_DAYS = 2;
 
 const DEFAULT_CLAIM_SETTINGS = {
   baseClaimAmount: 80000,
   claimMultiplier: 1,
-  holderMultiplier: 2,
   cooldownHours: 24,
   minNeynarScore: 0.6,
   claimsEnabled: true,
@@ -88,7 +86,7 @@ export default async function handler(req, res) {
 
     // Get claim settings
     const claimSettings = await getClaimSettings(redis);
-    const { minNeynarScore, cooldownHours, holderMultiplier, claimsEnabled } = claimSettings;
+    const { minNeynarScore, cooldownHours, claimsEnabled } = claimSettings;
 
     // Check if claims are enabled globally
     if (!claimsEnabled) {
@@ -123,34 +121,11 @@ export default async function handler(req, res) {
       });
     }
 
-    // Check holder status per FID (not per wallet)
-    // First check cached holder status, then check provided wallet as fallback
-    let isHolder = false;
-    let maxClaims = 1;
-    
-    // Check if this FID has already been verified as a holder (cached)
-    const fidHolderCacheKey = `claim:fid:holder:${fidNum}`;
-    const cachedHolderStatus = await redis.get(fidHolderCacheKey);
-    
-    if (cachedHolderStatus === 'true') {
-      // FID already verified as holder (cached)
-      isHolder = true;
-      maxClaims = holderMultiplier;
-    } else {
-      // Not cached - check the provided wallet (main claim will do full check of all wallets)
-      try {
-        const { isHolder: holderStatus } = await getTokenBalance(walletAddress);
-        isHolder = holderStatus;
-        if (isHolder) {
-          maxClaims = holderMultiplier;
-        }
-      } catch (e) {
-        console.error('Error checking holder status:', e);
-      }
-    }
+    // SIMPLIFIED: Always one claim per FID per featured project
+    const maxClaims = 1;
 
-    // Check account age (skip for holders)
-    if (!isHolder && registeredAt) {
+    // Check account age
+    if (registeredAt) {
       const registeredDate = new Date(registeredAt * 1000);
       const accountAgeMs = Date.now() - registeredDate.getTime();
       const accountAgeDays = accountAgeMs / (1000 * 60 * 60 * 24);
@@ -166,8 +141,8 @@ export default async function handler(req, res) {
       }
     }
 
-    // Check Neynar score (skip for holders)
-    if (!isHolder) {
+    // Check Neynar score
+    {
       if (neynarScore === null || neynarScore === undefined) {
         // STRICT: If score is not provided, block claim
         return res.status(200).json({ 
@@ -199,11 +174,10 @@ export default async function handler(req, res) {
     if (currentGlobalCount >= maxClaims) {
       return res.status(200).json({ 
         canClaim: false, 
-        reason: `Already claimed ${maxClaims}x for this featured project`,
+        reason: `Already claimed for this featured project`,
         code: 'MAX_CLAIMS_REACHED',
         claimCount: currentGlobalCount,
-        maxClaims,
-        isHolder
+        maxClaims
       });
     }
 
@@ -234,8 +208,6 @@ export default async function handler(req, res) {
       code: 'ELIGIBLE',
       claimCount: currentGlobalCount,
       maxClaims,
-      isHolder,
-      nextClaimNum: currentGlobalCount + 1,
       featuredProjectId: featuredProject.id,
       rotationId,
       expiresAt: expirationTime.toISOString(),

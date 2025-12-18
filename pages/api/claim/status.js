@@ -1,13 +1,11 @@
 // API route to check claim status (tied to featured project rotation)
 import { getRedisClient } from '../../../lib/redis';
 import { getFeaturedProject, getRotationId } from '../../../lib/projects';
-import { getTokenBalance, HOLDER_THRESHOLD } from '../../../lib/token-balance';
 
 // Default settings (reads from Redis if available)
 const DEFAULT_CLAIM_SETTINGS = {
   baseClaimAmount: 80000,
   claimMultiplier: 1,
-  holderMultiplier: 2,
   cooldownHours: 24,
   minNeynarScore: 0.6,
   claimsEnabled: true,
@@ -63,24 +61,11 @@ export default async function handler(req, res) {
     
     // Get dynamic claim settings from Redis
     const claimSettings = await getClaimSettings(redis);
-    const { baseClaimAmount, claimMultiplier, holderMultiplier } = claimSettings;
+    const { baseClaimAmount, claimMultiplier } = claimSettings;
     const tokenAmount = String(Math.floor(baseClaimAmount * claimMultiplier));
     
-    // Check if holder (30M+) for multiple claim benefit
-    let isHolder = false;
-    let maxClaims = 1;
-    
-    if (walletAddress) {
-      try {
-        const { isHolder: holderStatus } = await getTokenBalance(walletAddress);
-        isHolder = holderStatus;
-        if (isHolder) {
-          maxClaims = holderMultiplier; // Dynamic from admin settings
-        }
-      } catch (balanceError) {
-        console.error('Error checking holder status:', balanceError);
-      }
-    }
+    // SIMPLIFIED: Always one claim per FID per featured project
+    const maxClaims = 1;
     
     // SIMPLIFIED: One claim per FID per featured campaign (rotation)
     // Check rotation-based claim count (what preflight/claim API checks)
@@ -150,8 +135,6 @@ export default async function handler(req, res) {
       timeRemaining: expired ? 0 : Math.max(0, expirationTime - now),
       // Rotation-based claim count (FID-based, resets with new featured project)
       rotationClaimCount,
-      isHolder,
-      holderThreshold: HOLDER_THRESHOLD,
       // Generic bonus token info (configured via admin panel)
       bonusTokenAvailable,
       bonusTokenRemaining,

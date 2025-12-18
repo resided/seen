@@ -2,7 +2,6 @@
 import { getRedisClient } from '../../../lib/redis';
 import { getFeaturedProject, getRotationId } from '../../../lib/projects';
 import { fetchUserByFid } from '../../../lib/neynar';
-import { getTokenBalance } from '../../../lib/token-balance';
 import { createWalletClient, createPublicClient, http, parseUnits, getAddress } from 'viem';
 import { base } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
@@ -17,7 +16,6 @@ const TOKEN_DECIMALS = parseInt(process.env.CLAIM_TOKEN_DECIMALS || '18'); // To
 const DEFAULT_CLAIM_SETTINGS = {
   baseClaimAmount: 80000,
   claimMultiplier: 1,
-  holderMultiplier: 2,
   cooldownHours: 24,
   minNeynarScore: 0.6,
   claimsEnabled: true,
@@ -201,13 +199,12 @@ export default async function handler(req, res) {
     const { 
       baseClaimAmount, 
       claimMultiplier, 
-      holderMultiplier, 
       cooldownHours, 
       minNeynarScore, 
       claimsEnabled 
     } = claimSettings;
     
-    // Calculate actual claim amount
+    // Calculate actual claim amount - always 80,000 tokens
     const TOKEN_AMOUNT = String(Math.floor(baseClaimAmount * claimMultiplier));
     const COOLDOWN_SECONDS = cooldownHours * 60 * 60;
     
@@ -216,119 +213,15 @@ export default async function handler(req, res) {
       return res.status(503).json({ error: 'Claims are currently disabled by admin' });
     }
 
-    // SECURITY: Check holder status per FID (not per wallet)
-    // This prevents exploit where users transfer 30M to different connected wallets
-    // We check ALL connected wallets for the FID and track holder status per FID
-    let isHolder = false;
-    let actualBalance = 0;
-    let holderWalletAddress = null;
-    
-    // Check if this FID has already been verified as a holder (cached)
-    const fidHolderCacheKey = `claim:fid:holder:${fid}`;
-    const cachedHolderStatus = redis ? await redis.get(fidHolderCacheKey) : null;
-    
-    if (cachedHolderStatus === 'true') {
-      // FID already verified as holder in this rotation
-      isHolder = true;
-      console.log('FID already verified as holder in this rotation:', { fid });
-    } else {
-      // Need to check all connected wallets for this FID
-      const apiKey = process.env.NEYNAR_API_KEY;
-      if (apiKey && fid) {
-        try {
-          const user = await fetchUserByFid(fid, apiKey);
-          if (user) {
-            // Get ALL connected Ethereum wallets for this FID
-            const verifiedAddresses = user.verified_addresses?.eth_addresses || [];
-            const custodyAddress = user.custody_address;
-            
-            // Combine all addresses (verified + custody if exists)
-            const allWallets = [...verifiedAddresses];
-            if (custodyAddress && !allWallets.includes(custodyAddress)) {
-              allWallets.push(custodyAddress);
-            }
-            
-            console.log('Checking all connected wallets for FID:', {
-              fid,
-              walletCount: allWallets.length,
-              wallets: allWallets.map(w => w.slice(0, 10) + '...')
-            });
-            
-            // Check balance of ALL connected wallets
-            let maxBalance = 0;
-            let holderWallet = null;
-            
-            for (const wallet of allWallets) {
-              try {
-                const { isHolder: walletIsHolder, balanceFormatted } = await getTokenBalance(wallet);
-                if (walletIsHolder && balanceFormatted > maxBalance) {
-                  maxBalance = balanceFormatted;
-                  holderWallet = wallet;
-                  isHolder = true;
-                }
-              } catch (walletError) {
-                console.warn(`Error checking wallet ${wallet.slice(0, 10)}...:`, walletError.message);
-                // Continue checking other wallets
-              }
-            }
-            
-            if (isHolder) {
-              actualBalance = maxBalance;
-              holderWalletAddress = holderWallet;
-              
-              // Cache holder status per FID (prevents re-checking all wallets on subsequent claims)
-              // Use a simple key that doesn't depend on rotation (holder status is per FID, not per rotation)
-              const fidHolderCacheKey = `claim:fid:holder:${fid}`;
-              await redis.set(fidHolderCacheKey, 'true', 'EX', 86400); // Cache for 24h
-              
-              console.log('HOLDER DETECTED - FID has 30M+ in connected wallets:', {
-                fid,
-                holderWallet: holderWallet?.slice(0, 10) + '...',
-                balance: maxBalance,
-                totalWalletsChecked: allWallets.length
-              });
-            } else {
-              console.log('NOT A HOLDER - No connected wallet has 30M+:', {
-                fid,
-                walletsChecked: allWallets.length,
-                maxBalanceFound: maxBalance
-              });
-            }
-          }
-        } catch (neynarError) {
-          console.error('Error fetching FID wallets from Neynar:', neynarError);
-          // Fallback: check only the provided wallet address
-          if (walletAddress) {
-            try {
-              const { isHolder: holderStatus, balanceFormatted } = await getTokenBalance(walletAddress);
-              isHolder = holderStatus;
-              actualBalance = balanceFormatted;
-              holderWalletAddress = walletAddress;
-            } catch (balanceError) {
-              console.error('Error checking holder status (fallback):', balanceError);
-              isHolder = false;
-            }
-          }
-        }
-      } else if (walletAddress) {
-        // Fallback if no Neynar API key: check only provided wallet
-        try {
-          const { isHolder: holderStatus, balanceFormatted } = await getTokenBalance(walletAddress);
-          isHolder = holderStatus;
-          actualBalance = balanceFormatted;
-          holderWalletAddress = walletAddress;
-        } catch (balanceError) {
-          console.error('Error checking holder status:', balanceError);
-          isHolder = false;
-        }
-      }
-    }
+    // SIMPLIFIED: One claim per FID per featured project - no holder benefits
+    // Always maxClaims = 1
+    const maxClaims = 1;
 
-    // Check Neynar user score and account age (30M+ holders bypass these requirements)
+    // Check Neynar user score and account age
     const apiKey = process.env.NEYNAR_API_KEY;
     const MIN_ACCOUNT_AGE_DAYS = 2; // Minimum account age in days
     
-    if (apiKey && !isHolder) { // Only check Neynar score/age if not a 30M+ holder
+    if (apiKey) {
       try {
         const user = await fetchUserByFid(fid, apiKey);
         if (user) {
@@ -386,8 +279,6 @@ export default async function handler(req, res) {
           code: 'SCORE_CHECK_FAILED'
         });
       }
-    } else if (isHolder) {
-      console.log(`30M+ holder ${fid} bypassing Neynar score and account age requirements`);
     }
 
     // Get current featured project to determine claim window
@@ -426,22 +317,10 @@ export default async function handler(req, res) {
       });
     }
 
-    // Calculate maxClaims based on holder status (need this BEFORE cooldown check)
-    let maxClaims = 1;
-    if (isHolder) {
-      maxClaims = holderMultiplier; // Holders with 30M+ get multiple claims
-      console.log('HOLDER DETECTED - Multiple claims enabled:', {
+    // SIMPLIFIED: Always one claim per FID per featured project
+    console.log('Claim attempt:', {
         fid,
         walletAddress: walletAddress?.slice(0, 10) + '...',
-        balance: actualBalance,
-        maxClaims,
-        holderMultiplier
-      });
-    } else {
-      console.log('REGULAR USER - Single claim only:', {
-        fid,
-        walletAddress: walletAddress?.slice(0, 10) + '...',
-        balance: actualBalance || 'not checked',
         maxClaims: 1
       });
     }
@@ -476,7 +355,6 @@ export default async function handler(req, res) {
       walletAddress: walletAddress?.slice(0, 10) + '...',
       featuredProjectId,
       rotationId,
-      isHolder,
       maxClaims
     });
     
@@ -523,7 +401,6 @@ export default async function handler(req, res) {
         claimCount: globalWalletClaimCount - 1,
         globalWalletClaimCount: globalWalletClaimCount - 1,
         maxClaims,
-        isHolder,
       });
     }
     
@@ -553,7 +430,6 @@ export default async function handler(req, res) {
         walletClaimCount: walletClaimCount - 1,
         globalWalletClaimCount: globalWalletClaimCount - 1,
         maxClaims,
-        isHolder,
       });
     }
     
@@ -595,15 +471,12 @@ export default async function handler(req, res) {
         claimCountKey
       });
       return res.status(400).json({ 
-        error: isHolder 
-          ? `Already claimed ${maxClaims}x for this featured project (30M+ holder benefit used)`
-          : 'Already claimed for this featured project rotation',
+        error: 'Already claimed for this featured project rotation',
         featuredProjectId,
         featuredAt: featuredAt.toISOString(),
         expirationTime: expirationTime.toISOString(),
         claimCount: newClaimCount - 1,
         maxClaims,
-        isHolder,
       });
     }
     
@@ -778,9 +651,7 @@ export default async function handler(req, res) {
         });
       }
       
-      // SEEN amount is ALWAYS 80,000 per claim - no exceptions
-      // - Regular users: 1 claim = 80,000 SEEN
-      // - 30M+ holders: 2 claims = 2 x 80,000 = 160,000 SEEN total (but each TX is 80k)
+      // SEEN amount is ALWAYS 80,000 per claim - one claim per FID per featured project
       // Bonus token (if configured): 1 per person, once only, while supply lasts
       const seenAmount = TOKEN_AMOUNT; // Always 80,000
       const seenAmountWei = parseUnits(seenAmount, TOKEN_DECIMALS);
@@ -933,8 +804,6 @@ export default async function handler(req, res) {
     if (bonusTokenAvailable && bonusTokenConfig) {
       const bonusName = bonusTokenConfig.tokenName || 'Bonus Token';
       successMessage = `Tokens sent successfully! Bonus: ${bonusTokenConfig.amount} ${bonusName} + ${seenAmount} $SEEN`;
-    } else if (isHolder) {
-      successMessage = `Tokens sent successfully! (Claim ${newClaimCount}/${maxClaims} - 30M+ holder benefit)`;
     }
 
     // Release lock before returning success
@@ -967,8 +836,6 @@ export default async function handler(req, res) {
       bonusTokenRemaining, // Remaining bonus tokens
       claimCount: newClaimCount,
       maxClaims,
-      isHolder,
-      holderBalance: actualBalance, // Actual token balance at time of claim
       canClaimAgain: newClaimCount < maxClaims,
     });
     } catch (txError) {

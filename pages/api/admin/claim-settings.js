@@ -9,8 +9,7 @@ const CLAIM_SETTINGS_KEY = 'claim:settings';
 const DEFAULT_SETTINGS = {
   baseClaimAmount: 80000, // Base amount of tokens per claim
   claimMultiplier: 1, // Multiplier (1x, 2x, 3x, etc.)
-  holderMultiplier: 2, // How many claims 30M+ holders get (default 2x)
-  cooldownHours: 24, // Personal cooldown in hours
+  cooldownHours: 24, // Personal cooldown in hours (not used - one claim per featured project)
   minNeynarScore: 0.6, // Minimum Neynar score to claim
   claimsEnabled: true, // Master switch for claims
 };
@@ -86,7 +85,6 @@ export default async function handler(req, res) {
         // Ensure numeric values
         baseClaimAmount: parseInt(settings.baseClaimAmount) || currentSettings.baseClaimAmount,
         claimMultiplier: parseFloat(settings.claimMultiplier) || currentSettings.claimMultiplier,
-        holderMultiplier: parseInt(settings.holderMultiplier) || currentSettings.holderMultiplier,
         cooldownHours: parseInt(settings.cooldownHours) || currentSettings.cooldownHours,
         minNeynarScore: parseFloat(settings.minNeynarScore) || currentSettings.minNeynarScore,
         claimsEnabled: settings.claimsEnabled !== undefined ? settings.claimsEnabled : currentSettings.claimsEnabled,

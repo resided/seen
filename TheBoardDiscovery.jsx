@@ -2148,27 +2148,20 @@ const TokenBenefits = () => {
         onClick={() => setIsOpen(!isOpen)}
         className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors"
       >
-        <span className="text-sm font-black tracking-[0.2em]">$SEEN HOLDER BENEFITS</span>
+        <span className="text-sm font-black tracking-[0.2em]">$SEEN TOKEN BENEFITS</span>
         <span className="text-xl">{isOpen ? '−' : '+'}</span>
       </button>
       {isOpen && (
         <div className="p-4 border-t border-white/20 space-y-4">
           {/* Active Benefits */}
           <div>
-            <div className="text-[10px] tracking-[0.2em] text-green-400 mb-2">ACTIVE NOW (HOLD 30M+ $SEEN)</div>
+            <div className="text-[10px] tracking-[0.2em] text-green-400 mb-2">ACTIVE NOW</div>
             <div className="space-y-2 text-[11px]">
               <div className="flex items-start gap-2">
                 <span className="text-green-400">•</span>
                 <div>
-                  <span className="font-bold">2X DAILY CLAIMS</span>
-                  <span className="text-gray-500"> — Claim tokens twice per featured project</span>
-                </div>
-              </div>
-              <div className="flex items-start gap-2">
-                <span className="text-green-400">•</span>
-                <div>
                   <span className="font-bold">20% OFF FEATURED</span>
-                  <span className="text-gray-500"> — Discounted featured slot pricing</span>
+                  <span className="text-gray-500"> — Discounted featured slot pricing for 30M+ holders</span>
                 </div>
               </div>
             </div>
@@ -2216,7 +2209,6 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
   const [treasuryAddress, setTreasuryAddress] = useState(null);
   const [claimCount, setClaimCount] = useState(0);
   const [maxClaims, setMaxClaims] = useState(1);
-  const [isHolder, setIsHolder] = useState(false);
   // Generic bonus token state (configured via admin panel)
   const [bonusTokenAvailable, setBonusTokenAvailable] = useState(false);
   const [bonusTokenRemaining, setBonusTokenRemaining] = useState(0);
@@ -2277,9 +2269,6 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
           }
           if (data.maxClaims !== undefined) {
             setMaxClaims(data.maxClaims);
-          }
-          if (data.isHolder !== undefined) {
-            setIsHolder(data.isHolder);
           }
           // Track bonus token availability (generic - configured via admin)
           if (data.bonusTokenAvailable !== undefined) {
@@ -2443,10 +2432,10 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
               }, 2000); // Wait 2 seconds for Redis to update
             }
             
-            // For 30M+ holders, check if they can claim again
             setClaimStatus('success');
-            if (data.canClaimAgain) {
-              setClaimed(false); // Can still claim more
+            // One claim per FID per featured project
+            if (data.claimCount >= data.maxClaims) {
+              setClaimed(true);
               const bonusMsg = data.bonusTokenIncluded && data.bonusTokenName ? ` + ${data.bonusTokenAmount || ''} ${data.bonusTokenName}!` : '';
               setMessage(`CLAIM ${data.claimCount}/${data.maxClaims} COMPLETE!${bonusMsg}`);
             } else {
@@ -2793,8 +2782,8 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
           </div>
         )}
         
-        {/* Check Neynar score - show message if too low (30M+ holders bypass this) */}
-        {neynarUserScore !== null && neynarUserScore < MIN_NEYNAR_SCORE && !isHolder ? (
+        {/* Check Neynar score - show message if too low */}
+        {neynarUserScore !== null && neynarUserScore < MIN_NEYNAR_SCORE ? (
           <>
             <div className="mb-4 flex items-center justify-center">
               <div className="w-16 h-16 border-2 border-white flex items-center justify-center relative">
@@ -2807,7 +2796,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
               Your Neynar user score ({neynarUserScore.toFixed(2)}) is below the required threshold of {MIN_NEYNAR_SCORE}.
             </div>
             <div className="text-[10px] tracking-[0.2em] text-gray-400">
-              Only users with a score of {MIN_NEYNAR_SCORE} or higher can claim tokens. 30M+ $SEEN holders bypass this requirement.
+              Only users with a score of {MIN_NEYNAR_SCORE} or higher can claim tokens.
             </div>
           </>
         ) : expired ? (
@@ -2898,14 +2887,6 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
                 )}
               </div>
             )}
-            <div className="text-[10px] tracking-[0.2em] text-gray-400 mb-2">
-              30M+ $SEEN HOLDERS GET 2X DAILY CLAIMS
-            </div>
-            {maxClaims > 1 && (
-              <div className="text-[10px] tracking-[0.2em] text-green-400 mb-2">
-                YOU QUALIFY: {maxClaims} CLAIMS AVAILABLE
-              </div>
-            )}
             {!hasClickedMiniapp && isInFarcaster && (
               <div className="mb-4 p-4 border-2 border-white bg-white/5 animate-pulse">
                 <div className="text-xs font-black text-white mb-1 text-center">
@@ -2936,16 +2917,13 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
                 : 'CLAIM EXPIRES WHEN FEATURED PROJECT CHANGES'}
             </div>
             
-            {/* Dynamic Claim Buttons - based on maxClaims */}
-            {Array.from({ length: maxClaims }, (_, i) => i + 1).map((claimNum) => {
-              const isThisClaimComplete = claimCount >= claimNum;
-              const canClaimThis = claimCount === claimNum - 1 && canClaimAgain && !expired;
-              const showButton = claimNum === 1 || claimCount >= claimNum - 1;
+            {/* Single Claim Button - one claim per FID per featured project */}
+            {(() => {
+              const isClaimComplete = claimCount >= maxClaims;
+              const canClaim = !isClaimComplete && !expired;
               
               // Is ANY claim operation in progress?
               const isClaimBusy = claimStatus !== 'idle' && claimStatus !== 'success' && claimStatus !== 'error';
-              
-              if (!showButton) return null;
               
               // Get button text based on claim status
               const getButtonText = () => {
@@ -2966,10 +2944,10 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
                 
                 // Normal states
                 if (expired) return 'EXPIRED';
-                if (isThisClaimComplete) return `CLAIM ${claimNum} COMPLETE`;
+                if (isClaimComplete) return 'ALREADY CLAIMED';
                 if (!hasClickedMiniapp) return 'TAP >> OPEN MINI APP << FIRST';
                 if (!treasuryAddress) return 'LOADING...';
-                return maxClaims > 1 ? `CLAIM NOW ${claimNum}/${maxClaims}` : 'CLAIM NOW';
+                return 'CLAIM NOW';
               };
               
               // Determine button style based on status (black/white theme only)
@@ -2977,7 +2955,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
                 if (isClaimBusy) return 'bg-white text-black cursor-wait animate-pulse border-2 border-white';
                 if (claimStatus === 'success') return 'bg-white text-black border-2 border-white';
                 if (claimStatus === 'error') return 'bg-black text-white border-2 border-white';
-                if (isInFarcaster && hasClickedMiniapp && isConnected && canClaimThis && treasuryAddress) {
+                if (isInFarcaster && hasClickedMiniapp && isConnected && canClaim && treasuryAddress) {
                   return 'bg-white text-black hover:bg-gray-200';
                 }
                 if (!hasClickedMiniapp && isInFarcaster) {
@@ -2987,17 +2965,17 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
               };
               
               return (
-                <div key={claimNum} className={claimNum > 1 ? 'mt-2' : 'mb-3'}>
+                <div className="mb-3">
                   <button
                     onClick={handleClaim}
-                    disabled={!isInFarcaster || !hasClickedMiniapp || !isConnected || isClaimBusy || expired || isThisClaimComplete || !canClaimThis || !treasuryAddress || claimStatus === 'success' || claimStatus === 'error'}
-                    className={`w-full ${claimNum === 1 ? 'py-4' : 'py-3'} font-black text-sm tracking-[0.2em] transition-all ${getButtonStyle()}`}
+                    disabled={!isInFarcaster || !hasClickedMiniapp || !isConnected || isClaimBusy || expired || isClaimComplete || !treasuryAddress || claimStatus === 'success' || claimStatus === 'error'}
+                    className={`w-full py-4 font-black text-sm tracking-[0.2em] transition-all ${getButtonStyle()}`}
                   >
                     {getButtonText()}
                   </button>
                 </div>
               );
-            })}
+            })()}
           </>
         )}
           </>
