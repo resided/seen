@@ -2506,9 +2506,6 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
                   setClaimed(!statusData.canClaimAgain);
                 }
                 if (statusData.claimed) setClaimed(true);
-                if (statusData.personalCooldownRemaining !== undefined) {
-                  setPersonalCooldownRemaining(statusData.personalCooldownRemaining);
-                }
               })
               .catch(() => {}); // Silently fail status re-fetch
             
