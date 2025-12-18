@@ -94,9 +94,9 @@ export default async function handler(req, res) {
       txHash = txHashLower; // Normalize to lowercase
     }
 
-    // Either walletAddress OR txHash is required
-    if (!walletAddress && !txHash) {
-      return res.status(400).json({ error: 'Wallet address or transaction hash is required for claiming' });
+    // Wallet address is REQUIRED for claiming (needed for token transfer)
+    if (!walletAddress) {
+      return res.status(400).json({ error: 'Wallet address is required for claiming' });
     }
 
     // Initialize Redis FIRST before any Redis operations
