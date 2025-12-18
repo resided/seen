@@ -117,11 +117,27 @@ export default function SimpleClaim({ userFid, isInFarcaster = false, hasClicked
       )}
 
       {/* Claim Info */}
-      <div className="text-center mb-4 p-3 bg-black border-2 border-white">
-        <div className="text-[10px] tracking-[0.2em] text-gray-400">YOU GET</div>
+      <div className="text-center mb-4 p-3 bg-black border-2 border-gray-600 animate-pulse-subtle">
+        <div className="text-[10px] tracking-[0.2em] text-gray-500">YOU GET</div>
         <div className="text-2xl font-black text-white">{tokenAmount} $SEEN</div>
-        <div className="text-xs text-gray-400 mt-1">One claim per person per featured project</div>
+        <div className="text-xs text-gray-500 mt-1">One claim per person per featured project</div>
       </div>
+
+      <style jsx>{`
+        @keyframes pulse-subtle {
+          0%, 100% {
+            border-color: rgb(75, 85, 99);
+            transform: scale(1);
+          }
+          50% {
+            border-color: rgb(156, 163, 175);
+            transform: scale(1.02);
+          }
+        }
+        .animate-pulse-subtle {
+          animation: pulse-subtle 3s ease-in-out infinite;
+        }
+      `}</style>
 
       {/* Claim Button */}
       <button
