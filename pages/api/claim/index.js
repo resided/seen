@@ -142,7 +142,7 @@ export default async function handler(req, res) {
     // RESERVATION VALIDATION
     // If a reservationId is provided, validate it and use reservation data
     let reservation = null;
-    const reservationKey = walletAddress ? `claim:reservation:${walletAddress}` : null;
+    let reservationKey = walletAddress ? `claim:reservation:${walletAddress.toLowerCase()}` : null;
     
     if (reservationId && reservationKey) {
       const reservationData = await redis.get(reservationKey);
@@ -342,17 +342,12 @@ export default async function handler(req, res) {
     // Track claim by featured project ID + rotation ID + FID AND wallet
     // This prevents FID spoofing attacks - claims tracked by both FID and wallet
     // rotationId only changes on explicit reset or new featured project (not timer changes)
+    
+    // Define all Redis keys in outer scope so they're accessible in catch block
     const claimKey = `claim:featured:${featuredProjectId}:${rotationId}:${fid}`;
     const claimCountKey = `claim:count:${featuredProjectId}:${rotationId}:${fid}`;
-    
-    // SECURITY: Also track by wallet address to prevent FID spoofing (per rotation)
     const walletClaimCountKey = `claim:wallet:${featuredProjectId}:${rotationId}:${walletAddress.toLowerCase()}`;
-    
-    // SECURITY: Per-rotation wallet claim counter (resets for each new featured project or explicit reset)
-    // This prevents exploits within a single featured rotation
     const globalWalletClaimCountKey = `claim:wallet:global:${featuredProjectId}:${rotationId}:${walletAddress.toLowerCase()}`;
-    
-    // SECURITY: Claim lock to prevent race conditions (multiple simultaneous claims)
     const claimLockKey = `claim:lock:${walletAddress.toLowerCase()}`;
     
     // SECURITY: Test bypass removed - no FID gets special treatment
@@ -991,31 +986,32 @@ export default async function handler(req, res) {
         error: error.message,
         errorName: error.name,
         errorStack: error.stack,
-        fid,
-        walletAddress: walletAddress?.slice(0, 10) + '...',
-        txHash,
-        reservationId,
+        fid: fid || 'unknown',
+        walletAddress: walletAddress ? walletAddress.slice(0, 10) + '...' : 'unknown',
+        txHash: txHash || 'none',
+        reservationId: reservationId || 'none',
       });
       // Release lock and cleanup on error
+      // All variables are now in outer scope, so they're accessible here
       try {
-        if (claimLockKey) {
+        if (claimLockKey && redis) {
           await redis.del(claimLockKey);
         }
         // CRITICAL: Clear reservation on error so user can retry
-        if (reservationKey) {
+        if (reservationKey && redis) {
           await redis.del(reservationKey);
         }
-        if (txHash) {
+        if (txHash && redis) {
           await redis.del(`claim:txhash:${txHash.toLowerCase()}`);
         }
         // Rollback any claim count increments
-        if (claimCountKey) {
+        if (claimCountKey && redis) {
           await redis.decr(claimCountKey);
         }
-        if (walletClaimCountKey) {
+        if (walletClaimCountKey && redis) {
           await redis.decr(walletClaimCountKey);
         }
-        if (globalWalletClaimCountKey) {
+        if (globalWalletClaimCountKey && redis) {
           await redis.decr(globalWalletClaimCountKey);
         }
       } catch (cleanupError) {
