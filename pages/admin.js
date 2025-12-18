@@ -1339,6 +1339,25 @@ export default function Admin() {
     }
   };
 
+  // Fetch simple claim stats
+  const fetchClaimStats = async () => {
+    setLoadingStats(true);
+    try {
+      const response = await fetch('/api/admin/simple-stats', {
+        method: 'GET',
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setClaimStats(data);
+      }
+    } catch (error) {
+      console.error('Error fetching claim stats:', error);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
   const handleSaveBonusTokenConfig = async () => {
     if (bonusTokenConfig.enabled) {
       if (!bonusTokenConfig.contractAddress || !bonusTokenConfig.contractAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
