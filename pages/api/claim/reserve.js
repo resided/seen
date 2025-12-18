@@ -153,7 +153,6 @@ export default async function handler(req, res) {
       featuredProjectId: featuredProject.id,
       claimNum: nextClaimNum,
       maxClaims,
-      isHolder,
       createdAt: Date.now(),
       status: 'pending'
     };
@@ -204,7 +203,6 @@ export default async function handler(req, res) {
       expiresIn: RESERVATION_TTL_SECONDS,
       claimNum: nextClaimNum,
       maxClaims,
-      isHolder,
       treasuryAddress: process.env.TREASURY_ADDRESS
     });
 
