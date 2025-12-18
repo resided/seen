@@ -330,13 +330,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // SIMPLIFIED: Always one claim per FID per featured project
-    console.log('Claim attempt:', {
-        fid,
-        walletAddress: walletAddress?.slice(0, 10) + '...',
-        maxClaims: 1
-      });
-    
     // SIMPLIFIED: One claim per FID per featured campaign (rotation)
     // No personal cooldown - FID can only claim once per rotation
     // New featured project = new rotation = everyone can claim again
@@ -353,8 +346,6 @@ export default async function handler(req, res) {
     
     // SECURITY: Test bypass removed - no FID gets special treatment
     const isBypassEnabled = false;
-    
-    // maxClaims already calculated above (before cooldown check)
     
     // Log claim attempt for debugging
     console.log('Claim attempt:', {
