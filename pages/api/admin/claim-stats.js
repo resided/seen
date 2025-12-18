@@ -87,19 +87,9 @@ export default async function handler(req, res) {
     const walletPattern = `claim:wallet:global:${featuredProjectId}:${rotationId}:*`;
     const walletKeys = await scanKeys(walletPattern);
 
-    // Count holder claims (claims > 1 per wallet)
-    let holderClaims = 0;
-    for (const key of walletKeys) {
-      const count = parseInt(await redis.get(key) || '0');
-      if (count > 1) {
-        holderClaims += count - 1; // Additional claims beyond first
-      }
-    }
-
     return res.status(200).json({
       totalClaims: claimKeys.length,
       uniqueWallets: walletKeys.length,
-      holderClaims,
       featuredProject: {
         id: featuredProject.id,
         name: featuredProject.name,

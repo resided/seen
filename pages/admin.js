@@ -50,7 +50,6 @@ export default function Admin() {
   const [claimSettings, setClaimSettings] = useState({
     baseClaimAmount: 80000,
     claimMultiplier: 1,
-    holderMultiplier: 2,
     cooldownHours: 24,
     minNeynarScore: 0.6,
     claimsEnabled: true,
@@ -1374,7 +1373,6 @@ export default function Admin() {
         setClaimSettings(data.settings || {
           baseClaimAmount: 80000,
           claimMultiplier: 1,
-          holderMultiplier: 2,
           cooldownHours: 24,
           minNeynarScore: 0.6,
           claimsEnabled: true,
@@ -2096,7 +2094,6 @@ export default function Admin() {
                   <div className="text-[10px] tracking-[0.2em] text-cyan-400 mb-2 font-bold">🔵 CLAIM SETTINGS</div>
                   <ul className="text-xs space-y-1 text-gray-300">
                     <li>• <span className="text-cyan-400 font-bold">Multiplier</span> - 1x, 2x, 3x... token amount</li>
-                    <li>• <span className="text-cyan-400 font-bold">Holder bonus</span> - Claims for 30M+ holders</li>
                     <li>• <span className="text-cyan-400 font-bold">Cooldown</span> - Hours between claims</li>
                     <li>• <span className="text-cyan-400 font-bold">Enable/Disable</span> - Master claims toggle</li>
                   </ul>
@@ -2144,7 +2141,6 @@ export default function Admin() {
                   <div className="text-[10px] tracking-[0.2em] text-orange-400 mb-2 font-bold">🟠 PERSONAL COOLDOWN</div>
                   <ul className="text-xs space-y-1 text-gray-300">
                     <li>• Each wallet: 24h between claims</li>
-                    <li>• 30M+ holders: configurable multiplier</li>
                     <li>• Resets: New featured OR Reset button</li>
                     <li>• Persists: Timer changes, stats updates</li>
                   </ul>
@@ -2217,7 +2213,6 @@ export default function Admin() {
                     <span className="text-gray-500">Unique Wallets:</span> <span className="font-bold">{claimStats.uniqueWallets || 0}</span>
                   </div>
                   <div>
-                    <span className="text-gray-500">30M+ Holder Claims:</span> <span className="font-bold">{claimStats.holderClaims || 0}</span>
                   </div>
                   {claimStats.featuredProject && (
                     <div className="mt-2 pt-2 border-t border-white/20">
@@ -2657,7 +2652,7 @@ export default function Admin() {
                     className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
                     placeholder="0.6"
                   />
-                  <p className="text-[10px] text-gray-600 mt-1">Min score to claim (0.0-1.0, 30M+ holders bypass)</p>
+                  <p className="text-[10px] text-gray-600 mt-1">Min score to claim (0.0-1.0)</p>
                 </div>
                 <div>
                   <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
@@ -2678,7 +2673,6 @@ export default function Admin() {
 
               <div className="p-3 bg-cyan-900/20 border border-cyan-500 text-cyan-400 text-xs mb-4">
                 <strong>CURRENT SETTINGS:</strong> {(claimSettings.baseClaimAmount * claimSettings.claimMultiplier).toLocaleString()} tokens per claim, 
-                {claimSettings.cooldownHours}h cooldown, {claimSettings.holderMultiplier}x for 30M+ holders, 
                 min Neynar score {claimSettings.minNeynarScore}
               </div>
 
