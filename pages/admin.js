@@ -957,90 +957,6 @@ export default function Admin() {
     }
   };
 
-  const handleResetClaims = async (useNuclearReset = false) => {
-    const resetType = useNuclearReset ? 'NUCLEAR RESET (ALL claims ever)' : 'normal reset (current rotation only)';
-    
-    if (!confirm(`Are you sure you want to ${resetType}?\n\nThis will allow everyone to claim again.${useNuclearReset ? '\n\n⚠️ NUCLEAR RESET clears ALL claim data, not just current rotation.' : ''}`)) {
-      return;
-    }
-
-    // Require typing "RESET" to confirm
-    const confirmation = prompt(`This action cannot be undone. Type RESET to confirm ${useNuclearReset ? 'NUCLEAR ' : ''}reset:`);
-    if (confirmation !== 'RESET') {
-      if (confirmation !== null) {
-        setMessage('Confirmation failed. You must type "RESET" exactly to confirm.');
-      }
-      return;
-    }
-
-    // Ask if they also want to reset DONUT data
-    const resetDonut = confirm('Also reset DONUT bonus data? This will:\n- Reset global DONUT count (back to 0/200)\n- Allow all users to receive DONUT again\n\nClick OK to include DONUT reset, or Cancel to reset claims only.');
-
-    try {
-      setMessage(useNuclearReset ? '🔴 NUCLEAR RESET in progress...' : 'Resetting claims...');
-      const response = await fetch('/api/admin/reset-claims', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          confirm: 'RESET',
-          resetDonut: resetDonut,
-          nuclearReset: useNuclearReset,
-          fid: userFid || null 
-        }),
-        credentials: 'include',
-      });
-
-      // Check if response is OK before trying to parse JSON
-      let data;
-      try {
-        data = await response.json();
-      } catch (jsonError) {
-        console.error('Failed to parse response as JSON:', jsonError);
-        const text = await response.text();
-        setMessage(`Error: Server returned ${response.status} ${response.statusText}. Response: ${text || 'No response body'}`);
-        return;
-      }
-
-      if (response.ok) {
-        setMessage(data.message || 'Claims reset successfully!');
-      } else {
-        console.error('Reset claims error:', {
-          status: response.status,
-          statusText: response.statusText,
-          statusCode: response.status,
-          data: data,
-          fullResponse: response
-        });
-        
-        // Build detailed error message
-        let errorMsg = 'Failed to reset claims. ';
-        if (response.status === 403) {
-          errorMsg = 'Authentication failed. ';
-          errorMsg += data.details || data.error || 'Please log in via the admin login form.';
-        } else if (response.status === 400) {
-          errorMsg = 'Bad request. ';
-          errorMsg += data.error || data.details || 'Invalid request.';
-        } else if (response.status === 500) {
-          errorMsg = 'Server error. ';
-          errorMsg += data.error || data.details || 'Internal server error occurred.';
-        } else {
-          errorMsg += `Status: ${response.status}. `;
-          errorMsg += data.error || data.details || 'Unknown error occurred.';
-        }
-        
-        setMessage(errorMsg);
-      }
-    } catch (error) {
-      console.error('Reset claims exception:', {
-        error: error,
-        message: error.message,
-        stack: error.stack,
-        name: error.name
-      });
-      setMessage(`Network error: ${error.message || 'Failed to connect to server. Check your connection and try again.'}`);
-    }
-  };
-
   // ========================================
   // NEW CAMPAIGN WIZARD
   // ========================================
@@ -1161,29 +1077,6 @@ export default function Admin() {
       }
     } catch (error) {
       console.error('Error fetching featured project:', error);
-    }
-  };
-
-  const fetchClaimStats = async () => {
-    setLoadingStats(true);
-    try {
-      const response = await fetch('/api/admin/claim-stats', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fid: userFid || null }),
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setClaimStats(data);
-      } else {
-        setMessage('Failed to fetch claim stats');
-      }
-    } catch (error) {
-      console.error('Error fetching claim stats:', error);
-      setMessage('Error fetching claim stats');
-    } finally {
-      setLoadingStats(false);
     }
   };
 
@@ -2086,22 +1979,8 @@ export default function Admin() {
                 {showCreateForm ? 'CANCEL' : '+ CREATE PROJECT'}
               </button>
               <button
-                onClick={() => handleResetClaims(false)}
-                className="px-4 py-2 bg-red-600 text-white font-bold hover:bg-red-500 transition-all"
-                title="Reset claims for current featured project"
-              >
-                RESET CLAIMS
-              </button>
-              <button
-                onClick={() => handleResetClaims(true)}
-                className="px-4 py-2 bg-red-900 text-white font-bold hover:bg-red-800 transition-all border-2 border-red-500"
-                title="NUCLEAR RESET - Clear ALL claim data (use if normal reset doesn't work)"
-              >
-                ☢️ NUCLEAR RESET
-              </button>
-              <button
                 onClick={async () => {
-                  if (!confirm('Reset SIMPLE claims for current featured project?')) return;
+                  if (!confirm('Reset SIMPLE claims for current featured project? This allows everyone to claim again.')) return;
                   try {
                     const res = await fetch('/api/admin/simple-reset', {
                       method: 'POST',
@@ -2114,17 +1993,10 @@ export default function Admin() {
                     setMessage('Error: ' + e.message);
                   }
                 }}
-                className="px-4 py-2 bg-green-600 text-white font-bold hover:bg-green-500 transition-all"
-                title="Reset SIMPLE claim system (one-click reset)"
+                className="px-4 py-2 bg-red-600 text-white font-bold hover:bg-red-500 transition-all"
+                title="Reset claims for current featured project (SIMPLE system)"
               >
-                🔄 SIMPLE RESET
-              </button>
-              <button
-                onClick={fetchClaimStats}
-                className="px-4 py-2 bg-blue-600 text-white font-bold hover:bg-blue-500 transition-all"
-                disabled={loadingStats}
-              >
-                {loadingStats ? 'LOADING...' : 'VIEW CLAIM STATS'}
+                🔄 RESET CLAIMS
               </button>
               <button
                 onClick={fetchCurrentFeatured}
