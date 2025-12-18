@@ -117,9 +117,9 @@ export default function SimpleClaim({ userFid, isInFarcaster = false, hasClicked
       )}
 
       {/* Claim Info */}
-      <div className="text-center mb-4 p-3 bg-[#1a1a00] border border-[#FFD700]">
-        <div className="text-[10px] tracking-[0.2em] text-[#FFD700]">YOU GET</div>
-        <div className="text-2xl font-black text-[#FFD700]">{tokenAmount} $SEEN</div>
+      <div className="text-center mb-4 p-3 bg-black border-2 border-white">
+        <div className="text-[10px] tracking-[0.2em] text-gray-400">YOU GET</div>
+        <div className="text-2xl font-black text-white">{tokenAmount} $SEEN</div>
         <div className="text-xs text-gray-400 mt-1">One claim per person per featured project</div>
       </div>
 
