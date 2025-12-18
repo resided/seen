@@ -945,11 +945,45 @@ export default async function handler(req, res) {
       }
     }
     } catch (error) {
-      console.error('Error processing claim:', error);
-      return res.status(500).json({ error: 'Failed to process claim' });
+      console.error('Error processing claim (inner):', {
+        error: error.message,
+        errorName: error.name,
+        errorStack: error.stack,
+        fid,
+        walletAddress: walletAddress?.slice(0, 10) + '...',
+        txHash,
+        reservationId,
+      });
+      // Release lock if it exists
+      try {
+        if (claimLockKey) {
+          await redis.del(claimLockKey);
+        }
+        if (reservationKey) {
+          await redis.del(reservationKey);
+        }
+        if (txHash) {
+          await redis.del(`claim:txhash:${txHash.toLowerCase()}`);
+        }
+      } catch (cleanupError) {
+        console.error('Error during cleanup:', cleanupError);
+      }
+      return res.status(500).json({ 
+        error: 'Failed to process claim',
+        details: error.message || 'Unknown error occurred',
+        code: 'CLAIM_PROCESSING_ERROR'
+      });
     }
   } catch (error) {
-    console.error('Error processing claim (outer):', error);
-    return res.status(500).json({ error: 'Failed to process claim' });
+    console.error('Error processing claim (outer):', {
+      error: error.message,
+      errorName: error.name,
+      errorStack: error.stack,
+    });
+    return res.status(500).json({ 
+      error: 'Failed to process claim',
+      details: error.message || 'Unknown error occurred',
+      code: 'CLAIM_PROCESSING_ERROR'
+    });
   }
 }
