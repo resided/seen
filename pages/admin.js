@@ -51,7 +51,7 @@ export default function Admin() {
     baseClaimAmount: 40000,
     claimMultiplier: 1,
     cooldownHours: 24,
-    minNeynarScore: 0.6,
+    minNeynarScore: 0.55,
     claimsEnabled: true,
   });
   const [loadingClaimSettings, setLoadingClaimSettings] = useState(false);
@@ -2718,9 +2718,9 @@ export default function Admin() {
                     min="0"
                     max="1"
                     value={claimSettings.minNeynarScore}
-                    onChange={(e) => setClaimSettings({ ...claimSettings, minNeynarScore: parseFloat(e.target.value) || 0.6 })}
+                    onChange={(e) => setClaimSettings({ ...claimSettings, minNeynarScore: parseFloat(e.target.value) || 0.55 })}
                     className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                    placeholder="0.6"
+                    placeholder="0.55"
                   />
                   <p className="text-[10px] text-gray-600 mt-1">Min score to claim (0.0-1.0)</p>
                 </div>
