@@ -557,23 +557,51 @@ export default async function handler(req, res) {
         });
 
         const receipt = await publicClient.getTransactionReceipt({ hash: txHash });
-        if (!receipt || receipt.status !== 'success') {
-          return res.status(400).json({ error: 'Transaction not successful or not found' });
+        if (!receipt) {
+          return res.status(400).json({ 
+            error: 'Transaction not found on blockchain',
+            details: 'The transaction hash could not be found. It may still be pending or invalid.',
+            code: 'TX_NOT_FOUND'
+          });
+        }
+        if (receipt.status !== 'success') {
+          return res.status(400).json({ 
+            error: 'Transaction failed on blockchain',
+            details: 'The transaction was reverted or failed. Check the transaction on Basescan.',
+            code: 'TX_FAILED',
+            txHash
+          });
         }
 
         // Basic sender/recipient validation
         const tx = await publicClient.getTransaction({ hash: txHash });
+        if (!tx) {
+          return res.status(400).json({ 
+            error: 'Could not fetch transaction details',
+            details: 'Transaction exists but details could not be retrieved.',
+            code: 'TX_FETCH_ERROR'
+          });
+        }
+        
         const senderMatches = tx.from?.toLowerCase() === walletAddress.toLowerCase();
         const recipientMatches = TREASURY_ADDRESS
           ? (tx.to?.toLowerCase() === TREASURY_ADDRESS.toLowerCase())
           : !!tx.to;
 
         if (!senderMatches) {
-          return res.status(400).json({ error: 'Transaction sender does not match claiming wallet' });
+          return res.status(400).json({ 
+            error: 'Transaction sender does not match claiming wallet',
+            details: `Expected ${walletAddress.toLowerCase()}, got ${tx.from?.toLowerCase()}`,
+            code: 'SENDER_MISMATCH'
+          });
         }
 
         if (!recipientMatches) {
-          return res.status(400).json({ error: 'Transaction not sent to treasury address' });
+          return res.status(400).json({ 
+            error: 'Transaction not sent to treasury address',
+            details: TREASURY_ADDRESS ? `Expected ${TREASURY_ADDRESS.toLowerCase()}, got ${tx.to?.toLowerCase()}` : 'Treasury address not configured',
+            code: 'RECIPIENT_MISMATCH'
+          });
         }
 
         // Optional: ensure data contains "claim" marker if present

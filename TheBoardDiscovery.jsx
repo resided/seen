@@ -2376,8 +2376,11 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
           reservationId: reservationId // Include reservation for guaranteed claim
         }),
       })
-        .then(res => res.json().then(data => ({ ok: res.ok, data })))
-        .then(({ ok, data }) => {
+        .then(async res => {
+          const data = await res.json();
+          return { ok: res.ok, status: res.status, data };
+        })
+        .then(({ ok, status, data }) => {
           if (ok && data.success) {
             // Update claim count
             if (data.claimCount !== undefined) {
@@ -2469,6 +2472,15 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
               data.maxClaims !== undefined && 
               data.claimCount >= data.maxClaims;
             
+            // Show detailed error message
+            let errorMessage = data.error || 'CLAIM FAILED - TRY AGAIN';
+            if (data.details) {
+              errorMessage = `${errorMessage}: ${data.details}`;
+            }
+            if (data.code) {
+              console.error('Claim error code:', data.code, 'Details:', data.details || data.error);
+            }
+            
             if (data.expired) {
               setExpired(true);
               setMessage('CLAIM WINDOW EXPIRED');
@@ -2476,8 +2488,12 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
               setClaimed(true);
               setCanClaimAgain(false);
               setMessage('ALREADY CLAIMED - WAIT FOR NEXT FEATURED PROJECT');
+            } else if (data.error?.includes('Transaction') || data.error?.includes('transaction')) {
+              setMessage(errorMessage);
+            } else if (data.error?.includes('Reservation') || data.error?.includes('reservation')) {
+              setMessage('RESERVATION EXPIRED - TRY AGAIN');
             } else {
-              setMessage(data.error || 'CLAIM FAILED - TRY AGAIN');
+              setMessage(errorMessage);
             }
             
             // Clear reservation on error so user can retry
@@ -2518,9 +2534,14 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
         .catch(error => {
           console.error('Error processing claim:', error);
           setClaimStatus('error');
-          setMessage('SERVER ERROR - TRY AGAIN');
+          // Show more specific error if available
+          const errorMsg = error?.message || 'SERVER ERROR - TRY AGAIN';
+          setMessage(errorMsg.includes('Reservation') ? 'RESERVATION EXPIRED - TRY AGAIN' : 'SERVER ERROR - TRY AGAIN');
           setClaiming(false);
           claimInProgress.current = false;
+          // Clear reservation on network error
+          setReservationId(null);
+          setPreflightPassed(false);
           
           // Re-fetch status on server error too
           fetch('/api/claim/status', {
