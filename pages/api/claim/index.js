@@ -954,16 +954,27 @@ export default async function handler(req, res) {
         txHash,
         reservationId,
       });
-      // Release lock if it exists
+      // Release lock and cleanup on error
       try {
         if (claimLockKey) {
           await redis.del(claimLockKey);
         }
+        // CRITICAL: Clear reservation on error so user can retry
         if (reservationKey) {
           await redis.del(reservationKey);
         }
         if (txHash) {
           await redis.del(`claim:txhash:${txHash.toLowerCase()}`);
+        }
+        // Rollback any claim count increments
+        if (claimCountKey) {
+          await redis.decr(claimCountKey);
+        }
+        if (walletClaimCountKey) {
+          await redis.decr(walletClaimCountKey);
+        }
+        if (globalWalletClaimCountKey) {
+          await redis.decr(globalWalletClaimCountKey);
         }
       } catch (cleanupError) {
         console.error('Error during cleanup:', cleanupError);

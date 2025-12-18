@@ -2540,6 +2540,8 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
             resetClaimTx();
             setReservationId(null);
             setPreflightPassed(false);
+            setClaiming(false);
+            claimInProgress.current = false;
           }, 4000);
         });
     }
