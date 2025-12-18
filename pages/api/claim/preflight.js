@@ -72,6 +72,20 @@ export default async function handler(req, res) {
       });
     }
 
+    // SECURITY: Check if FID is blocked
+    const BLOCKED_FIDS_KEY = 'admin:blocked:fids';
+    const blockedFidsJson = await redis.get(BLOCKED_FIDS_KEY);
+    if (blockedFidsJson) {
+      const blockedFids = JSON.parse(blockedFidsJson);
+      if (blockedFids.includes(fidNum)) {
+        return res.status(200).json({ 
+          canClaim: false, 
+          reason: 'This account has been blocked from claiming',
+          code: 'FID_BLOCKED'
+        });
+      }
+    }
+
     // Get claim settings
     const claimSettings = await getClaimSettings(redis);
     const { minNeynarScore, cooldownHours, holderMultiplier, claimsEnabled } = claimSettings;

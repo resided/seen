@@ -33,6 +33,9 @@ export default function Admin() {
   const [traceWalletAddress, setTraceWalletAddress] = useState('');
   const [traceResult, setTraceResult] = useState(null);
   const [tracingWallet, setTracingWallet] = useState(false);
+  const [blockedFids, setBlockedFids] = useState([]);
+  const [blockFidInput, setBlockFidInput] = useState('');
+  const [loadingBlockedFids, setLoadingBlockedFids] = useState(false);
   const [bonusTokenConfig, setBonusTokenConfig] = useState({
     enabled: false,
     contractAddress: '',
@@ -132,6 +135,8 @@ export default function Admin() {
     const interval = setInterval(fetchEthPrice, 60000);
     return () => clearInterval(interval);
   }, []);
+
+  // Fetch blocked FIDs on load (defined after fetchBlockedFids function)
 
   // Check authentication (FID or session cookie)
   useEffect(() => {
@@ -2251,6 +2256,24 @@ export default function Admin() {
                         ? traceResult.foundFIDs.join(', ')
                         : 'NONE'}
                     </span>
+                    {traceResult.foundFIDs && traceResult.foundFIDs.length > 0 && (
+                      <div className="mt-2 flex gap-2 flex-wrap">
+                        {traceResult.foundFIDs.map((fid) => (
+                          <button
+                            key={fid}
+                            onClick={() => handleBlockFid(fid)}
+                            disabled={blockedFids.includes(fid)}
+                            className={`px-3 py-1 text-xs font-bold transition-all ${
+                              blockedFids.includes(fid)
+                                ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                                : 'bg-red-600 text-white hover:bg-red-500'
+                            }`}
+                          >
+                            {blockedFids.includes(fid) ? `FID ${fid} BLOCKED` : `BLOCK FID ${fid}`}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   {traceResult.summary && (
                     <div className="text-xs text-gray-500 space-y-1">
@@ -2276,6 +2299,70 @@ export default function Admin() {
                     </div>
                   )}
                 </div>
+              )}
+            </div>
+
+            {/* Blocked FIDs Management */}
+            <div className="border border-white p-4 mt-4">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h2 className="text-lg font-black">BLOCKED FIDs</h2>
+                  <p className="text-xs text-gray-500">Block FIDs from claiming tokens</p>
+                </div>
+                <button
+                  onClick={fetchBlockedFids}
+                  disabled={loadingBlockedFids}
+                  className="px-3 py-1 text-xs border border-white hover:bg-white hover:text-black transition-all"
+                >
+                  {loadingBlockedFids ? 'LOADING...' : 'REFRESH'}
+                </button>
+              </div>
+              
+              <div className="flex gap-2 mb-3">
+                <input
+                  type="number"
+                  value={blockFidInput}
+                  onChange={(e) => setBlockFidInput(e.target.value)}
+                  placeholder="Enter FID to block..."
+                  className="flex-1 bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                />
+                <button
+                  onClick={() => {
+                    if (blockFidInput) {
+                      handleBlockFid(blockFidInput);
+                    }
+                  }}
+                  disabled={!blockFidInput || loadingBlockedFids}
+                  className="px-4 py-2 bg-red-600 text-white font-bold hover:bg-red-500 transition-all disabled:opacity-50"
+                >
+                  BLOCK
+                </button>
+              </div>
+
+              {blockedFids.length > 0 ? (
+                <div className="mt-3 space-y-2">
+                  <div className="text-xs text-gray-500 mb-2">
+                    {blockedFids.length} FID{blockedFids.length !== 1 ? 's' : ''} blocked
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {blockedFids.map((fid) => (
+                      <div
+                        key={fid}
+                        className="flex items-center gap-2 px-3 py-1 bg-red-900/30 border border-red-500/50"
+                      >
+                        <span className="text-sm font-bold">FID {fid}</span>
+                        <button
+                          onClick={() => handleUnblockFid(fid)}
+                          className="text-xs text-red-400 hover:text-red-300 font-bold"
+                        >
+                          UNBLOCK
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500 mt-3">No FIDs blocked</div>
               )}
             </div>
           </div>

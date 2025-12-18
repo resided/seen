@@ -101,6 +101,20 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Wallet address or transaction hash is required for claiming' });
     }
 
+    // SECURITY: Check if FID is blocked
+    const BLOCKED_FIDS_KEY = 'admin:blocked:fids';
+    const blockedFidsJson = await redis.get(BLOCKED_FIDS_KEY);
+    if (blockedFidsJson) {
+      const blockedFids = JSON.parse(blockedFidsJson);
+      if (blockedFids.includes(fidNum)) {
+        console.warn(`[SECURITY] Blocked FID ${fidNum} attempted to claim`);
+        return res.status(403).json({ 
+          error: 'This account has been blocked from claiming',
+          code: 'FID_BLOCKED'
+        });
+      }
+    }
+
     // Additional wallet-level rate limiting (only if walletAddress provided)
     if (walletAddress) {
       const walletRateLimit = await checkRateLimit(`claim:wallet:${walletAddress}`, 3, 3600000); // 3 per hour
