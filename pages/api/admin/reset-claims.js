@@ -242,7 +242,9 @@ export default async function handler(req, res) {
     const fidHolderCacheKeys = await scanKeys('claim:fid:holder:*');
     
     // CRITICAL: Clear wallet-level rate limit keys (prevents "too many claims from this wallet" error)
-    // Format: ratelimit:claim:wallet:${walletAddress}
+    // Format in rate-limit.js: ratelimit:${identifier}
+    // Format in claim/index.js: ratelimit:claim:wallet:${walletAddress}
+    // So the actual key is: ratelimit:claim:wallet:${walletAddress}
     const walletRateLimitKeys = await scanKeys('ratelimit:claim:wallet:*');
     
     // Also clear IP rate limit keys (optional, but helps with testing)
@@ -252,9 +254,22 @@ export default async function handler(req, res) {
     console.log('Rate limit keys found:', {
       walletRateLimits: walletRateLimitKeys.length,
       ipRateLimits: ipRateLimitKeys.length,
-      sampleWalletKeys: walletRateLimitKeys.slice(0, 3),
-      sampleIpKeys: ipRateLimitKeys.slice(0, 3),
+      sampleWalletKeys: walletRateLimitKeys.slice(0, 5),
+      sampleIpKeys: ipRateLimitKeys.slice(0, 5),
     });
+    
+    // Also try alternative pattern in case keys were created differently
+    const altWalletRateLimitKeys = await scanKeys('ratelimit:*claim*wallet*');
+    const altIpRateLimitKeys = await scanKeys('ratelimit:*claim*ip*');
+    
+    if (altWalletRateLimitKeys.length > walletRateLimitKeys.length) {
+      console.log('Found more wallet rate limit keys with alternative pattern:', altWalletRateLimitKeys.length);
+      walletRateLimitKeys.push(...altWalletRateLimitKeys.filter(k => !walletRateLimitKeys.includes(k)));
+    }
+    if (altIpRateLimitKeys.length > ipRateLimitKeys.length) {
+      console.log('Found more IP rate limit keys with alternative pattern:', altIpRateLimitKeys.length);
+      ipRateLimitKeys.push(...altIpRateLimitKeys.filter(k => !ipRateLimitKeys.includes(k)));
+    }
     
     const allPersonalKeys = [...personalCooldownKeys, ...personalClaimCountKeys, ...fidHolderCacheKeys];
     const personalCooldownsReset = await deleteKeys(allPersonalKeys);
