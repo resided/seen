@@ -149,20 +149,42 @@ export default async function handler(req, res) {
     // Helper function to delete keys (handles node-redis v5 compatibility)
     const deleteKeys = async (keysToDelete) => {
       if (!keysToDelete || keysToDelete.length === 0) return 0;
+      
+      // Filter out any invalid keys (undefined, null, empty, non-string)
+      const validKeys = keysToDelete.filter(key => key && typeof key === 'string' && key.trim().length > 0);
+      if (validKeys.length === 0) return 0;
+      
       try {
-        // node-redis v5 accepts spread arguments
-        await redis.del(...keysToDelete);
-        return keysToDelete.length;
+        // Try array format first (works with most Redis clients)
+        if (validKeys.length === 1) {
+          // Single key - direct delete
+          await redis.del(validKeys[0]);
+          return 1;
+        } else {
+          // Multiple keys - try array format first
+          try {
+            await redis.del(validKeys);
+            return validKeys.length;
+          } catch (arrayErr) {
+            // If array doesn't work, try spread operator
+            await redis.del(...validKeys);
+            return validKeys.length;
+          }
+        }
       } catch (err) {
         // Fallback: try deleting one by one
         console.warn('Batch delete failed, trying one by one:', err.message);
         let deleted = 0;
-        for (const key of keysToDelete) {
+        for (const key of validKeys) {
+          if (!key || typeof key !== 'string' || key.trim().length === 0) {
+            console.warn('Skipping invalid key:', key);
+            continue;
+          }
           try {
-            await redis.del(key);
-            deleted++;
+            const result = await redis.del(key);
+            if (result > 0) deleted++;
           } catch (singleErr) {
-            console.error(`Failed to delete key ${key}:`, singleErr.message);
+            console.error(`Failed to delete key "${key}":`, singleErr.message);
           }
         }
         return deleted;
