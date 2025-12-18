@@ -86,17 +86,21 @@ export default async function handler(req, res) {
 
     const featuredProjectId = featuredProject.id;
     const featuredAt = featuredProject.featuredAt ? new Date(featuredProject.featuredAt) : new Date();
-    
-    // Get current rotation ID - DO NOT RESET IT
-    // Resetting rotation ID would also reset stats (views/clicks)
-    // Instead, we just delete the claim-related keys directly
-    const currentRotationId = await getRotationId();
-    
-    console.log('Resetting claims for:', {
+
+    // Get CURRENT rotation ID before resetting (for logging and optional cleanup)
+    const oldRotationId = await getRotationId();
+
+    // Generate NEW rotation ID - this makes all old claim keys irrelevant
+    // This is the most reliable way to reset claims
+    const newRotationId = await resetRotationId();
+
+    console.log('Resetting claims:', {
       featuredProjectId,
       featuredAt: featuredAt.toISOString(),
-      rotationId: currentRotationId,
-      resetDonut
+      oldRotationId,
+      newRotationId,
+      resetDonut,
+      nuclearReset: useNuclearReset
     });
     
     // Helper function to scan Redis keys with v5 compatibility
@@ -138,20 +142,20 @@ export default async function handler(req, res) {
       walletKeys = await scanKeys('claim:wallet:*');
       globalWalletKeys = await scanKeys('claim:wallet:global:*');
     } else {
-      // Standard reset - only current rotation
-      const pattern = `claim:featured:${featuredProjectId}:${currentRotationId}:*`;
+      // Standard reset - clear old rotation keys (rotation ID already changed above)
+      const pattern = `claim:featured:${featuredProjectId}:${oldRotationId}:*`;
       keys = await scanKeys(pattern);
 
-      const txPattern = `claim:tx:${featuredProjectId}:${currentRotationId}:*`;
+      const txPattern = `claim:tx:${featuredProjectId}:${oldRotationId}:*`;
       txKeys = await scanKeys(txPattern);
 
-      const countPattern = `claim:count:${featuredProjectId}:${currentRotationId}:*`;
+      const countPattern = `claim:count:${featuredProjectId}:${oldRotationId}:*`;
       countKeys = await scanKeys(countPattern);
 
-      const walletPattern = `claim:wallet:${featuredProjectId}:${currentRotationId}:*`;
+      const walletPattern = `claim:wallet:${featuredProjectId}:${oldRotationId}:*`;
       walletKeys = await scanKeys(walletPattern);
 
-      const globalWalletPattern = `claim:wallet:global:${featuredProjectId}:${currentRotationId}:*`;
+      const globalWalletPattern = `claim:wallet:global:${featuredProjectId}:${oldRotationId}:*`;
       globalWalletKeys = await scanKeys(globalWalletPattern);
     }
 
