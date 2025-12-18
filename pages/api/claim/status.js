@@ -38,7 +38,14 @@ export default async function handler(req, res) {
 
     const redis = await getRedisClient();
     if (!redis) {
-      return res.status(200).json({ claimed: false, expired: false });
+      // NO REDIS = CAN CLAIM (fail open for status check)
+      return res.status(200).json({ 
+        claimed: false, 
+        expired: false, 
+        canClaimAgain: true,
+        claimCount: 0,
+        maxClaims: 1
+      });
     }
 
     // Get current featured project
@@ -47,6 +54,9 @@ export default async function handler(req, res) {
       return res.status(200).json({ 
         claimed: false, 
         expired: false,
+        canClaimAgain: false,
+        claimCount: 0,
+        maxClaims: 1,
         noFeaturedProject: true 
       });
     }
@@ -67,25 +77,36 @@ export default async function handler(req, res) {
     // SIMPLIFIED: Always one claim per FID per featured project
     const maxClaims = 1;
     
-    // SIMPLIFIED: One claim per FID per featured campaign (rotation)
-    // Check rotation-based claim count (what preflight/claim API checks)
-    // This is the authoritative source for claims against THIS featured project
-    // CRITICAL: Key format must match claim/index.js - use getRotationId() for consistency
+    // Get rotation ID - this is the key that ties claims to a specific campaign
     const rotationId = await getRotationId();
-    const globalWalletClaimCountKey = walletAddress ? `claim:wallet:global:${featuredProject.id}:${rotationId}:${walletAddress.toLowerCase()}` : null;
+    
+    // Check if user has claimed THIS rotation
+    // Key format MUST match claim/index.js exactly
     let rotationClaimCount = 0;
     
-    if (globalWalletClaimCountKey) {
-      rotationClaimCount = parseInt(await redis.get(globalWalletClaimCountKey) || '0');
+    if (walletAddress) {
+      const walletLower = walletAddress.toLowerCase();
+      const globalWalletClaimCountKey = `claim:wallet:global:${featuredProjectId}:${rotationId}:${walletLower}`;
+      
+      // Get the actual count from Redis
+      const countValue = await redis.get(globalWalletClaimCountKey);
+      rotationClaimCount = countValue ? parseInt(countValue) : 0;
+      
+      // DEBUG: Log what we're checking
+      console.log('[STATUS] Checking claim status:', {
+        fid,
+        wallet: walletLower.slice(0, 10) + '...',
+        key: globalWalletClaimCountKey,
+        count: rotationClaimCount,
+        maxClaims,
+        rotationId,
+        featuredProjectId,
+      });
     }
     
-    // SIMPLIFIED: One claim per FID per rotation
-    // Use rotation-based claim count (FID-based tracking)
-    const effectiveClaimCount = rotationClaimCount;
-    
     // User is "fully claimed" when they've used all their claims for this rotation
-    const fullyClaimed = effectiveClaimCount >= maxClaims;
-    const canClaimAgain = effectiveClaimCount < maxClaims && !expired;
+    const fullyClaimed = rotationClaimCount >= maxClaims;
+    const canClaimAgain = rotationClaimCount < maxClaims && !expired;
 
     // Check bonus token availability (generic - configured via admin panel)
     let bonusTokenConfig = null;
@@ -122,18 +143,23 @@ export default async function handler(req, res) {
     // SECURITY: Test bypass removed - no FID gets special treatment
     const isBypassEnabled = false;
 
-    return res.status(200).json({
+    // Build response - be explicit about everything
+    const response = {
+      // Core claim status
       claimed: fullyClaimed,
-      claimCount: effectiveClaimCount, // Use higher of personal or rotation count
+      claimCount: rotationClaimCount,
       maxClaims,
       canClaimAgain: canClaimAgain,
+      
+      // Project info
       expired,
       featuredProjectId,
       rotationId,
       featuredAt: featuredAt.toISOString(),
       expirationTime: expirationTime.toISOString(),
       timeRemaining: expired ? 0 : Math.max(0, expirationTime - now),
-      // Rotation-based claim count (FID-based, resets with new featured project)
+      
+      // For debugging
       rotationClaimCount,
       // Generic bonus token info (configured via admin panel)
       bonusTokenAvailable,
@@ -145,9 +171,27 @@ export default async function handler(req, res) {
       bonusTokenEnabled: bonusTokenConfig?.enabled || false,
       // SEEN amount per claim (dynamic from admin settings)
       seenAmountPerClaim: tokenAmount,
+    };
+    
+    // DEBUG: Log what we're returning
+    console.log('[STATUS] Returning:', {
+      claimed: response.claimed,
+      claimCount: response.claimCount,
+      canClaimAgain: response.canClaimAgain,
+      rotationId: response.rotationId,
     });
+    
+    return res.status(200).json(response);
   } catch (error) {
     console.error('Error checking claim status:', error);
-    return res.status(200).json({ claimed: false, expired: false });
+    // On error, allow claims (fail open for status check - actual claim will validate)
+    return res.status(200).json({ 
+      claimed: false, 
+      expired: false,
+      canClaimAgain: true,
+      claimCount: 0,
+      maxClaims: 1,
+      error: 'Status check failed'
+    });
   }
 }

@@ -2251,44 +2251,58 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
       })
         .then(res => res.json())
         .then(data => {
-          // CRITICAL: Update claimed state in both directions (true AND false)
-          // This allows admin reset to properly clear the claimed state
+          console.log('[CLAIM STATUS] Received:', data);
+          
+          // MOST IMPORTANT: If canClaimAgain is true, FORCE reset all claim state
+          // This is the authoritative signal from backend that user can claim
+          if (data.canClaimAgain === true) {
+            console.log('[CLAIM STATUS] User CAN claim - resetting all state');
+            setClaimed(false);
+            setCanClaimAgain(true);
+            setClaimStatus('idle');
+            // Clear ANY message that might be blocking
+            setMessage('');
+          }
+          
+          // If claimCount is 0, user definitely hasn't claimed this rotation
+          if (data.claimCount === 0) {
+            console.log('[CLAIM STATUS] claimCount is 0 - user can claim');
+            setClaimed(false);
+            setCanClaimAgain(true);
+            setClaimStatus('idle');
+            setMessage('');
+          }
+          
+          // Update claimed state from backend
           if (data.claimed !== undefined) {
             setClaimed(data.claimed);
-            // Clear message if claim status changed from claimed to not claimed (after reset)
-            // Use functional form to avoid stale closure issue with message variable
-            if (!data.claimed) {
-              setMessage(prev => 
-                (prev.includes('ALREADY CLAIMED') || prev.includes('WAIT FOR NEXT')) ? '' : prev
-              );
-            }
           }
+          
+          // Handle expiration
           if (data.expired) {
             setExpired(true);
-            setClaimed(false); // Reset if expired
+            setClaimed(false);
             setMessage('CLAIM WINDOW EXPIRED');
           } else {
             setExpired(false);
           }
+          
           if (data.expirationTime) {
             setExpirationTime(new Date(data.expirationTime));
           }
-          // Track holder status and claim counts
+          
+          // Update claim counts
           if (data.claimCount !== undefined) {
             setClaimCount(data.claimCount);
-            // Clear "ALREADY CLAIMED" message if count reset to 0 (after admin reset)
-            // Use functional form to avoid stale closure issue
-            if (data.claimCount === 0) {
-              setClaimed(false);
-              setMessage(prev => 
-                (prev.includes('ALREADY CLAIMED') || prev.includes('WAIT FOR NEXT')) ? '' : prev
-              );
-            }
           }
           if (data.maxClaims !== undefined) {
             setMaxClaims(data.maxClaims);
           }
-          // Track bonus token availability (generic - configured via admin)
+          if (data.canClaimAgain !== undefined) {
+            setCanClaimAgain(data.canClaimAgain);
+          }
+          
+          // Track bonus token availability
           if (data.bonusTokenAvailable !== undefined) {
             setBonusTokenAvailable(data.bonusTokenAvailable);
           }
@@ -2309,18 +2323,6 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
           }
           if (data.seenAmountPerClaim !== undefined) {
             setSeenAmountPerClaim(data.seenAmountPerClaim);
-          }
-          // Track if user can claim again (one claim per FID per rotation)
-          if (data.canClaimAgain !== undefined) {
-            setCanClaimAgain(data.canClaimAgain);
-            // If user can claim again, clear any "ALREADY CLAIMED" message and reset claimed state
-            // Use functional form to avoid stale closure issue
-            if (data.canClaimAgain) {
-              setClaimed(false);
-              setMessage(prev => 
-                (prev.includes('ALREADY CLAIMED') || prev.includes('WAIT FOR NEXT')) ? '' : prev
-              );
-            }
           }
         })
         .catch(() => {});
