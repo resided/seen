@@ -2255,10 +2255,17 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
           // This allows admin reset to properly clear the claimed state
           if (data.claimed !== undefined) {
             setClaimed(data.claimed);
+            // Clear message if claim status changed from claimed to not claimed (after reset)
+            if (!data.claimed && message.includes('ALREADY CLAIMED')) {
+              setMessage('');
+            }
           }
           if (data.expired) {
             setExpired(true);
             setClaimed(false); // Reset if expired
+            setMessage('CLAIM WINDOW EXPIRED');
+          } else {
+            setExpired(false);
           }
           if (data.expirationTime) {
             setExpirationTime(new Date(data.expirationTime));
@@ -2266,6 +2273,10 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
           // Track holder status and claim counts
           if (data.claimCount !== undefined) {
             setClaimCount(data.claimCount);
+            // Clear "ALREADY CLAIMED" message if count reset to 0
+            if (data.claimCount === 0 && message.includes('ALREADY CLAIMED')) {
+              setMessage('');
+            }
           }
           if (data.maxClaims !== undefined) {
             setMaxClaims(data.maxClaims);
@@ -2295,24 +2306,28 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
           // Track if user can claim again (one claim per FID per rotation)
           if (data.canClaimAgain !== undefined) {
             setCanClaimAgain(data.canClaimAgain);
+            // If user can claim again, clear any "ALREADY CLAIMED" message
+            if (data.canClaimAgain && message.includes('ALREADY CLAIMED')) {
+              setMessage('');
+            }
           }
         })
         .catch(() => {});
       };
       
       checkStatus();
-      // Check every 15 seconds to catch expiration and bonus token count updates (only when tab is visible)
+      // Check every 10 seconds to catch expiration, bonus token count updates, and admin resets (only when tab is visible)
       let interval;
       const handleVisibilityChange = () => {
         if (document.hidden) {
           if (interval) clearInterval(interval);
         } else {
           checkStatus(); // Check immediately when tab becomes visible
-          interval = setInterval(checkStatus, 15000); // Update every 15 seconds for live bonus token tracking
+          interval = setInterval(checkStatus, 10000); // Update every 10 seconds for live updates
         }
       };
       
-      interval = setInterval(checkStatus, 15000); // Update every 15 seconds for live bonus token tracking
+      interval = setInterval(checkStatus, 10000); // Update every 10 seconds for live updates
       document.addEventListener('visibilitychange', handleVisibilityChange);
       
       return () => {
