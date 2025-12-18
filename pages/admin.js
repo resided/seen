@@ -1186,6 +1186,128 @@ export default function Admin() {
     }
   };
 
+  const fetchBlockedFids = async () => {
+    setLoadingBlockedFids(true);
+    try {
+      const response = await fetch('/api/admin/block-fid', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'list' }),
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setBlockedFids(data.blockedFids || []);
+      }
+    } catch (error) {
+      console.error('Error fetching blocked FIDs:', error);
+    } finally {
+      setLoadingBlockedFids(false);
+    }
+  };
+
+  const handleTraceWallet = async () => {
+    if (!traceWalletAddress || !traceWalletAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
+      setMessage('Invalid wallet address format');
+      return;
+    }
+
+    setTracingWallet(true);
+    setTraceResult(null);
+    setMessage('');
+
+    try {
+      const response = await fetch('/api/admin/trace-wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ walletAddress: traceWalletAddress }),
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setTraceResult(data);
+        if (data.foundFIDs && data.foundFIDs.length > 0) {
+          setMessage(`Found ${data.foundFIDs.length} FID(s) associated with this wallet: ${data.foundFIDs.join(', ')}`);
+        } else {
+          setMessage('No FIDs found for this wallet address');
+        }
+      } else {
+        const error = await response.json();
+        setMessage(error.error || 'Failed to trace wallet');
+      }
+    } catch (error) {
+      console.error('Error tracing wallet:', error);
+      setMessage('Error tracing wallet');
+    } finally {
+      setTracingWallet(false);
+    }
+  };
+
+  const handleBlockFid = async (fidToBlock) => {
+    const fidNum = parseInt(fidToBlock);
+    if (isNaN(fidNum) || fidNum <= 0) {
+      setMessage('Invalid FID format');
+      return;
+    }
+
+    if (!confirm(`Block FID ${fidNum}? They will not be able to claim anymore.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/admin/block-fid', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'add', fid: fidNum }),
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setBlockedFids(data.blockedFids || []);
+        setMessage(data.message || `FID ${fidNum} blocked`);
+        // Clear input if it matches
+        if (blockFidInput === fidToBlock.toString()) {
+          setBlockFidInput('');
+        }
+      } else {
+        const error = await response.json();
+        setMessage(error.error || 'Failed to block FID');
+      }
+    } catch (error) {
+      console.error('Error blocking FID:', error);
+      setMessage('Error blocking FID');
+    }
+  };
+
+  const handleUnblockFid = async (fidToUnblock) => {
+    if (!confirm(`Unblock FID ${fidToUnblock}? They will be able to claim again.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/admin/block-fid', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'remove', fid: fidToUnblock }),
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setBlockedFids(data.blockedFids || []);
+        setMessage(data.message || `FID ${fidToUnblock} unblocked`);
+      } else {
+        const error = await response.json();
+        setMessage(error.error || 'Failed to unblock FID');
+      }
+    } catch (error) {
+      console.error('Error unblocking FID:', error);
+      setMessage('Error unblocking FID');
+    }
+  };
+
   // Fetch blocked FIDs on load
   useEffect(() => {
     if (isAuthenticated) {
