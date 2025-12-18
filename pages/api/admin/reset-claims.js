@@ -242,10 +242,19 @@ export default async function handler(req, res) {
     const fidHolderCacheKeys = await scanKeys('claim:fid:holder:*');
     
     // CRITICAL: Clear wallet-level rate limit keys (prevents "too many claims from this wallet" error)
+    // Format: ratelimit:claim:wallet:${walletAddress}
     const walletRateLimitKeys = await scanKeys('ratelimit:claim:wallet:*');
     
     // Also clear IP rate limit keys (optional, but helps with testing)
+    // Format: ratelimit:claim:ip:${ipAddress}
     const ipRateLimitKeys = await scanKeys('ratelimit:claim:ip:*');
+    
+    console.log('Rate limit keys found:', {
+      walletRateLimits: walletRateLimitKeys.length,
+      ipRateLimits: ipRateLimitKeys.length,
+      sampleWalletKeys: walletRateLimitKeys.slice(0, 3),
+      sampleIpKeys: ipRateLimitKeys.slice(0, 3),
+    });
     
     const allPersonalKeys = [...personalCooldownKeys, ...personalClaimCountKeys, ...fidHolderCacheKeys];
     const personalCooldownsReset = await deleteKeys(allPersonalKeys);
