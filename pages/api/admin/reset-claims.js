@@ -233,12 +233,11 @@ export default async function handler(req, res) {
       bonusCountsReset = await deleteKeys(bonusCountKeys);
     }
 
-    // CLEAR ALL PERSONAL 24-HOUR COOLDOWNS
-    // This allows everyone to claim again immediately
+    // NOTE: Personal cooldowns and FID holder cache were removed in simplified claim system
+    // These keys no longer exist, but we keep the scan for backwards compatibility
+    // (in case old keys are still in Redis from previous versions)
     const personalCooldownKeys = await scanKeys('claim:cooldown:*');
     const personalClaimCountKeys = await scanKeys('claim:count:personal:*');
-    
-    // Also clear FID holder cache (forces re-check of all connected wallets)
     const fidHolderCacheKeys = await scanKeys('claim:fid:holder:*');
     
     // CRITICAL: Clear wallet-level rate limit keys (prevents "too many claims from this wallet" error)
