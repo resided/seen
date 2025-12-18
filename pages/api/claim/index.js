@@ -837,10 +837,12 @@ export default async function handler(req, res) {
     // Release lock before returning success
     await redis.del(claimLockKey);
     
-    // Clear reservation if one was used (claim completed successfully)
-    if (reservationKey) {
-      await redis.del(reservationKey);
-    }
+      // Clear reservation if one was used (claim completed successfully)
+      // This is done here so the reservation is deleted after successful claim
+      if (reservationKey) {
+        await redis.del(reservationKey);
+        console.log('Reservation cleared after successful claim:', reservationKey);
+      }
     
     // Calculate bonus token remaining
     let bonusTokenRemaining = 0;
