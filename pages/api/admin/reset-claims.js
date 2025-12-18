@@ -213,8 +213,16 @@ export default async function handler(req, res) {
     // Also clear FID holder cache (forces re-check of all connected wallets)
     const fidHolderCacheKeys = await scanKeys('claim:fid:holder:*');
     
+    // CRITICAL: Clear wallet-level rate limit keys (prevents "too many claims from this wallet" error)
+    const walletRateLimitKeys = await scanKeys('ratelimit:claim:wallet:*');
+    
+    // Also clear IP rate limit keys (optional, but helps with testing)
+    const ipRateLimitKeys = await scanKeys('ratelimit:claim:ip:*');
+    
     const allPersonalKeys = [...personalCooldownKeys, ...personalClaimCountKeys, ...fidHolderCacheKeys];
     const personalCooldownsReset = await deleteKeys(allPersonalKeys);
+    const walletRateLimitsReset = await deleteKeys(walletRateLimitKeys);
+    const ipRateLimitsReset = await deleteKeys(ipRateLimitKeys);
 
     console.log('Reset complete:', {
       claimsFound: keys.length,
@@ -224,11 +232,13 @@ export default async function handler(req, res) {
       globalWalletsFound: globalWalletKeys.length,
       txFound: txKeys.length,
       personalCooldownsReset,
+      walletRateLimitsReset,
+      ipRateLimitsReset,
       donutUsersReset,
       donutCountReset
     });
     
-    let message = `Reset ${keys.length} claim(s), ${countKeys.length} FID count(s), ${walletKeys.length} wallet count(s), ${walletLockKeys.length} wallet lock(s), ${globalWalletKeys.length} global wallet count(s), ${txKeys.length} transaction(s), and ${personalCooldownsReset} personal cooldown(s) for featured project ${featuredProjectId}`;
+    let message = `Reset ${keys.length} claim(s), ${countKeys.length} FID count(s), ${walletKeys.length} wallet count(s), ${walletLockKeys.length} wallet lock(s), ${globalWalletKeys.length} global wallet count(s), ${txKeys.length} transaction(s), ${personalCooldownsReset} personal cooldown(s), ${walletRateLimitsReset} wallet rate limit(s), and ${ipRateLimitsReset} IP rate limit(s) for featured project ${featuredProjectId}`;
     if (resetDonut) {
       message += `. Also reset DONUT data: ${donutUsersReset} user(s) and global count. Bonus token data: ${bonusUsersReset} user(s), ${bonusCountsReset} count key(s).`;
     }
@@ -242,6 +252,9 @@ export default async function handler(req, res) {
       walletLocksReset: walletLockKeys.length,
       globalWalletCountsReset: globalWalletKeys.length,
       transactionsReset: txKeys.length,
+      personalCooldownsReset,
+      walletRateLimitsReset,
+      ipRateLimitsReset,
       donutReset: resetDonut === true,
       donutUsersReset,
       donutCountReset,
