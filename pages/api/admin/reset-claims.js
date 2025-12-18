@@ -1,6 +1,6 @@
 // API route to reset claims for current featured project (admin only)
 import { getRedisClient } from '../../../lib/redis';
-import { getFeaturedProject, getRotationId } from '../../../lib/projects';
+import { getFeaturedProject, getRotationId, resetRotationId } from '../../../lib/projects';
 import { parse } from 'cookie';
 
 const ADMIN_FID = 342433; // Admin FID

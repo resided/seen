@@ -2102,6 +2102,26 @@ export default function Admin() {
                 ☢️ NUCLEAR RESET
               </button>
               <button
+                onClick={async () => {
+                  if (!confirm('Reset SIMPLE claims for current featured project?')) return;
+                  try {
+                    const res = await fetch('/api/admin/simple-reset', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      credentials: 'include',
+                    });
+                    const data = await res.json();
+                    setMessage(data.message || (data.success ? 'Simple claims reset!' : 'Failed'));
+                  } catch (e) {
+                    setMessage('Error: ' + e.message);
+                  }
+                }}
+                className="px-4 py-2 bg-green-600 text-white font-bold hover:bg-green-500 transition-all"
+                title="Reset SIMPLE claim system (one-click reset)"
+              >
+                🔄 SIMPLE RESET
+              </button>
+              <button
                 onClick={fetchClaimStats}
                 className="px-4 py-2 bg-blue-600 text-white font-bold hover:bg-blue-500 transition-all"
                 disabled={loadingStats}

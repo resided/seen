@@ -109,7 +109,7 @@ export default async function handler(req, res) {
             finalBuilderUsername = user.username || null;
             // Only auto-populate builder name if it's empty
             if (!finalBuilder || finalBuilder.trim() === '') {
-              finalBuilder = user.display_name || user.username || '';
+            finalBuilder = user.display_name || user.username || '';
             }
             finalBuilderFid = user.fid || finalBuilderFid;
           }

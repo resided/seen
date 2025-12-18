@@ -59,12 +59,12 @@ export default async function handler(req, res) {
     // For non-featured projects, update persistent stats directly
     if (project?.status === 'featured' && project?.rotationId) {
       const windowKey = project.rotationId;
-      const key = type === 'click' ? CLICKS_KEY : VIEWS_KEY;
-      const projectKey = `${key}:${projectIdNum}:${windowKey}`;
+    const key = type === 'click' ? CLICKS_KEY : VIEWS_KEY;
+    const projectKey = `${key}:${projectIdNum}:${windowKey}`;
 
-      // Increment counter
-      await redis.incr(projectKey);
-      
+    // Increment counter
+    await redis.incr(projectKey);
+    
       // Set expiration: 48 hours for featured (to cover full 24h window + buffer)
       await redis.expire(projectKey, 48 * 60 * 60);
     } else {

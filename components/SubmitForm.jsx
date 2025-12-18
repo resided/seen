@@ -254,7 +254,7 @@ const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDispl
         }
         
         // Transaction was signed and submitted - now we have a real hash
-        setPaymentTxHash(hash);
+          setPaymentTxHash(hash);
         setMessage('TRANSACTION SUBMITTED! WAITING FOR CONFIRMATION...');
         
         // Wait for transaction confirmation

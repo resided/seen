@@ -92,7 +92,7 @@ export default async function handler(req, res) {
     for (const pattern of patterns) {
       const keys = await scanKeys(pattern);
       allKeys.push(...keys);
-    }
+        }
 
     // For old claim keys, check if they have old rotationId or timestamp
     // Keys like claim:wallet:global:0x...:rotation-1234567890
@@ -120,8 +120,8 @@ export default async function handler(req, res) {
           } else if (timestamp > 1600000000 && timestamp < sevenDaysAgo / 1000) {
             keysToDelete.push(key);
             break;
-          }
-        }
+      }
+    }
       }
     }
     
