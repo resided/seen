@@ -2256,10 +2256,11 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
           if (data.claimed !== undefined) {
             setClaimed(data.claimed);
             // Clear message if claim status changed from claimed to not claimed (after reset)
+            // Use functional form to avoid stale closure issue with message variable
             if (!data.claimed) {
-              if (message.includes('ALREADY CLAIMED') || message.includes('WAIT FOR NEXT')) {
-                setMessage('');
-              }
+              setMessage(prev => 
+                (prev.includes('ALREADY CLAIMED') || prev.includes('WAIT FOR NEXT')) ? '' : prev
+              );
             }
           }
           if (data.expired) {
@@ -2276,11 +2277,12 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
           if (data.claimCount !== undefined) {
             setClaimCount(data.claimCount);
             // Clear "ALREADY CLAIMED" message if count reset to 0 (after admin reset)
+            // Use functional form to avoid stale closure issue
             if (data.claimCount === 0) {
               setClaimed(false);
-              if (message.includes('ALREADY CLAIMED') || message.includes('WAIT FOR NEXT')) {
-                setMessage('');
-              }
+              setMessage(prev => 
+                (prev.includes('ALREADY CLAIMED') || prev.includes('WAIT FOR NEXT')) ? '' : prev
+              );
             }
           }
           if (data.maxClaims !== undefined) {
@@ -2312,11 +2314,12 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
           if (data.canClaimAgain !== undefined) {
             setCanClaimAgain(data.canClaimAgain);
             // If user can claim again, clear any "ALREADY CLAIMED" message and reset claimed state
+            // Use functional form to avoid stale closure issue
             if (data.canClaimAgain) {
               setClaimed(false);
-              if (message.includes('ALREADY CLAIMED') || message.includes('WAIT FOR NEXT')) {
-                setMessage('');
-              }
+              setMessage(prev => 
+                (prev.includes('ALREADY CLAIMED') || prev.includes('WAIT FOR NEXT')) ? '' : prev
+              );
             }
           }
         })
