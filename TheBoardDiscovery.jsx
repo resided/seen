@@ -2256,8 +2256,10 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
           if (data.claimed !== undefined) {
             setClaimed(data.claimed);
             // Clear message if claim status changed from claimed to not claimed (after reset)
-            if (!data.claimed && message.includes('ALREADY CLAIMED')) {
-              setMessage('');
+            if (!data.claimed) {
+              if (message.includes('ALREADY CLAIMED') || message.includes('WAIT FOR NEXT')) {
+                setMessage('');
+              }
             }
           }
           if (data.expired) {
@@ -2273,9 +2275,12 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
           // Track holder status and claim counts
           if (data.claimCount !== undefined) {
             setClaimCount(data.claimCount);
-            // Clear "ALREADY CLAIMED" message if count reset to 0
-            if (data.claimCount === 0 && message.includes('ALREADY CLAIMED')) {
-              setMessage('');
+            // Clear "ALREADY CLAIMED" message if count reset to 0 (after admin reset)
+            if (data.claimCount === 0) {
+              setClaimed(false);
+              if (message.includes('ALREADY CLAIMED') || message.includes('WAIT FOR NEXT')) {
+                setMessage('');
+              }
             }
           }
           if (data.maxClaims !== undefined) {
@@ -2306,9 +2311,12 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
           // Track if user can claim again (one claim per FID per rotation)
           if (data.canClaimAgain !== undefined) {
             setCanClaimAgain(data.canClaimAgain);
-            // If user can claim again, clear any "ALREADY CLAIMED" message
-            if (data.canClaimAgain && message.includes('ALREADY CLAIMED')) {
-              setMessage('');
+            // If user can claim again, clear any "ALREADY CLAIMED" message and reset claimed state
+            if (data.canClaimAgain) {
+              setClaimed(false);
+              if (message.includes('ALREADY CLAIMED') || message.includes('WAIT FOR NEXT')) {
+                setMessage('');
+              }
             }
           }
         })
