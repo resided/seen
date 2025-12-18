@@ -1319,7 +1319,7 @@ const ChatLeaderboard = ({ leaderboard = [] }) => {
 // SUBMIT CTA
 // ============================================
 const SubmitSection = ({ onSubmit, isInFarcaster = false, isMiniappInstalled = false }) => (
-  <div className="border border-white p-4 text-center">
+  <div className="border-2 border-yellow-500 p-4 text-center">
     <h3 className="text-lg font-black tracking-tight mb-1">GET A PAID FEATURE</h3>
     <p className="text-[10px] text-gray-500 tracking-wider mb-3">
       SUBMIT YOUR PROJECT FOR TOMORROW'S SPOTLIGHT
