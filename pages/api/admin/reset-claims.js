@@ -245,41 +245,24 @@ export default async function handler(req, res) {
     // Format in rate-limit.js: ratelimit:${identifier}
     // Format in claim/index.js: checkRateLimit('claim:wallet:${walletAddress}', ...)
     // So the actual key is: ratelimit:claim:wallet:${walletAddress}
-    const walletRateLimitPattern = 'ratelimit:claim:wallet:*';
-    const walletRateLimitKeys = await scanKeys(walletRateLimitPattern);
     
-    // Also clear IP rate limit keys (optional, but helps with testing)
-    // Format: ratelimit:claim:ip:${ipAddress}
-    const ipRateLimitPattern = 'ratelimit:claim:ip:*';
-    const ipRateLimitKeys = await scanKeys(ipRateLimitPattern);
+    // Scan ALL rate limit keys first, then filter (more reliable than pattern matching)
+    const allRateLimitKeys = await scanKeys('ratelimit:*');
+    const walletRateLimitKeys = allRateLimitKeys.filter(key => 
+      key.includes('claim') && key.includes('wallet')
+    );
+    const ipRateLimitKeys = allRateLimitKeys.filter(key => 
+      key.includes('claim') && key.includes('ip')
+    );
     
     console.log('Rate limit keys found:', {
-      walletPattern: walletRateLimitPattern,
-      ipPattern: ipRateLimitPattern,
+      totalRateLimitKeys: allRateLimitKeys.length,
       walletRateLimits: walletRateLimitKeys.length,
       ipRateLimits: ipRateLimitKeys.length,
       sampleWalletKeys: walletRateLimitKeys.slice(0, 5),
       sampleIpKeys: ipRateLimitKeys.slice(0, 5),
+      allClaimRelated: allRateLimitKeys.filter(k => k.includes('claim')).length,
     });
-    
-    // Also try broader pattern to catch any rate limit keys related to claims
-    const allRateLimitKeys = await scanKeys('ratelimit:*');
-    const claimRelatedRateLimitKeys = allRateLimitKeys.filter(key => 
-      key.includes('claim') && (key.includes('wallet') || key.includes('ip'))
-    );
-    
-    if (claimRelatedRateLimitKeys.length > (walletRateLimitKeys.length + ipRateLimitKeys.length)) {
-      console.log('Found additional claim-related rate limit keys:', claimRelatedRateLimitKeys.length);
-      // Add any keys we missed
-      claimRelatedRateLimitKeys.forEach(key => {
-        if (key.includes('wallet') && !walletRateLimitKeys.includes(key)) {
-          walletRateLimitKeys.push(key);
-        }
-        if (key.includes('ip') && !ipRateLimitKeys.includes(key)) {
-          ipRateLimitKeys.push(key);
-        }
-      });
-    }
     
     const allPersonalKeys = [...personalCooldownKeys, ...personalClaimCountKeys, ...fidHolderCacheKeys];
     const personalCooldownsReset = await deleteKeys(allPersonalKeys);
