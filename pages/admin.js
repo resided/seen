@@ -2326,25 +2326,80 @@ export default function Admin() {
 
             {/* Claim Stats */}
             <div className="border border-white p-4">
-              <h2 className="text-lg font-black mb-3">CLAIM STATISTICS</h2>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-black">CLAIM SYSTEM STATUS</h2>
+                <button
+                  onClick={fetchClaimStats}
+                  disabled={loadingStats}
+                  className="px-2 py-1 text-xs border border-white hover:bg-white hover:text-black transition-all disabled:opacity-50"
+                >
+                  {loadingStats ? 'LOADING...' : 'REFRESH'}
+                </button>
+              </div>
               {claimStats ? (
-                <div className="space-y-2 text-sm">
-                  <div>
-                    <span className="text-gray-500">Total Claims:</span> <span className="font-bold">{claimStats.totalClaims || 0}</span>
+                <div className="space-y-3 text-sm">
+                  {/* System Status */}
+                  <div className="p-2 bg-cyan-900/20 border border-cyan-500/50">
+                    <div className="text-xs text-cyan-400 mb-2 font-bold">SYSTEM STATUS</div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`w-2 h-2 rounded-full ${claimSettings.claimsEnabled ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
+                      <span className="text-xs">
+                        Claims: <span className={claimSettings.claimsEnabled ? 'text-green-400 font-bold' : 'text-red-400 font-bold'}>
+                          {claimSettings.claimsEnabled ? 'ENABLED ✅' : 'DISABLED ❌'}
+                        </span>
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-400 mt-1">
+                      Amount: <span className="text-cyan-400 font-bold">{((claimSettings.baseClaimAmount || 40000) * (claimSettings.claimMultiplier || 1)).toLocaleString()}</span> tokens per claim
+                    </div>
+                    <div className="text-xs text-gray-400 mt-1">
+                      Max Claims: <span className="text-cyan-400 font-bold">1</span> per FID per featured project
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-gray-500">Unique Wallets:</span> <span className="font-bold">{claimStats.uniqueWallets || 0}</span>
+                  
+                  {/* Claim Statistics */}
+                  <div className="space-y-1">
+                    <div>
+                      <span className="text-gray-500">Total Claims:</span> <span className="font-bold text-white">{claimStats.totalClaims || 0}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Unique Wallets:</span> <span className="font-bold text-white">{claimStats.uniqueWallets || 0}</span>
+                    </div>
                   </div>
-                  <div>
-                  </div>
+                  
+                  {/* Status Indicators */}
+                  {claimStats.totalClaims > 0 && (
+                    <div className="p-2 bg-green-900/20 border border-green-500/50">
+                      <div className="text-xs text-green-400 font-bold">
+                        ✅ SYSTEM WORKING - {claimStats.totalClaims} claim(s) processed successfully
+                      </div>
+                    </div>
+                  )}
+                  {claimStats.totalClaims === 0 && claimSettings.claimsEnabled && (
+                    <div className="p-2 bg-yellow-900/20 border border-yellow-500/50">
+                      <div className="text-xs text-yellow-400">
+                        ⚠️ No claims yet - System is ready, waiting for users to claim
+                      </div>
+                    </div>
+                  )}
+                  {!claimSettings.claimsEnabled && (
+                    <div className="p-2 bg-red-900/20 border border-red-500/50">
+                      <div className="text-xs text-red-400">
+                        ❌ Claims are disabled - Enable in Claim Settings above
+                      </div>
+                    </div>
+                  )}
+                  
                   {claimStats.featuredProject && (
                     <div className="mt-2 pt-2 border-t border-white/20">
                       <div className="text-xs text-gray-500">Featured: {claimStats.featuredProject.name} (ID: {claimStats.featuredProject.id})</div>
                     </div>
                   )}
                 </div>
+              ) : loadingStats ? (
+                <div className="text-sm text-gray-500">Loading...</div>
               ) : (
-                <div className="text-sm text-gray-500">Click "VIEW CLAIM STATS" to load</div>
+                <div className="text-sm text-gray-500">Click REFRESH to check status</div>
               )}
             </div>
 
