@@ -141,8 +141,9 @@ export default async function handler(req, res) {
 
     // RESERVATION VALIDATION
     // If a reservationId is provided, validate it and use reservation data
+    // Define reservationKey in outer scope so it's accessible in catch block
     let reservation = null;
-    let reservationKey = walletAddress ? `claim:reservation:${walletAddress.toLowerCase()}` : null;
+    let reservationKey = reservationId ? `claim:reserve:${reservationId}` : null;
     
     if (reservationId && reservationKey) {
       const reservationData = await redis.get(reservationKey);
