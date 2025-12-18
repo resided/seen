@@ -3,6 +3,7 @@ import { useAccount, useConnect, useSendTransaction, useWaitForTransactionReceip
 import { parseEther, parseUnits, erc20Abi, encodeFunctionData, toHex, stringToHex, formatUnits } from 'viem';
 import { sdk } from '@farcaster/miniapp-sdk';
 import SubmitForm from './components/SubmitForm';
+import SimpleClaim from './components/SimpleClaim';
 
 // ============================================
 // SEEN. - MINI APP DISCOVERY
@@ -3663,14 +3664,11 @@ export default function Seen() {
                 isMiniappInstalled={isMiniappInstalled}
               />
               
-              {/* Claim section - right after submit */}
-              <DailyClaim 
-                isInFarcaster={isInFarcaster} 
+              {/* Claim section - SIMPLE CLAIM SYSTEM */}
+              <SimpleClaim 
                 userFid={userInfo?.fid || null}
-                isConnected={isConnected}
-                featuredApp={featuredApp}
+                isInFarcaster={isInFarcaster}
                 hasClickedMiniapp={hasClickedMiniapp}
-                neynarUserScore={userInfo?.neynarUserScore || null}
               />
             </div>
             
