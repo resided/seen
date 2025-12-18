@@ -1077,7 +1077,9 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
 // ============================================
 // LIVE CHAT
 // ============================================
-const LiveChat = ({ messages, onSend, isInFarcaster = false }) => {
+const MIN_CHAT_NEYNAR_SCORE = 0.55; // Minimum Neynar score to use chat
+
+const LiveChat = ({ messages, onSend, isInFarcaster = false, neynarUserScore = null }) => {
   const { isConnected, address } = useAccount();
   const handleUsernameClick = async (msg) => {
     if (!msg.fid || msg.fid === 0) return; // Can't open profile without FID
@@ -1131,6 +1133,12 @@ const LiveChat = ({ messages, onSend, isInFarcaster = false }) => {
     
     // Clear any previous errors
     setError('');
+    
+    // Check Neynar score - block low score users from chat
+    if (neynarUserScore !== null && neynarUserScore < MIN_CHAT_NEYNAR_SCORE) {
+      setError(`NEYNAR SCORE TOO LOW (${neynarUserScore.toFixed(2)}). MIN: ${MIN_CHAT_NEYNAR_SCORE}`);
+      return;
+    }
     
     // Basic client-side validation
     const validationError = validateInput(trimmed);
@@ -3712,7 +3720,7 @@ export default function Seen() {
                     <div className="text-sm text-gray-500">LOADING CHAT...</div>
                   </div>
                 ) : (
-                  <LiveChat messages={messages} onSend={handleSendMessage} isInFarcaster={isInFarcaster} />
+                  <LiveChat messages={messages} onSend={handleSendMessage} isInFarcaster={isInFarcaster} neynarUserScore={userInfo?.neynarUserScore} />
                 )}
                 {/* Leaderboard below chat - only shows if there are messages */}
                 <ChatLeaderboard leaderboard={chatLeaderboard} />

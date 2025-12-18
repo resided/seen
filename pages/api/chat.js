@@ -1,6 +1,9 @@
 // API route for chat messages
 import { getChatMessages, getChatMessagesSince, addChatMessage } from '../../lib/chat'
 import { validateMessage } from '../../lib/content-filter'
+import { fetchUserByFid } from '../../lib/neynar'
+
+const MIN_CHAT_NEYNAR_SCORE = 0.55; // Minimum Neynar score to use chat
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {
@@ -51,6 +54,24 @@ export default async function handler(req, res) {
         const fidNum = parseInt(fid);
         if (isNaN(fidNum) || fidNum <= 0) {
           return res.status(400).json({ error: 'Invalid FID' });
+        }
+        
+        // Check Neynar score - block low score users from chat
+        const apiKey = process.env.NEYNAR_API_KEY;
+        if (apiKey) {
+          try {
+            const userData = await fetchUserByFid(fidNum, apiKey);
+            const userScore = userData?.experimental?.neynar_user_score;
+            
+            if (userScore !== null && userScore !== undefined && userScore < MIN_CHAT_NEYNAR_SCORE) {
+              return res.status(403).json({ 
+                error: `Neynar score too low (${userScore.toFixed(2)}). Minimum: ${MIN_CHAT_NEYNAR_SCORE}` 
+              });
+            }
+          } catch (neynarError) {
+            console.error('Neynar check failed for chat:', neynarError);
+            // Don't block if Neynar check fails - allow message through
+          }
         }
       }
       
