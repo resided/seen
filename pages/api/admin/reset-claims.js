@@ -243,32 +243,42 @@ export default async function handler(req, res) {
     
     // CRITICAL: Clear wallet-level rate limit keys (prevents "too many claims from this wallet" error)
     // Format in rate-limit.js: ratelimit:${identifier}
-    // Format in claim/index.js: ratelimit:claim:wallet:${walletAddress}
+    // Format in claim/index.js: checkRateLimit('claim:wallet:${walletAddress}', ...)
     // So the actual key is: ratelimit:claim:wallet:${walletAddress}
-    const walletRateLimitKeys = await scanKeys('ratelimit:claim:wallet:*');
+    const walletRateLimitPattern = 'ratelimit:claim:wallet:*';
+    const walletRateLimitKeys = await scanKeys(walletRateLimitPattern);
     
     // Also clear IP rate limit keys (optional, but helps with testing)
     // Format: ratelimit:claim:ip:${ipAddress}
-    const ipRateLimitKeys = await scanKeys('ratelimit:claim:ip:*');
+    const ipRateLimitPattern = 'ratelimit:claim:ip:*';
+    const ipRateLimitKeys = await scanKeys(ipRateLimitPattern);
     
     console.log('Rate limit keys found:', {
+      walletPattern: walletRateLimitPattern,
+      ipPattern: ipRateLimitPattern,
       walletRateLimits: walletRateLimitKeys.length,
       ipRateLimits: ipRateLimitKeys.length,
       sampleWalletKeys: walletRateLimitKeys.slice(0, 5),
       sampleIpKeys: ipRateLimitKeys.slice(0, 5),
     });
     
-    // Also try alternative pattern in case keys were created differently
-    const altWalletRateLimitKeys = await scanKeys('ratelimit:*claim*wallet*');
-    const altIpRateLimitKeys = await scanKeys('ratelimit:*claim*ip*');
+    // Also try broader pattern to catch any rate limit keys related to claims
+    const allRateLimitKeys = await scanKeys('ratelimit:*');
+    const claimRelatedRateLimitKeys = allRateLimitKeys.filter(key => 
+      key.includes('claim') && (key.includes('wallet') || key.includes('ip'))
+    );
     
-    if (altWalletRateLimitKeys.length > walletRateLimitKeys.length) {
-      console.log('Found more wallet rate limit keys with alternative pattern:', altWalletRateLimitKeys.length);
-      walletRateLimitKeys.push(...altWalletRateLimitKeys.filter(k => !walletRateLimitKeys.includes(k)));
-    }
-    if (altIpRateLimitKeys.length > ipRateLimitKeys.length) {
-      console.log('Found more IP rate limit keys with alternative pattern:', altIpRateLimitKeys.length);
-      ipRateLimitKeys.push(...altIpRateLimitKeys.filter(k => !ipRateLimitKeys.includes(k)));
+    if (claimRelatedRateLimitKeys.length > (walletRateLimitKeys.length + ipRateLimitKeys.length)) {
+      console.log('Found additional claim-related rate limit keys:', claimRelatedRateLimitKeys.length);
+      // Add any keys we missed
+      claimRelatedRateLimitKeys.forEach(key => {
+        if (key.includes('wallet') && !walletRateLimitKeys.includes(key)) {
+          walletRateLimitKeys.push(key);
+        }
+        if (key.includes('ip') && !ipRateLimitKeys.includes(key)) {
+          ipRateLimitKeys.push(key);
+        }
+      });
     }
     
     const allPersonalKeys = [...personalCooldownKeys, ...personalClaimCountKeys, ...fidHolderCacheKeys];
