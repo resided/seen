@@ -143,7 +143,8 @@ export default async function handler(req, res) {
     const walletLockKeys = await scanKeys(walletLockPattern);
 
     // CRITICAL: Also find global wallet claim count keys (prevents cross-rotation exploits)
-    const globalWalletPattern = `claim:wallet:global:*`;
+    // Format: claim:wallet:global:${projectId}:${rotationId}:${wallet}
+    const globalWalletPattern = `claim:wallet:global:${featuredProjectId}:${currentRotationId}:*`;
     const globalWalletKeys = await scanKeys(globalWalletPattern);
 
     // Helper function to delete keys (handles node-redis v5 compatibility)
