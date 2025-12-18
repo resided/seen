@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAccount, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi';
+import { parseEther, stringToHex } from 'viem';
 
 export default function SimpleClaim({ userFid, isInFarcaster = false, hasClickedMiniapp = false }) {
   const { address, isConnected } = useAccount();
@@ -17,22 +18,34 @@ export default function SimpleClaim({ userFid, isInFarcaster = false, hasClicked
   const [message, setMessage] = useState('');
   const [tokenAmount, setTokenAmount] = useState('40000');
   const [featuredName, setFeaturedName] = useState('');
-  const [pendingTx, setPendingTx] = useState(null);
+  const [treasuryAddress, setTreasuryAddress] = useState(null);
+
+  // Fetch treasury address
+  useEffect(() => {
+    fetch('/api/payment/treasury-address')
+      .then(res => res.json())
+      .then(data => {
+        if (data.treasuryAddress) {
+          setTreasuryAddress(data.treasuryAddress);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Check claim status
   const checkStatus = async () => {
     if (!userFid) return;
-    
+
     try {
       const res = await fetch(`/api/claim/simple-claim?fid=${userFid}&wallet=${address || ''}`);
       const data = await res.json();
-      
+
       setCanClaim(data.canClaim);
       setClaimed(data.claimed);
       setTokenAmount(data.tokenAmount || '40000');
       setFeaturedName(data.featuredProjectName || '');
       setLoading(false);
-      
+
       // Clear message if user can now claim
       if (data.canClaim) {
         setMessage('');
@@ -52,66 +65,70 @@ export default function SimpleClaim({ userFid, isInFarcaster = false, hasClicked
 
   // Handle claim
   const handleClaim = async () => {
-    if (!userFid || !address || claiming || claimed) return;
+    if (!userFid || !address || !treasuryAddress || claiming || claimed) return;
 
     setClaiming(true);
-    setMessage('PREPARING...');
+    setMessage('SIGN TRANSACTION...');
 
     try {
-      const res = await fetch('/api/claim/simple-claim', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fid: userFid, walletAddress: address }),
+      // Send 0 ETH transaction to treasury with "claim" data
+      // This counts for miniapp rankings!
+      sendTransaction({
+        to: treasuryAddress,
+        value: parseEther('0'),
+        data: stringToHex('claim'),
       });
-
-      const data = await res.json();
-
-      if (data.success && data.needsTransaction) {
-        // API returned transaction data for user to sign
-        setPendingTx(data);
-        setMessage('SIGN TRANSACTION...');
-
-        // Send transaction via wagmi
-        sendTransaction({
-          to: data.transaction.to,
-          data: data.transaction.data,
-          value: BigInt(data.transaction.value || 0),
-        });
-      } else if (data.success) {
-        // Legacy: tokens already sent
-        setClaimed(true);
-        setCanClaim(false);
-        setMessage(`SUCCESS! ${tokenAmount} SEEN sent!`);
-        setClaiming(false);
-      } else {
-        setMessage(data.error || 'CLAIM FAILED');
-        await checkStatus();
-        setClaiming(false);
-      }
     } catch (error) {
       setMessage('ERROR: ' + error.message);
-      await checkStatus();
       setClaiming(false);
     }
   };
 
   // Handle transaction confirmation
   useEffect(() => {
-    if (isTxConfirmed && pendingTx) {
-      setClaimed(true);
-      setCanClaim(false);
-      setMessage(`SUCCESS! ${tokenAmount} SEEN claimed!`);
-      setClaiming(false);
-      setPendingTx(null);
-    }
-  }, [isTxConfirmed, pendingTx, tokenAmount]);
+    const processClaim = async () => {
+      if (!isTxConfirmed || !txHash || !claiming) return;
+
+      setMessage('SENDING TOKENS...');
+
+      try {
+        // Call backend to send actual tokens from treasury
+        const res = await fetch('/api/claim/simple-claim', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fid: userFid,
+            walletAddress: address,
+            txHash: txHash, // Proof of user transaction
+          }),
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          setClaimed(true);
+          setCanClaim(false);
+          setMessage(`SUCCESS! ${tokenAmount} SEEN claimed!`);
+        } else {
+          setMessage(data.error || 'TOKEN TRANSFER FAILED');
+          await checkStatus();
+        }
+      } catch (error) {
+        setMessage('ERROR: ' + error.message);
+        await checkStatus();
+      } finally {
+        setClaiming(false);
+      }
+    };
+
+    processClaim();
+  }, [isTxConfirmed, txHash, userFid, address, tokenAmount, claiming]);
 
   // Handle transaction error
   useEffect(() => {
     if (txError && claiming) {
       setMessage(txError.message?.includes('rejected') ? 'TRANSACTION CANCELLED' : 'TRANSACTION FAILED');
       setClaiming(false);
-      setPendingTx(null);
     }
   }, [txError, claiming]);
 

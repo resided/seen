@@ -1,11 +1,14 @@
 // SIMPLE CLAIM SYSTEM - One claim per FID per featured project
 // No complex rotation logic, no rate limits, just simple FID tracking
 // WITH Neynar validation for security
+// REQUIRES user to sign a transaction first (for miniapp rankings)
 
 import { getRedisClient } from '../../../lib/redis';
 import { getFeaturedProject } from '../../../lib/projects';
 import { fetchUserByFid } from '../../../lib/neynar';
-import { parseUnits, getAddress, encodeFunctionData } from 'viem';
+import { parseUnits, getAddress, createWalletClient, createPublicClient, http } from 'viem';
+import { base } from 'viem/chains';
+import { privateKeyToAccount } from 'viem/accounts';
 import { erc20Abi } from 'viem';
 
 // Token configuration
@@ -57,14 +60,48 @@ export default async function handler(req, res) {
 
   // ========== POST = CLAIM ==========
   if (req.method === 'POST') {
-    const { fid, walletAddress } = req.body;
+    const { fid, walletAddress, txHash } = req.body;
 
-    // Validate
+    // Validate inputs
     if (!fid) {
       return res.status(400).json({ error: 'FID required', success: false });
     }
     if (!walletAddress || !walletAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
       return res.status(400).json({ error: 'Valid wallet required', success: false });
+    }
+    if (!txHash || !txHash.match(/^0x[a-fA-F0-9]{64}$/)) {
+      return res.status(400).json({ error: 'Transaction hash required - sign transaction first', success: false });
+    }
+
+    // VERIFY TRANSACTION IS REAL
+    try {
+      const publicClient = createPublicClient({
+        chain: base,
+        transport: http(),
+      });
+
+      const tx = await publicClient.getTransaction({ hash: txHash });
+      if (!tx) {
+        return res.status(400).json({ error: 'Transaction not found on chain', success: false });
+      }
+
+      // Verify sender matches wallet
+      if (tx.from.toLowerCase() !== walletAddress.toLowerCase()) {
+        return res.status(400).json({ 
+          error: 'Transaction sender does not match wallet', 
+          success: false,
+          txFrom: tx.from,
+          claimed: walletAddress,
+        });
+      }
+
+      console.log('[SIMPLE CLAIM] Transaction verified:', { txHash, from: tx.from });
+    } catch (error) {
+      console.error('[SIMPLE CLAIM] Transaction verification failed:', error.message);
+      return res.status(400).json({ 
+        error: 'Could not verify transaction. Wait for confirmation and try again.', 
+        success: false 
+      });
     }
 
     const fidNum = parseInt(fid);
@@ -150,7 +187,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // Return transaction data for user to sign (for miniapp rankings)
+    // Send tokens from treasury (user signed 0 ETH tx for rankings)
     if (!TOKEN_CONTRACT) {
       return res.status(500).json({
         success: false,
@@ -158,56 +195,60 @@ export default async function handler(req, res) {
       });
     }
 
-    const TREASURY_ADDRESS = process.env.TREASURY_ADDRESS;
-    if (!TREASURY_ADDRESS) {
+    const TREASURY_PRIVATE_KEY = process.env.TREASURY_PRIVATE_KEY;
+    if (!TREASURY_PRIVATE_KEY) {
       return res.status(500).json({
         success: false,
-        error: 'Treasury address not configured',
+        error: 'Treasury private key not configured',
       });
     }
 
     try {
+      const account = privateKeyToAccount(TREASURY_PRIVATE_KEY);
+      const walletClient = createWalletClient({
+        account,
+        chain: base,
+        transport: http(),
+      });
+
       const amountWei = parseUnits(TOKEN_AMOUNT, TOKEN_DECIMALS);
       const checksummedContract = getAddress(TOKEN_CONTRACT);
       const checksummedRecipient = getAddress(walletAddress);
-      const checksummedTreasury = getAddress(TREASURY_ADDRESS);
 
-      console.log('[SIMPLE CLAIM] Preparing transaction data:', {
+      console.log('[SIMPLE CLAIM] Sending tokens:', {
         fid: fidNum,
         to: checksummedRecipient,
         amount: TOKEN_AMOUNT,
         contract: checksummedContract,
       });
 
-      // Return transaction parameters for user to sign
-      // USER will sign a transferFrom transaction from treasury to themselves
+      // Treasury sends tokens to user
+      const txHash = await walletClient.writeContract({
+        address: checksummedContract,
+        abi: erc20Abi,
+        functionName: 'transfer',
+        args: [checksummedRecipient, amountWei],
+      });
+
+      console.log('[SIMPLE CLAIM] Success:', { fid: fidNum, txHash });
+
       return res.status(200).json({
         success: true,
-        needsTransaction: true,
-        transaction: {
-          to: checksummedContract,
-          from: checksummedRecipient, // User signs
-          data: encodeFunctionData({
-            abi: erc20Abi,
-            functionName: 'transferFrom',
-            args: [checksummedTreasury, checksummedRecipient, amountWei],
-          }),
-          value: '0',
-        },
+        message: `Sent ${TOKEN_AMOUNT} tokens!`,
+        txHash,
         amount: TOKEN_AMOUNT,
-        claimKey, // Send back for verification
         featuredProjectId: featured.id,
       });
 
     } catch (error) {
-      console.error('[SIMPLE CLAIM] Error preparing transaction:', error.message);
+      console.error('[SIMPLE CLAIM] Token transfer failed:', error.message);
 
-      // Rollback the claim marker
+      // Rollback the claim marker so they can try again
       await redis.del(claimKey);
 
       return res.status(500).json({
         success: false,
-        error: 'Failed to prepare transaction: ' + error.message,
+        error: 'Token transfer failed: ' + error.message,
         canRetry: true,
       });
     }
