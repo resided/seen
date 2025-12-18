@@ -1,8 +1,10 @@
 // SIMPLE CLAIM SYSTEM - One claim per FID per featured project
 // No complex rotation logic, no rate limits, just simple FID tracking
+// WITH Neynar validation for security
 
 import { getRedisClient } from '../../../lib/redis';
 import { getFeaturedProject } from '../../../lib/projects';
+import { fetchUserByFid } from '../../../lib/neynar';
 import { createWalletClient, createPublicClient, http, parseUnits, getAddress } from 'viem';
 import { base } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
@@ -13,6 +15,10 @@ const TOKEN_CONTRACT = process.env.CLAIM_TOKEN_CONTRACT;
 const TOKEN_DECIMALS = parseInt(process.env.CLAIM_TOKEN_DECIMALS || '18');
 const TOKEN_AMOUNT = '40000'; // 40,000 SEEN per claim
 const TREASURY_PRIVATE_KEY = process.env.TREASURY_PRIVATE_KEY;
+
+// Security configuration
+const MIN_NEYNAR_SCORE = 0.6; // Minimum Neynar user score
+const MIN_ACCOUNT_AGE_DAYS = 2; // Minimum account age in days
 
 export default async function handler(req, res) {
   // GET = check status, POST = claim
@@ -64,6 +70,62 @@ export default async function handler(req, res) {
     }
 
     const fidNum = parseInt(fid);
+
+    // SECURITY: Neynar validation
+    const apiKey = process.env.NEYNAR_API_KEY;
+    if (apiKey) {
+      try {
+        const user = await fetchUserByFid(fidNum, apiKey);
+        if (!user) {
+          return res.status(403).json({
+            error: 'Unable to verify your Farcaster account',
+            success: false,
+          });
+        }
+
+        // Check account age
+        const registeredAt = user.registered_at || user.timestamp || user.profile?.timestamp;
+        if (registeredAt) {
+          const accountCreated = new Date(registeredAt);
+          const accountAgeMs = Date.now() - accountCreated.getTime();
+          const accountAgeDays = accountAgeMs / (1000 * 60 * 60 * 24);
+
+          if (accountAgeDays < MIN_ACCOUNT_AGE_DAYS) {
+            return res.status(403).json({
+              error: `Account too new. Must be ${MIN_ACCOUNT_AGE_DAYS}+ days old (yours: ${accountAgeDays.toFixed(1)} days)`,
+              success: false,
+              accountAgeDays: accountAgeDays.toFixed(1),
+              requiredDays: MIN_ACCOUNT_AGE_DAYS,
+            });
+          }
+        }
+
+        // Check Neynar score
+        const userScore = user.experimental?.neynar_user_score;
+        if (userScore === null || userScore === undefined) {
+          return res.status(403).json({
+            error: 'Neynar score unavailable. Please try again later.',
+            success: false,
+          });
+        }
+
+        if (userScore < MIN_NEYNAR_SCORE) {
+          return res.status(403).json({
+            error: `Neynar score too low (${userScore.toFixed(2)}). Minimum: ${MIN_NEYNAR_SCORE}`,
+            success: false,
+            userScore,
+            minScore: MIN_NEYNAR_SCORE,
+          });
+        }
+      } catch (error) {
+        console.error('[SIMPLE CLAIM] Neynar validation failed:', error);
+        return res.status(403).json({
+          error: 'Unable to verify your account. Please try again.',
+          success: false,
+        });
+      }
+    }
+
     const claimKey = getClaimKey(fidNum);
 
     // Check if already claimed (atomic)
