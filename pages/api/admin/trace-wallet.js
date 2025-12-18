@@ -53,21 +53,54 @@ export default async function handler(req, res) {
     // Helper function to scan Redis keys with v5 compatibility
     const scanKeys = async (pattern) => {
       const foundKeys = [];
+      let cursor = '0';
+      
       try {
-        // Try scanIterator first (node-redis v5)
-        for await (const key of redis.scanIterator({ MATCH: pattern, COUNT: 100 })) {
-          foundKeys.push(key);
+        // Check if scanIterator exists (node-redis v5)
+        if (typeof redis.scanIterator === 'function') {
+          try {
+            for await (const key of redis.scanIterator({ MATCH: pattern, COUNT: 100 })) {
+              foundKeys.push(key);
+            }
+            return foundKeys;
+          } catch (iterError) {
+            console.warn('scanIterator failed, falling back to manual scan:', iterError.message);
+            // Fall through to manual scan
+          }
         }
-      } catch (err) {
-        // Fallback to manual scan
-        let cursor = '0';
+        
+        // Manual scan (works with all versions)
         do {
-          const result = await redis.scan(cursor, { MATCH: pattern, COUNT: 100 });
-          cursor = String(result.cursor ?? result[0] ?? '0');
-          const keys = result.keys || result[1] || [];
-          if (keys.length > 0) foundKeys.push(...keys);
+          let result;
+          try {
+            result = await redis.scan(cursor, { MATCH: pattern, COUNT: 100 });
+          } catch (scanError) {
+            // Try older API format
+            result = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+          }
+          
+          // Handle both object and array return formats
+          if (typeof result === 'object') {
+            if (Array.isArray(result)) {
+              // Old format: [cursor, keys]
+              cursor = String(result[0] || '0');
+              const keys = result[1] || [];
+              if (keys.length > 0) foundKeys.push(...keys);
+            } else {
+              // New format: { cursor, keys }
+              cursor = String(result.cursor ?? '0');
+              const keys = result.keys || [];
+              if (keys.length > 0) foundKeys.push(...keys);
+            }
+          } else {
+            cursor = '0';
+          }
         } while (cursor !== '0');
+      } catch (error) {
+        console.error('Error scanning Redis keys:', error);
+        throw error;
       }
+      
       return foundKeys;
     };
 
