@@ -5,9 +5,7 @@
 import { getRedisClient } from '../../../lib/redis';
 import { getFeaturedProject } from '../../../lib/projects';
 import { fetchUserByFid } from '../../../lib/neynar';
-import { createWalletClient, createPublicClient, http, parseUnits, getAddress } from 'viem';
-import { base } from 'viem/chains';
-import { privateKeyToAccount } from 'viem/accounts';
+import { parseUnits, getAddress, encodeFunctionData } from 'viem';
 import { erc20Abi } from 'viem';
 
 // Token configuration
@@ -152,63 +150,64 @@ export default async function handler(req, res) {
       });
     }
 
-    // Send tokens
-    if (!TOKEN_CONTRACT || !TREASURY_PRIVATE_KEY) {
-      // No token config - just mark as claimed
-      return res.status(200).json({
-        success: true,
-        message: 'Claim recorded (no token transfer - config missing)',
-        tokenContract: TOKEN_CONTRACT || 'NOT SET',
-        treasuryKey: TREASURY_PRIVATE_KEY ? 'SET' : 'NOT SET',
+    // Return transaction data for user to sign (for miniapp rankings)
+    if (!TOKEN_CONTRACT) {
+      return res.status(500).json({
+        success: false,
+        error: 'Token contract not configured',
+      });
+    }
+
+    const TREASURY_ADDRESS = process.env.TREASURY_ADDRESS;
+    if (!TREASURY_ADDRESS) {
+      return res.status(500).json({
+        success: false,
+        error: 'Treasury address not configured',
       });
     }
 
     try {
-      const account = privateKeyToAccount(TREASURY_PRIVATE_KEY);
-      const walletClient = createWalletClient({
-        account,
-        chain: base,
-        transport: http(),
-      });
-
       const amountWei = parseUnits(TOKEN_AMOUNT, TOKEN_DECIMALS);
       const checksummedContract = getAddress(TOKEN_CONTRACT);
       const checksummedRecipient = getAddress(walletAddress);
+      const checksummedTreasury = getAddress(TREASURY_ADDRESS);
 
-      console.log('[SIMPLE CLAIM] Sending tokens:', {
+      console.log('[SIMPLE CLAIM] Preparing transaction data:', {
         fid: fidNum,
         to: checksummedRecipient,
         amount: TOKEN_AMOUNT,
         contract: checksummedContract,
       });
 
-      const txHash = await walletClient.writeContract({
-        address: checksummedContract,
-        abi: erc20Abi,
-        functionName: 'transfer',
-        args: [checksummedRecipient, amountWei],
-      });
-
-      console.log('[SIMPLE CLAIM] Success:', { fid: fidNum, txHash });
-
+      // Return transaction parameters for user to sign
+      // USER will sign a transferFrom transaction from treasury to themselves
       return res.status(200).json({
         success: true,
-        message: `Sent ${TOKEN_AMOUNT} tokens!`,
-        txHash,
+        needsTransaction: true,
+        transaction: {
+          to: checksummedContract,
+          from: checksummedRecipient, // User signs
+          data: encodeFunctionData({
+            abi: erc20Abi,
+            functionName: 'transferFrom',
+            args: [checksummedTreasury, checksummedRecipient, amountWei],
+          }),
+          value: '0',
+        },
         amount: TOKEN_AMOUNT,
-        fid: fidNum,
+        claimKey, // Send back for verification
         featuredProjectId: featured.id,
       });
 
     } catch (error) {
-      console.error('[SIMPLE CLAIM] Token transfer failed:', error.message);
-      
-      // Rollback the claim marker so they can try again
+      console.error('[SIMPLE CLAIM] Error preparing transaction:', error.message);
+
+      // Rollback the claim marker
       await redis.del(claimKey);
-      
+
       return res.status(500).json({
         success: false,
-        error: 'Token transfer failed: ' + error.message,
+        error: 'Failed to prepare transaction: ' + error.message,
         canRetry: true,
       });
     }

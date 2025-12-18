@@ -1,13 +1,15 @@
 // SIMPLE CLAIM COMPONENT
-// Drop-in replacement for the complex claim system
-// One claim per FID per featured project - that's it
+// One claim per FID per featured project
+// Users sign their own transactions (counts for miniapp rankings)
 
 import { useState, useEffect } from 'react';
-import { useAccount } from 'wagmi';
+import { useAccount, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi';
 
 export default function SimpleClaim({ userFid, isInFarcaster = false, hasClickedMiniapp = false }) {
   const { address, isConnected } = useAccount();
-  
+  const { sendTransaction, data: txHash, error: txError } = useSendTransaction();
+  const { isSuccess: isTxConfirmed } = useWaitForTransactionReceipt({ hash: txHash });
+
   const [canClaim, setCanClaim] = useState(false);
   const [claimed, setClaimed] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -15,6 +17,7 @@ export default function SimpleClaim({ userFid, isInFarcaster = false, hasClicked
   const [message, setMessage] = useState('');
   const [tokenAmount, setTokenAmount] = useState('40000');
   const [featuredName, setFeaturedName] = useState('');
+  const [pendingTx, setPendingTx] = useState(null);
 
   // Check claim status
   const checkStatus = async () => {
@@ -52,7 +55,7 @@ export default function SimpleClaim({ userFid, isInFarcaster = false, hasClicked
     if (!userFid || !address || claiming || claimed) return;
 
     setClaiming(true);
-    setMessage('SENDING TOKENS...');
+    setMessage('PREPARING...');
 
     try {
       const res = await fetch('/api/claim/simple-claim', {
@@ -63,22 +66,54 @@ export default function SimpleClaim({ userFid, isInFarcaster = false, hasClicked
 
       const data = await res.json();
 
-      if (data.success) {
+      if (data.success && data.needsTransaction) {
+        // API returned transaction data for user to sign
+        setPendingTx(data);
+        setMessage('SIGN TRANSACTION...');
+
+        // Send transaction via wagmi
+        sendTransaction({
+          to: data.transaction.to,
+          data: data.transaction.data,
+          value: BigInt(data.transaction.value || 0),
+        });
+      } else if (data.success) {
+        // Legacy: tokens already sent
         setClaimed(true);
         setCanClaim(false);
         setMessage(`SUCCESS! ${tokenAmount} SEEN sent!`);
+        setClaiming(false);
       } else {
         setMessage(data.error || 'CLAIM FAILED');
-        // Re-check status
         await checkStatus();
+        setClaiming(false);
       }
     } catch (error) {
       setMessage('ERROR: ' + error.message);
       await checkStatus();
-    } finally {
       setClaiming(false);
     }
   };
+
+  // Handle transaction confirmation
+  useEffect(() => {
+    if (isTxConfirmed && pendingTx) {
+      setClaimed(true);
+      setCanClaim(false);
+      setMessage(`SUCCESS! ${tokenAmount} SEEN claimed!`);
+      setClaiming(false);
+      setPendingTx(null);
+    }
+  }, [isTxConfirmed, pendingTx, tokenAmount]);
+
+  // Handle transaction error
+  useEffect(() => {
+    if (txError && claiming) {
+      setMessage(txError.message?.includes('rejected') ? 'TRANSACTION CANCELLED' : 'TRANSACTION FAILED');
+      setClaiming(false);
+      setPendingTx(null);
+    }
+  }, [txError, claiming]);
 
   // Determine button state
   const getButtonText = () => {
