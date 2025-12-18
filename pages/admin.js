@@ -2581,33 +2581,6 @@ export default function Admin() {
                   </div>
                 </div>
 
-                {/* Holder Multiplier */}
-                <div className="mb-4">
-                  <div className="text-[10px] tracking-[0.2em] text-gray-500 mb-2">30M+ HOLDER CLAIMS (PER 24H)</div>
-                  <div className="flex flex-wrap gap-2">
-                    {[1, 2, 3, 4, 5].map((mult) => (
-                      <button
-                        key={mult}
-                        onClick={async () => {
-                          const newSettings = { ...claimSettings, holderMultiplier: mult };
-                          setClaimSettings(newSettings);
-                          await handleSaveClaimSettings();
-                        }}
-                        disabled={loadingClaimSettings}
-                        className={`px-4 py-2 text-sm font-bold transition-all disabled:opacity-50 ${
-                          claimSettings.holderMultiplier === mult 
-                            ? 'bg-yellow-500 text-black' 
-                            : 'border border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/20'
-                        }`}
-                      >
-                        {mult}x
-                      </button>
-                    ))}
-                  </div>
-                  <div className="text-xs text-gray-600 mt-2">
-                    30M+ holders can claim <span className="text-yellow-400 font-bold">{claimSettings.holderMultiplier} times</span> per cooldown period
-                  </div>
-                </div>
               </div>
 
               {/* Detailed Settings */}
