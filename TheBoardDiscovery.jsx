@@ -3654,8 +3654,39 @@ export default function Seen() {
                   }}
                 />
               ) : (
-                <div className="border border-white p-6 text-center">
-                  <div className="text-sm text-gray-500">NO FEATURED PROJECT</div>
+                <div className="border border-white bg-black">
+                  {/* Header bar - same style as FeaturedApp */}
+                  <div className="border-b border-white px-4 py-3 flex items-center justify-between">
+                    <div className="text-[9px] tracking-[0.2em] text-gray-500">TODAY'S FEATURED</div>
+                    <div className="text-[9px] tracking-[0.2em] text-gray-500">COMING SOON</div>
+                  </div>
+                  
+                  {/* SEEN. Banner */}
+                  <div className="p-8 flex flex-col items-center justify-center min-h-[280px]">
+                    {/* Logo */}
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="text-4xl font-black tracking-[-0.03em]">SEEN.</span>
+                      {/* Pushpin icon */}
+                      <svg className="w-10 h-10" fill="white" viewBox="0 0 24 24" style={{ transform: 'rotate(45deg)' }}>
+                        <path d="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12Z"/>
+                      </svg>
+                    </div>
+                    
+                    {/* Tagline */}
+                    <div className="text-[10px] tracking-[0.3em] text-gray-500 mb-6">
+                      MINI APP DISCOVERY
+                    </div>
+                    
+                    {/* Message */}
+                    <div className="text-center max-w-xs">
+                      <div className="text-xs text-gray-400 mb-2">
+                        No featured project right now
+                      </div>
+                      <div className="text-[10px] text-gray-600">
+                        Check back soon or submit your project below
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
               <SubmitSection 
