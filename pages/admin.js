@@ -1416,6 +1416,7 @@ export default function Admin() {
       fetchCurrentFeatured();
       fetchBonusTokenConfig();
       fetchClaimSettings();
+      fetchClaimStats();
     }
   }, [isAuthenticated]);
 
