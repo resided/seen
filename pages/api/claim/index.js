@@ -372,8 +372,7 @@ export default async function handler(req, res) {
     
     // Wrap the rest in try/finally to ensure lock is released
     try {
-    
-    // SECURITY: Check per-rotation wallet claim count to enforce limit for this featured project
+      // SECURITY: Check per-rotation wallet claim count to enforce limit for this featured project
     const globalWalletClaimCount = await redis.incr(globalWalletClaimCountKey);
     
     // Set expiration on the counter key so it expires with the rotation
@@ -915,8 +914,12 @@ export default async function handler(req, res) {
         console.warn('Error releasing claim lock:', lockError);
       }
     }
+    } catch (error) {
+      console.error('Error processing claim:', error);
+      return res.status(500).json({ error: 'Failed to process claim' });
+    }
   } catch (error) {
-    console.error('Error processing claim:', error);
+    console.error('Error processing claim (outer):', error);
     return res.status(500).json({ error: 'Failed to process claim' });
   }
 }
