@@ -136,7 +136,6 @@ export default function Admin() {
     return () => clearInterval(interval);
   }, []);
 
-  // Fetch blocked FIDs on load (defined after fetchBlockedFids function)
 
   // Check authentication (FID or session cookie)
   useEffect(() => {
@@ -1187,6 +1186,14 @@ export default function Admin() {
       setLoadingStats(false);
     }
   };
+
+  // Fetch blocked FIDs on load
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchBlockedFids();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   const handleQuickSetFeatured = async (projectId) => {
     if (!confirm(`Set project ${projectId} as featured? This will move current featured to queued.`)) {
