@@ -262,14 +262,28 @@ export default async function handler(req, res) {
               });
             }
           } else {
-            // If score is not available, allow claim but log it
-            console.warn(`User ${fid} has no Neynar score available - allowing claim`);
+            // STRICT: If score is not available, block claim
+            console.warn(`User ${fid} has no Neynar score available - BLOCKING claim`);
+            return res.status(403).json({
+              error: `Unable to verify your Neynar user score. Please try again later or contact support if this persists.`,
+              code: 'SCORE_UNAVAILABLE'
+            });
           }
+        } else {
+          // User not found in Neynar - block claim
+          console.warn(`User ${fid} not found in Neynar API - BLOCKING claim`);
+          return res.status(403).json({
+            error: `Unable to verify your Farcaster account. Please try again later.`,
+            code: 'USER_NOT_FOUND'
+          });
         }
       } catch (error) {
         console.error('Error checking Neynar user score:', error);
-        // If we can't check the score, we'll allow claim but log the error
-        // You might want to change this to reject if score checking is critical
+        // STRICT: If we can't check the score, block the claim
+        return res.status(403).json({
+          error: `Unable to verify your Neynar user score. Please try again later.`,
+          code: 'SCORE_CHECK_FAILED'
+        });
       }
     } else if (isHolder) {
       console.log(`30M+ holder ${fid} bypassing Neynar score and account age requirements`);
@@ -315,6 +329,20 @@ export default async function handler(req, res) {
     let maxClaims = 1;
     if (isHolder) {
       maxClaims = holderMultiplier; // Holders with 30M+ get multiple claims
+      console.log('HOLDER DETECTED - Multiple claims enabled:', {
+        fid,
+        walletAddress: walletAddress?.slice(0, 10) + '...',
+        balance: actualBalance,
+        maxClaims,
+        holderMultiplier
+      });
+    } else {
+      console.log('REGULAR USER - Single claim only:', {
+        fid,
+        walletAddress: walletAddress?.slice(0, 10) + '...',
+        balance: actualBalance || 'not checked',
+        maxClaims: 1
+      });
     }
     
     // PERSONAL COOLDOWN - Independent of featured project timer

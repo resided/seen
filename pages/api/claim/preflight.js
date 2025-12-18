@@ -141,7 +141,16 @@ export default async function handler(req, res) {
     }
 
     // Check Neynar score (skip for holders)
-    if (!isHolder && neynarScore !== null && neynarScore !== undefined) {
+    if (!isHolder) {
+      if (neynarScore === null || neynarScore === undefined) {
+        // STRICT: If score is not provided, block claim
+        return res.status(200).json({ 
+          canClaim: false, 
+          reason: `Neynar user score is required but not available. Please try again later.`,
+          code: 'SCORE_UNAVAILABLE'
+        });
+      }
+      
       if (neynarScore < minNeynarScore) {
         return res.status(200).json({ 
           canClaim: false, 
