@@ -138,9 +138,13 @@ export default async function handler(req, res) {
     const walletPattern = `claim:wallet:${featuredProjectId}:${currentRotationId}:*`;
     const walletKeys = await scanKeys(walletPattern);
 
-    // CRITICAL: Also find wallet lock keys for this featured rotation (prevents multi-claim exploits)
-    const walletLockPattern = `claim:wallet:lock:*`;
-    const walletLockKeys = await scanKeys(walletLockPattern);
+    // CRITICAL: Also find claim lock keys (prevents concurrent claims)
+    const claimLockPattern = `claim:lock:*`;
+    const claimLockKeys = await scanKeys(claimLockPattern);
+    
+    // CRITICAL: Also find reservation keys (from preflight/reserve system)
+    const reservationPattern = `claim:reserve:*`;
+    const reservationKeys = await scanKeys(reservationPattern);
 
     // CRITICAL: Also find global wallet claim count keys (prevents cross-rotation exploits)
     // Format: claim:wallet:global:${projectId}:${rotationId}:${wallet}
@@ -198,7 +202,8 @@ export default async function handler(req, res) {
       await deleteKeys(txKeys);
       await deleteKeys(countKeys);
       await deleteKeys(walletKeys);
-      await deleteKeys(walletLockKeys);
+      await deleteKeys(claimLockKeys);
+      await deleteKeys(reservationKeys);
       await deleteKeys(globalWalletKeys);
     } catch (delError) {
       console.error('Error deleting keys:', delError);
@@ -251,7 +256,8 @@ export default async function handler(req, res) {
       claimsFound: keys.length,
       countsFound: countKeys.length,
       walletCountsFound: walletKeys.length,
-      walletLocksFound: walletLockKeys.length,
+      claimLocksFound: claimLockKeys.length,
+      reservationsFound: reservationKeys.length,
       globalWalletsFound: globalWalletKeys.length,
       txFound: txKeys.length,
       personalCooldownsReset,
@@ -261,7 +267,7 @@ export default async function handler(req, res) {
       donutCountReset
     });
     
-    let message = `Reset ${keys.length} claim(s), ${countKeys.length} FID count(s), ${walletKeys.length} wallet count(s), ${walletLockKeys.length} wallet lock(s), ${globalWalletKeys.length} global wallet count(s), ${txKeys.length} transaction(s), ${personalCooldownsReset} personal cooldown(s), ${walletRateLimitsReset} wallet rate limit(s), and ${ipRateLimitsReset} IP rate limit(s) for featured project ${featuredProjectId}`;
+    let message = `Reset ${keys.length} claim(s), ${countKeys.length} FID count(s), ${walletKeys.length} wallet count(s), ${claimLockKeys.length} claim lock(s), ${reservationKeys.length} reservation(s), ${globalWalletKeys.length} global wallet count(s), ${txKeys.length} transaction(s), ${personalCooldownsReset} personal cooldown(s), ${walletRateLimitsReset} wallet rate limit(s), and ${ipRateLimitsReset} IP rate limit(s) for featured project ${featuredProjectId}`;
     if (resetDonut) {
       message += `. Also reset DONUT data: ${donutUsersReset} user(s) and global count. Bonus token data: ${bonusUsersReset} user(s), ${bonusCountsReset} count key(s).`;
     }
@@ -272,7 +278,8 @@ export default async function handler(req, res) {
       claimsReset: keys.length,
       countsReset: countKeys.length,
       walletCountsReset: walletKeys.length,
-      walletLocksReset: walletLockKeys.length,
+      claimLocksReset: claimLockKeys.length,
+      reservationsReset: reservationKeys.length,
       globalWalletCountsReset: globalWalletKeys.length,
       transactionsReset: txKeys.length,
       personalCooldownsReset,
