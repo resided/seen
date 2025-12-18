@@ -2216,7 +2216,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
   const [bonusTokenAmount, setBonusTokenAmount] = useState(null);
   const [bonusTokenEnabled, setBonusTokenEnabled] = useState(false);
   const [userHasBonusToken, setUserHasBonusToken] = useState(false);
-  const [seenAmountPerClaim, setSeenAmountPerClaim] = useState('80000');
+  const [seenAmountPerClaim, setSeenAmountPerClaim] = useState('40000');
   const [canClaimAgain, setCanClaimAgain] = useState(true);
   // Reservation system for bulletproof claims
   const [reservationId, setReservationId] = useState(null);
@@ -2620,13 +2620,15 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
         setPreflightError(preflight.code);
         
         // Update state based on preflight response
-        if (preflight.code === 'MAX_CLAIMS_REACHED') {
+        if (preflight.code === 'CLAIMS_DISABLED') {
+          setMessage('CLAIMS ARE CURRENTLY DISABLED');
+          setClaimed(true); // Disable button
+        } else if (preflight.code === 'MAX_CLAIMS_REACHED') {
           setClaimed(true);
           setCanClaimAgain(false);
           if (preflight.claimCount !== undefined) setClaimCount(preflight.claimCount);
           if (preflight.maxClaims !== undefined) setMaxClaims(preflight.maxClaims);
-        }
-        if (preflight.code === 'EXPIRED') {
+        } else if (preflight.code === 'EXPIRED') {
           setExpired(true);
         }
         

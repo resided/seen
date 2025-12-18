@@ -14,7 +14,7 @@ const TOKEN_DECIMALS = parseInt(process.env.CLAIM_TOKEN_DECIMALS || '18'); // To
 
 // Default settings (can be overridden via admin panel)
 const DEFAULT_CLAIM_SETTINGS = {
-  baseClaimAmount: 80000,
+  baseClaimAmount: 40000,
   claimMultiplier: 1,
   cooldownHours: 24,
   minNeynarScore: 0.6,
@@ -204,7 +204,7 @@ export default async function handler(req, res) {
       claimsEnabled 
     } = claimSettings;
     
-    // Calculate actual claim amount - always 80,000 tokens
+    // Calculate actual claim amount - always 40,000 tokens
     const TOKEN_AMOUNT = String(Math.floor(baseClaimAmount * claimMultiplier));
     const COOLDOWN_SECONDS = cooldownHours * 60 * 60;
     
@@ -651,9 +651,9 @@ export default async function handler(req, res) {
         });
       }
       
-      // SEEN amount is ALWAYS 80,000 per claim - one claim per FID per featured project
+      // SEEN amount is ALWAYS 40,000 per claim - one claim per FID per featured project
       // Bonus token (if configured): 1 per person, once only, while supply lasts
-      const seenAmount = TOKEN_AMOUNT; // Always 80,000
+      const seenAmount = TOKEN_AMOUNT; // Always 40,000
       const seenAmountWei = parseUnits(seenAmount, TOKEN_DECIMALS);
       
       console.log('Sending tokens:', {

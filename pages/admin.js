@@ -48,7 +48,7 @@ export default function Admin() {
   const [showBonusTokenConfig, setShowBonusTokenConfig] = useState(false);
   const [showClaimSettings, setShowClaimSettings] = useState(false);
   const [claimSettings, setClaimSettings] = useState({
-    baseClaimAmount: 80000,
+    baseClaimAmount: 40000,
     claimMultiplier: 1,
     cooldownHours: 24,
     minNeynarScore: 0.6,
@@ -1371,7 +1371,7 @@ export default function Admin() {
       if (response.ok) {
         const data = await response.json();
         setClaimSettings(data.settings || {
-          baseClaimAmount: 80000,
+          baseClaimAmount: 40000,
           claimMultiplier: 1,
           cooldownHours: 24,
           minNeynarScore: 0.6,
@@ -1757,7 +1757,7 @@ export default function Admin() {
             {campaignStep === 2 && (
               <div className="p-6">
                 <h3 className="text-xl font-bold mb-4 text-green-400">STEP 2: BONUS TOKEN (OPTIONAL)</h3>
-                <p className="text-gray-400 text-sm mb-4">Include a bonus token with claims? Users get 1 bonus token + 80,000 SEEN per claim.</p>
+                <p className="text-gray-400 text-sm mb-4">Include a bonus token with claims? Users get 1 bonus token + 40,000 SEEN per claim.</p>
                 
                 <div className="space-y-3">
                   <button
@@ -1856,7 +1856,7 @@ export default function Admin() {
                     }`}
                   >
                     <div className="font-bold">NO BONUS TOKEN</div>
-                    <div className="text-xs text-gray-400">Only SEEN tokens (80,000 per claim)</div>
+                    <div className="text-xs text-gray-400">Only SEEN tokens (40,000 per claim)</div>
                   </button>
                 </div>
 
@@ -2156,7 +2156,7 @@ export default function Admin() {
                   Tokens per claim = <span className="text-cyan-400">Base Amount</span> × <span className="text-cyan-400">Multiplier</span>
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
-                  Example: 80,000 × 2x = 160,000 tokens per claim
+                  Example: 40,000 × 2x = 80,000 tokens per claim
                 </div>
               </div>
             </div>
@@ -2592,9 +2592,9 @@ export default function Admin() {
                   <input
                     type="number"
                     value={claimSettings.baseClaimAmount}
-                    onChange={(e) => setClaimSettings({ ...claimSettings, baseClaimAmount: parseInt(e.target.value) || 80000 })}
+                    onChange={(e) => setClaimSettings({ ...claimSettings, baseClaimAmount: parseInt(e.target.value) || 40000 })}
                     className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                    placeholder="80000"
+                    placeholder="40000"
                   />
                   <p className="text-[10px] text-gray-600 mt-1">Base tokens per claim (before multiplier)</p>
                 </div>

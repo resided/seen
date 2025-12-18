@@ -4,7 +4,7 @@ import { getFeaturedProject, getRotationId } from '../../../lib/projects';
 
 // Default settings (reads from Redis if available)
 const DEFAULT_CLAIM_SETTINGS = {
-  baseClaimAmount: 80000,
+  baseClaimAmount: 40000,
   claimMultiplier: 1,
   cooldownHours: 24,
   minNeynarScore: 0.6,

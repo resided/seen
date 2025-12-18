@@ -9,7 +9,7 @@ import crypto from 'crypto';
 const RESERVATION_TTL_SECONDS = 120; // 2 minutes
 
 const DEFAULT_CLAIM_SETTINGS = {
-  baseClaimAmount: 80000,
+  baseClaimAmount: 40000,
   claimMultiplier: 1,
   cooldownHours: 24,
   minNeynarScore: 0.6,

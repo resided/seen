@@ -7,7 +7,7 @@ import { getFeaturedProject } from '../../../lib/projects';
 const MIN_ACCOUNT_AGE_DAYS = 2;
 
 const DEFAULT_CLAIM_SETTINGS = {
-  baseClaimAmount: 80000,
+  baseClaimAmount: 40000,
   claimMultiplier: 1,
   cooldownHours: 24,
   minNeynarScore: 0.6,

@@ -7,7 +7,7 @@ const CLAIM_SETTINGS_KEY = 'claim:settings';
 
 // Default settings
 const DEFAULT_SETTINGS = {
-  baseClaimAmount: 80000, // Base amount of tokens per claim
+  baseClaimAmount: 40000, // Base amount of tokens per claim
   claimMultiplier: 1, // Multiplier (1x, 2x, 3x, etc.)
   cooldownHours: 24, // Personal cooldown in hours (not used - one claim per featured project)
   minNeynarScore: 0.6, // Minimum Neynar score to claim
