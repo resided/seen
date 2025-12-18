@@ -1120,19 +1120,17 @@ export default function Admin() {
       }
       setMessage('Project featured...');
 
-      // Step 3: Reset all claims (including bonus tokens)
-      const resetRes = await fetch('/api/admin/reset-claims', {
+      // Step 3: SIMPLE RESET - Clear claims for the new project
+      // NOTE: With SIMPLE claim system, new project ID = automatic fresh claims
+      // This reset is optional but cleans up any stale data
+      const resetRes = await fetch('/api/admin/simple-reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          confirm: 'RESET',
-          resetDonut: true, // Always reset bonus eligibility for new campaign
-          fid: userFid || null,
-        }),
         credentials: 'include',
       });
       if (!resetRes.ok) {
-        throw new Error('Failed to reset claims');
+        console.warn('Simple reset failed (optional):', await resetRes.text());
+        // Don't fail the whole launch if reset fails - new project ID means fresh claims anyway
       }
 
       setMessage(`🎉 CAMPAIGN LAUNCHED! "${campaignData.selectedProject.name}" is now featured with fresh claims.`);
