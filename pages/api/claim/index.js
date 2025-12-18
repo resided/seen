@@ -119,17 +119,8 @@ export default async function handler(req, res) {
       }
     }
 
-    // Additional wallet-level rate limiting (only if walletAddress provided)
+    // SECURITY: Blocklist known exploiter wallets
     if (walletAddress) {
-      const walletRateLimit = await checkRateLimit(`claim:wallet:${walletAddress}`, 3, 3600000); // 3 per hour
-      if (!walletRateLimit.allowed) {
-        return res.status(429).json({ 
-          error: 'Too many claims from this wallet. Please wait before claiming again.',
-          retryAfter: Math.ceil((walletRateLimit.resetAt - Date.now()) / 1000)
-        });
-      }
-
-      // SECURITY: Blocklist known exploiter wallets
       const BLOCKED_WALLETS = [
         '0xda9623023a2dd7f1ce4e68772c3a0b57ad420260',
         '0x1915a871dea94e538a3c9ec671574ffdee6e7c45',
