@@ -2480,6 +2480,12 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
               setMessage(data.error || 'CLAIM FAILED - TRY AGAIN');
             }
             
+            // Clear reservation on error so user can retry
+            setReservationId(null);
+            setPreflightPassed(false);
+            setClaiming(false);
+            claimInProgress.current = false;
+            
             // Re-fetch claim status to get accurate state
             fetch('/api/claim/status', {
               method: 'POST',
