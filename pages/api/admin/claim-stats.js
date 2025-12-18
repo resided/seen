@@ -1,6 +1,6 @@
 // API route to get claim statistics (admin only)
 import { getRedisClient } from '../../../lib/redis';
-import { getFeaturedProject } from '../../../lib/projects';
+import { getFeaturedProject, getRotationId } from '../../../lib/projects';
 import { parse } from 'cookie';
 
 const ADMIN_FID = 342433;
@@ -76,7 +76,7 @@ export default async function handler(req, res) {
     };
 
     // Use rotationId instead of featuredAtTimestamp for consistency with other APIs
-    const rotationId = featuredProject.rotationId || `legacy_${featuredProjectId}`;
+    const rotationId = await getRotationId();
 
     // Count total claims for this rotation
     const claimPattern = `claim:featured:${featuredProjectId}:${rotationId}:*`;

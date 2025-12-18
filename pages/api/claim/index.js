@@ -905,13 +905,8 @@ export default async function handler(req, res) {
       // Track a click when user successfully claims (they opened the miniapp to claim)
       try {
         // Use window key based on rotationId for featured projects (stable across timer changes)
-        let windowKey;
-        if (featuredProject?.rotationId) {
-          windowKey = featuredProject.rotationId;
-        } else {
-          // Fallback to calendar date if no rotationId
-          windowKey = new Date().toISOString().split('T')[0];
-        }
+        // Note: rotationId was already fetched earlier in this handler
+        const windowKey = rotationId;
         
         const clickKey = `clicks:project:${featuredProjectId}:${windowKey}`;
         await redis.incr(clickKey);

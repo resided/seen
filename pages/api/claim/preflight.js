@@ -2,7 +2,7 @@
 // Call this BEFORE user signs any transaction to avoid wasted gas
 
 import { getRedisClient } from '../../../lib/redis';
-import { getFeaturedProject } from '../../../lib/projects';
+import { getFeaturedProject, getRotationId } from '../../../lib/projects';
 
 const MIN_ACCOUNT_AGE_DAYS = 2;
 
@@ -166,8 +166,8 @@ export default async function handler(req, res) {
     // SIMPLIFIED: No personal cooldown - FID can only claim once per rotation
 
     // Check rotation-based claim count
-    // CRITICAL: Must match key format in claim/index.js
-    const rotationId = featuredProject.rotationId || `legacy_${featuredProject.id}`;
+    // CRITICAL: Must match key format in claim/index.js - use getRotationId() for consistency
+    const rotationId = await getRotationId();
     const globalWalletClaimCountKey = `claim:wallet:global:${featuredProject.id}:${rotationId}:${walletLower}`;
     const currentGlobalCount = parseInt(await redis.get(globalWalletClaimCountKey) || '0');
     

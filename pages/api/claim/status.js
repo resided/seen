@@ -70,8 +70,8 @@ export default async function handler(req, res) {
     // SIMPLIFIED: One claim per FID per featured campaign (rotation)
     // Check rotation-based claim count (what preflight/claim API checks)
     // This is the authoritative source for claims against THIS featured project
-    // CRITICAL: Key format must match claim/index.js
-    const rotationId = featuredProject.rotationId || `legacy_${featuredProject.id}`;
+    // CRITICAL: Key format must match claim/index.js - use getRotationId() for consistency
+    const rotationId = await getRotationId();
     const globalWalletClaimCountKey = walletAddress ? `claim:wallet:global:${featuredProject.id}:${rotationId}:${walletAddress.toLowerCase()}` : null;
     let rotationClaimCount = 0;
     

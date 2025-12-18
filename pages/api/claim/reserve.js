@@ -3,7 +3,7 @@
 // Reservations expire after 2 minutes if not used
 
 import { getRedisClient } from '../../../lib/redis';
-import { getFeaturedProject } from '../../../lib/projects';
+import { getFeaturedProject, getRotationId } from '../../../lib/projects';
 import crypto from 'crypto';
 
 const RESERVATION_TTL_SECONDS = 120; // 2 minutes
@@ -100,8 +100,8 @@ export default async function handler(req, res) {
     // SIMPLIFIED: Always one claim per FID per featured project
     const maxClaims = 1;
 
-    // CRITICAL: Key format must match claim/index.js
-    const rotationId = featuredProject.rotationId || `legacy_${featuredProject.id}`;
+    // CRITICAL: Key format must match claim/index.js - use getRotationId() for consistency
+    const rotationId = await getRotationId();
     const globalWalletClaimCountKey = `claim:wallet:global:${featuredProject.id}:${rotationId}:${walletLower}`;
 
     // Check current claim count
