@@ -658,22 +658,53 @@ export default async function handler(req, res) {
         userBonusTokenKey = `bonus:user:${walletAddress.toLowerCase()}:${bonusTokenConfig.contractAddress.toLowerCase()}`;
         bonusTokenCountKey = `bonus:count:given:${bonusTokenConfig.contractAddress.toLowerCase()}`;
         
+        // Check if user already received this bonus token
+        const userAlreadyReceived = await redis.get(userBonusTokenKey);
+        
         // Atomic check - only mark user if they haven't received this bonus token yet
         const userBonusLockResult = await redis.set(userBonusTokenKey, '1', { NX: true });
         const userCanGetBonus = userBonusLockResult === 'OK';
         
         const bonusCountGiven = parseInt(await redis.get(bonusTokenCountKey) || '0');
-        const bonusGlobalAvailable = bonusCountGiven < parseInt(bonusTokenConfig.maxSupply || '0');
+        const bonusMaxSupply = parseInt(bonusTokenConfig.maxSupply || '0');
+        const bonusGlobalAvailable = bonusCountGiven < bonusMaxSupply;
         
         bonusTokenAvailable = bonusGlobalAvailable && userCanGetBonus;
         
         console.log('Bonus token check:', {
           token: bonusTokenConfig.tokenName,
           contract: bonusTokenConfig.contractAddress,
+          userAlreadyReceived: !!userAlreadyReceived,
           userCanGetBonus,
           bonusCountGiven,
-          maxSupply: bonusTokenConfig.maxSupply,
+          bonusMaxSupply,
+          bonusGlobalAvailable,
           available: bonusTokenAvailable,
+          walletAddress: walletAddress.slice(0, 10) + '...',
+        });
+        
+        // If user already received, log why they can't get it again
+        if (userAlreadyReceived) {
+          console.warn('User already received bonus token:', {
+            token: bonusTokenConfig.tokenName,
+            walletAddress: walletAddress.slice(0, 10) + '...',
+            userBonusTokenKey,
+          });
+        }
+        
+        // If max supply reached, log it
+        if (!bonusGlobalAvailable) {
+          console.warn('Bonus token max supply reached:', {
+            token: bonusTokenConfig.tokenName,
+            bonusCountGiven,
+            bonusMaxSupply,
+          });
+        }
+      } else {
+        console.log('Bonus token not configured or disabled:', {
+          hasConfig: !!bonusTokenConfig,
+          enabled: bonusTokenConfig?.enabled,
+          hasContract: !!bonusTokenConfig?.contractAddress,
         });
       }
       
@@ -778,7 +809,10 @@ export default async function handler(req, res) {
             token: bonusTokenConfig.tokenName,
             contract: checksummedBonusContract,
             amount: bonusTokenConfig.amount,
+            decimals: bonusTokenConfig.decimals || '18',
+            amountWei: bonusAmountWei.toString(),
             recipient: walletAddress,
+            treasuryAddress: account.address,
           });
           bonusTokenHash = await walletClient.writeContract({
             address: checksummedBonusContract,
@@ -786,30 +820,61 @@ export default async function handler(req, res) {
             functionName: 'transfer',
             args: [getAddress(walletAddress), bonusAmountWei],
           });
-          console.log('Bonus token sent successfully:', bonusTokenHash);
+          console.log('✅ Bonus token sent successfully:', {
+            token: bonusTokenConfig.tokenName,
+            txHash: bonusTokenHash,
+            recipient: walletAddress,
+          });
           
           // Increment global bonus token count
           await redis.incr(bonusTokenCountKey);
+          console.log('Bonus token count incremented:', {
+            token: bonusTokenConfig.tokenName,
+            newCount: parseInt(await redis.get(bonusTokenCountKey) || '0'),
+          });
         } catch (bonusError) {
-          console.error('Bonus token transfer FAILED:', bonusError.message);
+          console.error('❌ Bonus token transfer FAILED:', bonusError.message);
           console.error('Bonus token error details:', {
             errorName: bonusError.name,
             errorCause: bonusError.cause?.message || bonusError.cause,
+            errorStack: bonusError.stack,
             contractAddress: bonusTokenConfig.contractAddress,
             recipientAddress: walletAddress,
             amount: bonusTokenConfig.amount,
+            decimals: bonusTokenConfig.decimals || '18',
+            treasuryAddress: account.address,
           });
           // Release the user lock since transfer failed
           if (userBonusTokenKey) {
             await redis.del(userBonusTokenKey);
+            console.log('Released user bonus token lock due to transfer failure');
           }
           // DON'T fail the claim - SEEN was already sent successfully
         }
-      } else if (userBonusTokenKey && bonusTokenConfig && 
-                 await redis.get(userBonusTokenKey) === '1' && 
-                 parseInt(await redis.get(bonusTokenCountKey) || '0') >= parseInt(bonusTokenConfig.maxSupply || '0')) {
-        // Race condition: user got lock but bonus token ran out - release the lock
-        await redis.del(userBonusTokenKey);
+      } else {
+        // Log why bonus token wasn't sent
+        if (bonusTokenConfig) {
+          console.log('⚠️ Bonus token NOT sent:', {
+            token: bonusTokenConfig.tokenName,
+            available: bonusTokenAvailable,
+            enabled: bonusTokenConfig.enabled,
+            hasContract: !!bonusTokenConfig.contractAddress,
+            userCanGetBonus: userBonusTokenKey ? (await redis.get(userBonusTokenKey) !== '1') : false,
+            bonusCountGiven: bonusTokenCountKey ? parseInt(await redis.get(bonusTokenCountKey) || '0') : 0,
+            maxSupply: bonusTokenConfig.maxSupply || '0',
+            walletAddress: walletAddress.slice(0, 10) + '...',
+          });
+        } else {
+          console.log('⚠️ No bonus token configured');
+        }
+        
+        // Clean up: if user got lock but bonus token ran out, release the lock
+        if (userBonusTokenKey && bonusTokenConfig && 
+            await redis.get(userBonusTokenKey) === '1' && 
+            parseInt(await redis.get(bonusTokenCountKey) || '0') >= parseInt(bonusTokenConfig.maxSupply || '0')) {
+          await redis.del(userBonusTokenKey);
+          console.log('Released user bonus token lock - max supply reached');
+        }
       }
 
       // Use SEEN hash as primary hash (for backward compatibility)
