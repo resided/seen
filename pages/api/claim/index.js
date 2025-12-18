@@ -489,6 +489,19 @@ export default async function handler(req, res) {
     await redis.expire(walletClaimCountKey, ttl);
     await redis.expire(globalWalletClaimCountKey, ttl);
 
+    // Additional wallet-level rate limiting (only if walletAddress provided)
+    // Check this AFTER all validations pass to avoid incrementing rate limit on failed claims
+    // This prevents failed attempts from blocking future claims
+    if (walletAddress) {
+      const walletRateLimit = await checkRateLimit(`claim:wallet:${walletAddress}`, 3, 3600000); // 3 per hour
+      if (!walletRateLimit.allowed) {
+        return res.status(429).json({ 
+          error: 'Too many claims from this wallet. Please wait before claiming again.',
+          retryAfter: Math.ceil((walletRateLimit.resetAt - Date.now()) / 1000)
+        });
+      }
+    }
+
     // If no token contract configured, return token details for client-side transaction
     if (!TOKEN_CONTRACT || !TREASURY_PRIVATE_KEY) {
       console.error('Token configuration missing:', {
