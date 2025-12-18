@@ -323,7 +323,6 @@ export default async function handler(req, res) {
         walletAddress: walletAddress?.slice(0, 10) + '...',
         maxClaims: 1
       });
-    }
     
     // SIMPLIFIED: One claim per FID per featured campaign (rotation)
     // No personal cooldown - FID can only claim once per rotation
@@ -908,7 +907,6 @@ export default async function handler(req, res) {
           checkNetwork: 'Verify the contract is on Base network (not Ethereum mainnet)',
         }
       });
-    }
     } finally {
       // ALWAYS release the lock when done (in case any code path missed it)
       try {
