@@ -702,14 +702,44 @@ export default async function handler(req, res) {
         recipient: checksummedRecipientForSeen,
         amount: TOKEN_AMOUNT,
         amountWei: seenAmountWei.toString(),
+        treasuryAddress: account?.address,
       });
       
-      const seenHash = await walletClient.writeContract({
-        address: checksummedTokenContract,
-        abi: erc20Abi,
-        functionName: 'transfer',
-        args: [checksummedRecipientForSeen, seenAmountWei],
-      });
+      let seenHash;
+      try {
+        seenHash = await walletClient.writeContract({
+          address: checksummedTokenContract,
+          abi: erc20Abi,
+          functionName: 'transfer',
+          args: [checksummedRecipientForSeen, seenAmountWei],
+        });
+        console.log('SEEN token transfer transaction sent:', seenHash);
+      } catch (transferError) {
+        console.error('SEEN token transfer FAILED:', {
+          error: transferError.message,
+          errorName: transferError.name,
+          errorCause: transferError.cause?.message || transferError.cause,
+          tokenContract: checksummedTokenContract,
+          recipient: checksummedRecipientForSeen,
+          amount: TOKEN_AMOUNT,
+          amountWei: seenAmountWei.toString(),
+          treasuryAddress: account?.address,
+        });
+        // Release lock and rollback counters
+        await redis.decr(claimCountKey);
+        await redis.decr(walletClaimCountKey);
+        await redis.decr(globalWalletClaimCountKey);
+        await redis.del(claimLockKey);
+        // Release reservation if used
+        if (reservationKey) {
+          await redis.del(reservationKey);
+        }
+        // Release txHash lock
+        if (txHash) {
+          await redis.del(`claim:txhash:${txHash.toLowerCase()}`);
+        }
+        throw transferError; // Re-throw to be caught by outer catch
+      }
 
       // Send bonus token if available (configured via admin panel)
       if (bonusTokenAvailable && bonusTokenConfig) {
