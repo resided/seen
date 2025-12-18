@@ -30,6 +30,9 @@ export default function Admin() {
   const [currentFeatured, setCurrentFeatured] = useState(null);
   const [claimStats, setClaimStats] = useState(null);
   const [loadingStats, setLoadingStats] = useState(false);
+  const [traceWalletAddress, setTraceWalletAddress] = useState('');
+  const [traceResult, setTraceResult] = useState(null);
+  const [tracingWallet, setTracingWallet] = useState(false);
   const [bonusTokenConfig, setBonusTokenConfig] = useState({
     enabled: false,
     contractAddress: '',
@@ -2212,6 +2215,67 @@ export default function Admin() {
                 </div>
               ) : (
                 <div className="text-sm text-gray-500">Click "VIEW CLAIM STATS" to load</div>
+              )}
+            </div>
+
+            {/* Trace Wallet */}
+            <div className="border border-white p-4 mt-4">
+              <h2 className="text-lg font-black mb-3">TRACE WALLET → FID</h2>
+              <p className="text-xs text-gray-500 mb-3">Find FID(s) associated with a wallet address</p>
+              <div className="flex gap-2 mb-3">
+                <input
+                  type="text"
+                  value={traceWalletAddress}
+                  onChange={(e) => setTraceWalletAddress(e.target.value)}
+                  placeholder="0x..."
+                  className="flex-1 bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
+                />
+                <button
+                  onClick={handleTraceWallet}
+                  disabled={tracingWallet || !traceWalletAddress}
+                  className="px-4 py-2 bg-yellow-600 text-white font-bold hover:bg-yellow-500 transition-all disabled:opacity-50"
+                >
+                  {tracingWallet ? 'TRACING...' : 'TRACE'}
+                </button>
+              </div>
+              {traceResult && (
+                <div className="mt-4 space-y-3 text-sm border-t border-white/20 pt-3">
+                  <div>
+                    <span className="text-gray-500">Wallet:</span>{' '}
+                    <span className="font-mono text-xs break-all">{traceResult.walletAddress}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Found FIDs:</span>{' '}
+                    <span className="font-bold text-yellow-400">
+                      {traceResult.foundFIDs && traceResult.foundFIDs.length > 0
+                        ? traceResult.foundFIDs.join(', ')
+                        : 'NONE'}
+                    </span>
+                  </div>
+                  {traceResult.summary && (
+                    <div className="text-xs text-gray-500 space-y-1">
+                      <div>Claim Records: {traceResult.summary.totalClaimRecords}</div>
+                      <div>Transactions: {traceResult.summary.totalTransactions}</div>
+                      <div>Project Rotations: {traceResult.summary.uniqueProjectRotations}</div>
+                    </div>
+                  )}
+                  {traceResult.allKeys && traceResult.allKeys.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-white/10">
+                      <div className="text-xs text-gray-500 mb-2">Claim Details:</div>
+                      <div className="space-y-1 max-h-40 overflow-y-auto">
+                        {traceResult.allKeys.slice(0, 10).map((key, idx) => (
+                          <div key={idx} className="text-[10px] font-mono text-gray-400">
+                            FID {key.fid} | {key.projectId}:{key.rotationId} | Count: {key.fidClaimCount || key.claimCount || 'N/A'}
+                            {key.matchStrength && ` (${key.matchStrength})`}
+                          </div>
+                        ))}
+                        {traceResult.allKeys.length > 10 && (
+                          <div className="text-[10px] text-gray-600">... and {traceResult.allKeys.length - 10} more</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
