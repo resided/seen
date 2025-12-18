@@ -55,16 +55,42 @@ export default async function handler(req, res) {
     try {
       const { getProjectById } = await import('../../lib/projects');
       const project = await getProjectById(projectIdNum);
-      
-      if (project) {
-        const currentTips = parseFloat(project.stats?.tips || 0);
-        const newTipsTotal = currentTips + amountNum;
-        
-        await updateProjectStats(projectIdNum, {
-          tips: newTipsTotal,
+
+      if (!project) {
+        console.error('[TRACK-TIP] Project not found:', projectIdNum);
+        return res.status(404).json({
+          success: false,
+          error: 'Project not found',
+          tracked: false
         });
       }
-      
+
+      const currentTips = parseFloat(project.stats?.tips || 0);
+      const newTipsTotal = currentTips + amountNum;
+
+      console.log('[TRACK-TIP] Updating tips:', {
+        projectId: projectIdNum,
+        projectName: project.name,
+        currentTips,
+        tipAmount: amountNum,
+        newTotal: newTipsTotal
+      });
+
+      const updated = await updateProjectStats(projectIdNum, {
+        tips: newTipsTotal,
+      });
+
+      if (!updated) {
+        console.error('[TRACK-TIP] Failed to update project stats');
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to update stats',
+          tracked: false
+        });
+      }
+
+      console.log('[TRACK-TIP] Successfully updated tips to:', newTipsTotal);
+
       // Also track individual tips for analytics
       const tipKey = `tip:${projectIdNum}:${Date.now()}`;
       await redis.hSet(tipKey, {
@@ -73,11 +99,16 @@ export default async function handler(req, res) {
         recipientFid: recipientFid !== undefined && recipientFid !== null ? parseInt(recipientFid).toString() : '',
         timestamp: Date.now().toString(),
       });
-      
+
       // Set expiration (keep tips for 30 days)
       await redis.expire(tipKey, 30 * 24 * 60 * 60);
     } catch (error) {
-      console.error('Error tracking tip:', error);
+      console.error('[TRACK-TIP] Error tracking tip:', error);
+      return res.status(500).json({
+        success: false,
+        error: error.message,
+        tracked: false
+      });
     }
 
     return res.status(200).json({ 
