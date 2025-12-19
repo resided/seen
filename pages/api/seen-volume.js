@@ -17,6 +17,13 @@ export default async function handler(req, res) {
   }
 
   try {
+    // TEMPORARY: Lock at 37k until accumulation logic is fixed
+    return res.status(200).json({
+      cumulativeVolume: BASELINE_VOLUME,
+      source: 'locked_baseline',
+    });
+
+    /* DISABLED UNTIL FIXED
     const redis = await getRedisClient();
     let cumulativeVolume = BASELINE_VOLUME;
     let source = 'baseline';
@@ -33,6 +40,7 @@ export default async function handler(req, res) {
         cumulativeVolume = storedCumulative;
       }
     }
+    */
 
     // Fetch 24h volume from GeckoTerminal
     try {
