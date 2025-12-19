@@ -109,7 +109,7 @@ const ActivityTicker = ({ totalListings = 0, totalVolume = 0 }) => {
 
   const items = [
     `${totalListings} MINI APPS LISTED`,
-    totalVolume > 0 ? `${formatValue(totalVolume)} $SEEN FDV` : null,
+    totalVolume > 0 ? `${formatValue(totalVolume)} $SEEN 24H VOLUME` : null,
     'ACCEPTING SUBMISSIONS',
     'TIPS GO DIRECTLY TO THE MINIAPP CREATOR',
     'BUILT FOR FARCASTER MINI APPS',
@@ -3398,15 +3398,15 @@ export default function Seen() {
         setQueue(data.queue);
         setTotalListings(data.totalListings || 0);
         
-        // Fetch FDV
+        // Fetch 24h volume
         try {
-          const fdvRes = await fetch('/api/seen-fdv');
-          const fdvData = await fdvRes.json();
-          if (fdvData.fdv) {
-            setTotalVolume(fdvData.fdv);
+          const volumeRes = await fetch('/api/seen-fdv');
+          const volumeData = await volumeRes.json();
+          if (volumeData.volume24h) {
+            setTotalVolume(volumeData.volume24h);
           }
-        } catch (fdvErr) {
-          console.warn('Failed to fetch FDV:', fdvErr);
+        } catch (volumeErr) {
+          console.warn('Failed to fetch volume:', volumeErr);
         }
       } catch (error) {
         console.error('Error fetching projects:', error);
@@ -3418,22 +3418,22 @@ export default function Seen() {
     fetchProjects();
   }, []);
   
-  // Refresh FDV every 5 minutes
+  // Refresh 24h volume every 5 minutes
   useEffect(() => {
-    const fetchFDV = async () => {
+    const fetchVolume = async () => {
       try {
-        const fdvRes = await fetch('/api/seen-fdv');
-        const fdvData = await fdvRes.json();
-        if (fdvData.fdv) {
-          setTotalVolume(fdvData.fdv);
+        const volumeRes = await fetch('/api/seen-fdv');
+        const volumeData = await volumeRes.json();
+        if (volumeData.volume24h) {
+          setTotalVolume(volumeData.volume24h);
         }
       } catch (err) {
         // Silently fail
       }
     };
 
-    const fdvInterval = setInterval(fetchFDV, 5 * 60 * 1000); // Every 5 minutes
-    return () => clearInterval(fdvInterval);
+    const volumeInterval = setInterval(fetchVolume, 5 * 60 * 1000); // Every 5 minutes
+    return () => clearInterval(volumeInterval);
   }, []);
 
   useEffect(() => {
