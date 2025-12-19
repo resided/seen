@@ -195,7 +195,7 @@ export default function SimpleClaim({ userFid, isInFarcaster = false, hasClicked
       <button
         onClick={handleClaim}
         disabled={isDisabled}
-        className={`w-full py-4 font-black text-sm tracking-[0.2em] transition-all ${
+        className={`w-full py-4 font-black text-sm tracking-[0.2em] transition-all button-press ${
           isDisabled
             ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
             : 'bg-white text-black hover:bg-gray-200'

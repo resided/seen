@@ -505,7 +505,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
       {/* Main content */}
       <div className="p-4">
         {/* App name */}
-        <h1 className="text-2xl font-black tracking-[-0.03em] mb-1">{app.name}</h1>
+        <h1 className="text-2xl font-black tracking-[-0.03em] mb-1 tracking-expand hover:animate-glitch cursor-default">{app.name}</h1>
         <p className="text-xs tracking-widest text-gray-500 mb-3">{app.tagline}</p>
         
         {/* Description - full text for paid featured spot */}
@@ -1319,8 +1319,8 @@ const ChatLeaderboard = ({ leaderboard = [] }) => {
 // SUBMIT CTA
 // ============================================
 const SubmitSection = ({ onSubmit, isInFarcaster = false, isMiniappInstalled = false }) => (
-  <div className="border-2 border-yellow-500 p-4 text-center">
-    <h3 className="text-lg font-black tracking-tight mb-1">GET A PAID FEATURE</h3>
+  <div className="border-2 border-yellow-500 p-4 text-center transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(234,179,8,0.3)]">
+    <h3 className="text-lg font-black tracking-tight mb-1 tracking-expand">GET A PAID FEATURE</h3>
     <p className="text-[10px] text-gray-500 tracking-wider mb-3">
       SUBMIT YOUR PROJECT FOR TOMORROW'S SPOTLIGHT
     </p>
@@ -1345,12 +1345,12 @@ const SubmitSection = ({ onSubmit, isInFarcaster = false, isMiniappInstalled = f
         </p>
       </div>
     )}
-    <button 
+    <button
       onClick={onSubmit}
       disabled={!isInFarcaster || !isMiniappInstalled}
-      className={`w-full py-3 font-black text-xs tracking-[0.2em] transition-all ${
+      className={`w-full py-3 font-black text-xs tracking-[0.2em] transition-all button-press ${
         isInFarcaster && isMiniappInstalled
-          ? 'bg-white text-black hover:bg-gray-200' 
+          ? 'bg-white text-black hover:bg-gray-200'
           : 'bg-gray-600 text-gray-400 cursor-not-allowed'
       }`}
     >
@@ -1366,7 +1366,7 @@ const SubmitSection = ({ onSubmit, isInFarcaster = false, isMiniappInstalled = f
 // ============================================
 // PROJECT CARD (for category rankings)
 // ============================================
-const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isConnected = false }) => {
+const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isConnected = false, index = 0 }) => {
   const [showDescription, setShowDescription] = useState(false);
   const [showTipModal, setShowTipModal] = useState(false);
   const [customTipAmount, setCustomTipAmount] = useState('');
@@ -1534,7 +1534,10 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
 
   return (
     <>
-      <div className="border border-white p-4 md:p-6 hover:bg-white/5 transition-all">
+      <div
+        className="border border-white p-4 md:p-6 hover:bg-white/5 transition-all animate-fade-in-up"
+        style={{ animationDelay: `${index * 100}ms` }}
+      >
         <div className="flex flex-col md:flex-row items-start gap-4">
           <div className="flex items-center gap-2 min-w-[80px] shrink-0">
             <div className="text-2xl md:text-3xl font-black w-10 md:w-12 text-center">
@@ -1554,7 +1557,7 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
           
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 mb-2 flex-wrap">
-              <h3 className="text-xl md:text-2xl font-black break-words">{project.name}</h3>
+              <h3 className="text-xl md:text-2xl font-black break-words hover:animate-glitch cursor-default">{project.name}</h3>
               <span className="text-[9px] tracking-[0.2em] px-2 py-0.5 bg-white text-black font-bold shrink-0">
                 {project.category?.toUpperCase()}
               </span>
@@ -2060,13 +2063,14 @@ const CategoryRankings = ({ category, ethPrice, isInFarcaster = false, isConnect
           const rankChange = previousRank ? previousRank - project.rank : null;
           
           return (
-            <ProjectCard 
+            <ProjectCard
               key={project.id || `project-${index}`}
               project={project}
               rankChange={rankChange}
               ethPrice={ethPrice}
               isInFarcaster={isInFarcaster}
               isConnected={isConnected}
+              index={index}
             />
           );
         }).filter(Boolean) : (
