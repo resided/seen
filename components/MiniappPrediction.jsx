@@ -11,7 +11,6 @@ export default function MiniappPrediction({ userFid, isInFarcaster = false }) {
   const [predicting, setPredicting] = useState(false);
   const [message, setMessage] = useState('');
   const [stats, setStats] = useState({});
-  const [showAll, setShowAll] = useState(false);
 
   // Fetch rankings and user status
   useEffect(() => {
@@ -52,13 +51,16 @@ export default function MiniappPrediction({ userFid, isInFarcaster = false }) {
     setMessage('SUBMITTING PREDICTION...');
 
     try {
+      const appId = miniapp.uuid || miniapp.frame_id || miniapp.id;
+      const appName = miniapp.name || miniapp.title || miniapp.frame_name || 'Unnamed App';
+
       const res = await fetch('/api/predict-miniapp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           fid: userFid,
-          miniappId: miniapp.uuid || miniapp.id,
-          miniappName: miniapp.name || miniapp.title,
+          miniappId: appId,
+          miniappName: appName,
           currentRank: miniapp.rank,
         }),
       });
@@ -87,7 +89,8 @@ export default function MiniappPrediction({ userFid, isInFarcaster = false }) {
     return Math.round((count / total) * 100);
   };
 
-  const displayedRankings = showAll ? rankings : rankings.slice(0, 10);
+  // Only show top 10
+  const displayedRankings = rankings.slice(0, 10);
 
   if (loading) {
     return (
@@ -130,16 +133,20 @@ export default function MiniappPrediction({ userFid, isInFarcaster = false }) {
         </div>
       )}
 
-      {/* Miniapp List */}
+      {/* Miniapp List - Top 10 Only */}
       <div className="space-y-2 mb-4">
         {displayedRankings.map((miniapp) => {
-          const appId = miniapp.uuid || miniapp.id;
+          const appId = miniapp.uuid || miniapp.frame_id || miniapp.id;
+          const appName = miniapp.name || miniapp.title || miniapp.frame_name || 'Unnamed App';
           const percentage = getPredictionPercentage(appId);
-          const isUserChoice = userPrediction?.miniappId === appId;
+          const isUserChoice = userPrediction && (
+            userPrediction.miniappId === appId ||
+            userPrediction.miniappName === appName
+          );
 
           return (
             <button
-              key={appId}
+              key={appId || `rank-${miniapp.rank}`}
               onClick={() => handlePredict(miniapp)}
               disabled={!isInFarcaster || hasPredicted || predicting}
               className={`w-full p-3 border text-left transition-all ${
@@ -154,7 +161,7 @@ export default function MiniappPrediction({ userFid, isInFarcaster = false }) {
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-sm font-black">#{miniapp.rank}</span>
-                    <span className="text-sm font-bold">{miniapp.name || miniapp.title}</span>
+                    <span className="text-sm font-bold">{appName}</span>
                     {miniapp.rankChange !== undefined && miniapp.rankChange !== 0 && (
                       <span className={`text-xs ${
                         miniapp.rankChange > 0 ? 'text-green-400' : 'text-red-400'
@@ -177,16 +184,6 @@ export default function MiniappPrediction({ userFid, isInFarcaster = false }) {
           );
         })}
       </div>
-
-      {/* Show More/Less */}
-      {rankings.length > 10 && (
-        <button
-          onClick={() => setShowAll(!showAll)}
-          className="w-full py-2 border border-white text-xs tracking-[0.2em] hover:bg-white hover:text-black transition-all"
-        >
-          {showAll ? 'SHOW LESS' : `SHOW ALL ${rankings.length} MINIAPPS`}
-        </button>
-      )}
 
       {/* Instructions */}
       {!hasPredicted && (
