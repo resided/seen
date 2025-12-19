@@ -2,6 +2,7 @@
 import { submitProject, checkFeaturedPaymentCooldown } from '../../lib/projects'
 import { fetchUserByFid } from '../../lib/neynar'
 import { getMiniAppCreator } from '../../lib/miniapp-utils'
+import { trackMetric, METRIC_TYPES } from '../../lib/analytics'
 
 const MIN_NEYNAR_SCORE = 0.6; // Minimum Neynar user score required to submit
 
@@ -181,6 +182,13 @@ export default async function handler(req, res) {
       builder: project.builder,
       status: project.status,
       submissionType: project.submissionType
+    });
+
+    // Track analytics
+    await trackMetric(METRIC_TYPES.LISTING_SUBMIT, {
+      fid: fidNum,
+      projectId: project.id,
+      submissionType: project.submissionType,
     });
 
     res.status(201).json({

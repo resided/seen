@@ -1,5 +1,6 @@
 // API route to track clicks on mini app opens
 import { getRedisClient } from '../../lib/redis';
+import { trackMetric, METRIC_TYPES } from '../../lib/analytics';
 
 const CLICKS_KEY = 'clicks:project'; // Track clicks per project
 const VIEWS_KEY = 'views:project'; // Track views per project
@@ -94,8 +95,15 @@ export default async function handler(req, res) {
       }
     }
 
-    return res.status(200).json({ 
-      success: true, 
+    // Track analytics
+    if (type === 'click') {
+      await trackMetric(METRIC_TYPES.MINIAPP_CLICK, {
+        projectId: projectIdNum,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
       tracked: true,
       type,
       projectId: projectIdNum

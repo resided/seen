@@ -2,6 +2,7 @@
 // Users predict which Farcaster miniapp will gain the most ranks
 
 import { getRedisClient } from '../../lib/redis';
+import { trackMetric, METRIC_TYPES } from '../../lib/analytics';
 
 const PREDICTION_KEY_PREFIX = 'prediction:';
 const ACTIVE_PREDICTIONS_KEY = 'predictions:active';
@@ -102,6 +103,13 @@ export default async function handler(req, res) {
         fid: fidNum,
         miniappName,
         date: today,
+      });
+
+      // Track analytics
+      await trackMetric(METRIC_TYPES.PREDICTION_SUBMIT, {
+        fid: fidNum,
+        miniappId,
+        miniappName,
       });
 
       return res.status(200).json({

@@ -6,6 +6,7 @@
 import { getRedisClient } from '../../../lib/redis';
 import { getFeaturedProject } from '../../../lib/projects';
 import { fetchUserByFid } from '../../../lib/neynar';
+import { trackMetric, METRIC_TYPES } from '../../../lib/analytics';
 import { parseUnits, getAddress, createWalletClient, createPublicClient, http } from 'viem';
 import { base } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
@@ -231,6 +232,13 @@ export default async function handler(req, res) {
       });
 
       console.log('[SIMPLE CLAIM] Success:', { fid: fidNum, txHash });
+
+      // Track analytics
+      await trackMetric(METRIC_TYPES.CLAIM_SUCCESS, {
+        fid: fidNum,
+        amount: TOKEN_AMOUNT,
+        projectId: featured.id,
+      }, parseFloat(TOKEN_AMOUNT));
 
       return res.status(200).json({
         success: true,

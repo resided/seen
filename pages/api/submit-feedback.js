@@ -3,6 +3,7 @@
 // Stores feedback in Redis for admin review
 
 import { getRedisClient } from '../../lib/redis';
+import { trackMetric, METRIC_TYPES } from '../../lib/analytics';
 
 const FEEDBACK_KEY_PREFIX = 'feedback:';
 const FEEDBACK_LIST_KEY = 'feedback:all';
@@ -79,6 +80,13 @@ export default async function handler(req, res) {
     console.log('[FEEDBACK] New submission:', {
       id: feedbackId,
       fid: fidNum,
+      messageLength: message.length,
+    });
+
+    // Track analytics
+    await trackMetric(METRIC_TYPES.FEEDBACK_SUBMIT, {
+      fid: fidNum,
+      feedbackId,
       messageLength: message.length,
     });
 
