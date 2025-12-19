@@ -3407,7 +3407,24 @@ export default function Seen() {
         setFeaturedApp(data.featured);
         setQueue(data.queue);
         setTotalListings(data.totalListings || 0);
-        
+
+        // Track view for featured project (counts every time app is opened)
+        if (data.featured?.id) {
+          try {
+            await fetch('/api/track-click', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                projectId: data.featured.id,
+                type: 'view',
+              }),
+            });
+          } catch (trackError) {
+            // Fail silently - don't break app if tracking fails
+            console.warn('Failed to track view:', trackError);
+          }
+        }
+
         // Fetch cumulative volume
         try {
           const volumeRes = await fetch('/api/seen-volume');
