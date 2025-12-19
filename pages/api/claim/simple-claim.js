@@ -19,7 +19,7 @@ const TOKEN_AMOUNT = '40000'; // 40,000 SEEN per claim
 const TREASURY_PRIVATE_KEY = process.env.TREASURY_PRIVATE_KEY;
 
 // Security configuration
-const MIN_NEYNAR_SCORE = 0.3; // Minimum Neynar user score
+const MIN_NEYNAR_SCORE = 0.33; // Minimum Neynar user score
 const MIN_ACCOUNT_AGE_DAYS = 2; // Minimum account age in days
 
 export default async function handler(req, res) {

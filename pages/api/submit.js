@@ -4,7 +4,7 @@ import { fetchUserByFid } from '../../lib/neynar'
 import { getMiniAppCreator } from '../../lib/miniapp-utils'
 import { trackMetric, METRIC_TYPES } from '../../lib/analytics'
 
-const MIN_NEYNAR_SCORE = 0.3; // Minimum Neynar user score required to submit
+const MIN_NEYNAR_SCORE = 0.33; // Minimum Neynar user score required to submit
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
