@@ -8,7 +8,7 @@ const SEEN_POOL_ADDRESS = '0x9ba2ccc022f9b3e07f5685e23bcd472cfbb5fdbf002461d8c50
 const CUMULATIVE_VOLUME_KEY = 'seen:cumulative:volume';
 const LAST_24H_VOLUME_KEY = 'seen:last_24h_volume';
 const LAST_UPDATE_KEY = 'seen:volume_last_update';
-const BASELINE_VOLUME = 33000; // $33K verified baseline
+const BASELINE_VOLUME = 37000; // $37K baseline from Farcaster wallet
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {

@@ -109,7 +109,7 @@ const ActivityTicker = ({ totalListings = 0, totalVolume = 0 }) => {
 
   const items = [
     `${totalListings} MINI APPS LISTED`,
-    totalVolume > 0 ? `${formatValue(totalVolume)} $SEEN 24H VOLUME` : null,
+    totalVolume > 0 ? `${formatValue(totalVolume)} $SEEN VOLUME TRADED` : null,
     'ACCEPTING SUBMISSIONS',
     'TIPS GO DIRECTLY TO THE MINIAPP CREATOR',
     'BUILT FOR FARCASTER MINI APPS',
@@ -3398,12 +3398,12 @@ export default function Seen() {
         setQueue(data.queue);
         setTotalListings(data.totalListings || 0);
         
-        // Fetch 24h volume
+        // Fetch cumulative volume
         try {
-          const volumeRes = await fetch('/api/seen-fdv');
+          const volumeRes = await fetch('/api/seen-volume');
           const volumeData = await volumeRes.json();
-          if (volumeData.volume24h) {
-            setTotalVolume(volumeData.volume24h);
+          if (volumeData.cumulativeVolume) {
+            setTotalVolume(volumeData.cumulativeVolume);
           }
         } catch (volumeErr) {
           console.warn('Failed to fetch volume:', volumeErr);
@@ -3418,14 +3418,14 @@ export default function Seen() {
     fetchProjects();
   }, []);
   
-  // Refresh 24h volume every 5 minutes
+  // Refresh cumulative volume every 5 minutes
   useEffect(() => {
     const fetchVolume = async () => {
       try {
-        const volumeRes = await fetch('/api/seen-fdv');
+        const volumeRes = await fetch('/api/seen-volume');
         const volumeData = await volumeRes.json();
-        if (volumeData.volume24h) {
-          setTotalVolume(volumeData.volume24h);
+        if (volumeData.cumulativeVolume) {
+          setTotalVolume(prev => Math.max(prev, volumeData.cumulativeVolume)); // Only increase
         }
       } catch (err) {
         // Silently fail
