@@ -51,8 +51,9 @@ export default function MiniappPrediction({ userFid, isInFarcaster = false }) {
     setMessage('SUBMITTING PREDICTION...');
 
     try {
-      const appId = miniapp.uuid || miniapp.frame_id || miniapp.id;
-      const appName = miniapp.name || miniapp.title || miniapp.frame_name || 'Unnamed App';
+      // Neynar catalog API: frame_id, title, image, author, etc.
+      const appId = miniapp.frame_id || miniapp.uuid || miniapp.id;
+      const appName = miniapp.title || miniapp.name || 'Unnamed App';
 
       const res = await fetch('/api/predict-miniapp', {
         method: 'POST',
@@ -136,8 +137,11 @@ export default function MiniappPrediction({ userFid, isInFarcaster = false }) {
       {/* Miniapp List - Top 10 Only */}
       <div className="space-y-2 mb-4">
         {displayedRankings.map((miniapp) => {
-          const appId = miniapp.uuid || miniapp.frame_id || miniapp.id;
-          const appName = miniapp.name || miniapp.title || miniapp.frame_name || 'Unnamed App';
+          // Neynar catalog API returns: title, image, description, author, manifest
+          const appId = miniapp.frame_id || miniapp.uuid || miniapp.id;
+          const appName = miniapp.title || miniapp.name || 'Unnamed App';
+          const appImage = miniapp.image;
+          const appAuthor = miniapp.author?.username || miniapp.author?.display_name;
           const percentage = getPredictionPercentage(appId);
           const isUserChoice = userPrediction && (
             userPrediction.miniappId === appId ||
