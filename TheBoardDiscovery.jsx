@@ -97,19 +97,19 @@ const formatTipsUsd = (ethAmount, ethPrice) => {
 // ACTIVITY TICKER
 // ============================================
 const ActivityTicker = ({ totalListings = 0, totalVolume = 0 }) => {
-  // Format volume as currency
-  const formatVolume = (vol) => {
-    if (vol >= 1000000) {
-      return `$${(vol / 1000000).toFixed(2)}M`;
-    } else if (vol >= 1000) {
-      return `$${(vol / 1000).toFixed(1)}K`;
+  // Format value as currency
+  const formatValue = (val) => {
+    if (val >= 1000000) {
+      return `$${(val / 1000000).toFixed(2)}M`;
+    } else if (val >= 1000) {
+      return `$${(val / 1000).toFixed(1)}K`;
     }
-    return `$${vol.toLocaleString()}`;
+    return `$${val.toLocaleString()}`;
   };
 
   const items = [
     `${totalListings} MINI APPS LISTED`,
-    totalVolume > 0 ? `${formatVolume(totalVolume)} $SEEN VOLUME TRADED` : null,
+    totalVolume > 0 ? `${formatValue(totalVolume)} $SEEN FDV` : null,
     'ACCEPTING SUBMISSIONS',
     'TIPS GO DIRECTLY TO THE MINIAPP CREATOR',
     'BUILT FOR FARCASTER MINI APPS',
@@ -3398,15 +3398,15 @@ export default function Seen() {
         setQueue(data.queue);
         setTotalListings(data.totalListings || 0);
         
-        // Fetch cumulative volume
+        // Fetch FDV
         try {
-          const volumeRes = await fetch('/api/seen-volume');
-          const volumeData = await volumeRes.json();
-          if (volumeData.cumulativeVolume) {
-            setTotalVolume(volumeData.cumulativeVolume);
+          const fdvRes = await fetch('/api/seen-fdv');
+          const fdvData = await fdvRes.json();
+          if (fdvData.fdv) {
+            setTotalVolume(fdvData.fdv);
           }
-        } catch (volErr) {
-          console.warn('Failed to fetch volume:', volErr);
+        } catch (fdvErr) {
+          console.warn('Failed to fetch FDV:', fdvErr);
         }
       } catch (error) {
         console.error('Error fetching projects:', error);
@@ -3418,22 +3418,22 @@ export default function Seen() {
     fetchProjects();
   }, []);
   
-  // Refresh volume every 5 minutes
+  // Refresh FDV every 5 minutes
   useEffect(() => {
-    const fetchVolume = async () => {
+    const fetchFDV = async () => {
       try {
-        const volumeRes = await fetch('/api/seen-volume');
-        const volumeData = await volumeRes.json();
-        if (volumeData.cumulativeVolume) {
-          setTotalVolume(prev => Math.max(prev, volumeData.cumulativeVolume)); // Only increase
+        const fdvRes = await fetch('/api/seen-fdv');
+        const fdvData = await fdvRes.json();
+        if (fdvData.fdv) {
+          setTotalVolume(fdvData.fdv);
         }
       } catch (err) {
         // Silently fail
       }
     };
-    
-    const volumeInterval = setInterval(fetchVolume, 5 * 60 * 1000); // Every 5 minutes
-    return () => clearInterval(volumeInterval);
+
+    const fdvInterval = setInterval(fetchFDV, 5 * 60 * 1000); // Every 5 minutes
+    return () => clearInterval(fdvInterval);
   }, []);
 
   useEffect(() => {
