@@ -2168,50 +2168,20 @@ const TokenBenefits = () => {
   return (
     <div className="border border-white">
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors"
+        onClick={(e) => {
+          e.preventDefault();
+          return; // Not clickable
+        }}
+        className="w-full p-4 flex items-center justify-between bg-gray-800 text-gray-500 cursor-not-allowed transition-colors"
+        disabled={true}
       >
-        <span className="text-sm font-black tracking-[0.2em]">$SEEN TOKEN BENEFITS</span>
-        <span className="text-xl">{isOpen ? '−' : '+'}</span>
-      </button>
-      {isOpen && (
-        <div className="p-4 border-t border-white/20 space-y-4">
-          {/* Active Benefits */}
-          <div>
-            <div className="text-[10px] tracking-[0.2em] text-green-400 mb-2">ACTIVE NOW</div>
-            <div className="space-y-2 text-[11px]">
-              <div className="flex items-start gap-2">
-                <span className="text-green-400">•</span>
-                <div>
-                  <span className="font-bold">20% OFF FEATURED</span>
-                  <span className="text-gray-500"> — Discounted featured slot pricing for 30M+ holders</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Coming Soon */}
-          <div className="border-t border-white/20 pt-4">
-            <div className="text-[10px] tracking-[0.2em] text-yellow-400 mb-2">COMING SOON</div>
-            <div className="space-y-2 text-[11px]">
-              <div className="flex items-start gap-2">
-                <span className="text-yellow-400">◦</span>
-                <div>
-                  <span className="font-bold">BUY & BURN</span>
-                  <span className="text-gray-500"> — Platform revenue used to buy back and burn $SEEN</span>
-                </div>
-              </div>
-              <div className="flex items-start gap-2">
-                <span className="text-yellow-400">◦</span>
-                <div>
-                  <span className="font-bold">LP REWARDS</span>
-                  <span className="text-gray-500"> — Stake LP tokens to earn platform fees</span>
-                </div>
-              </div>
-            </div>
-          </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-black tracking-[0.2em]">$SEEN TOKEN BENEFITS</span>
+          <span className="text-[8px] px-1.5 py-0.5 bg-gray-700 text-gray-400 rounded">
+            SOON
+          </span>
         </div>
-      )}
+      </button>
     </div>
   );
 };
