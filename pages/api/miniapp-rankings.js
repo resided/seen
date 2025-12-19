@@ -21,8 +21,8 @@ export default async function handler(req, res) {
   try {
     const redis = await getRedisClient();
 
-    // Fetch current rankings from Neynar
-    const currentRankings = await fetchMiniappRankings(apiKey, 20);
+    // Fetch current rankings from Neynar (trending/featured catalog)
+    const currentRankings = await fetchMiniappRankings(apiKey);
 
     if (!currentRankings || currentRankings.length === 0) {
       return res.status(503).json({ error: 'Failed to fetch miniapp rankings from Neynar' });
