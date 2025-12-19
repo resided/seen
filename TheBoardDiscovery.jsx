@@ -1087,7 +1087,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
 // ============================================
 // LIVE CHAT
 // ============================================
-const MIN_CHAT_NEYNAR_SCORE = 0.55; // Minimum Neynar score to use chat
+const MIN_CHAT_NEYNAR_SCORE = 0.3; // Minimum Neynar score to use chat
 
 const LiveChat = ({ messages, onSend, isInFarcaster = false, neynarUserScore = null }) => {
   const { isConnected, address } = useAccount();
@@ -2190,7 +2190,7 @@ const TokenBenefits = () => {
 // DAILY CLAIM
 // ============================================
 const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false, featuredApp = null, hasClickedMiniapp = false, neynarUserScore = null }) => {
-  const MIN_NEYNAR_SCORE = 0.55; // Minimum Neynar user score required to claim
+  const MIN_NEYNAR_SCORE = 0.3; // Minimum Neynar user score required to claim
   const [claimed, setClaimed] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const claimInProgress = useRef(false); // Synchronous lock to prevent double-clicks

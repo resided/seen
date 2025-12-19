@@ -3,7 +3,7 @@ import { getChatMessages, getChatMessagesSince, addChatMessage } from '../../lib
 import { validateMessage } from '../../lib/content-filter'
 import { fetchUserByFid } from '../../lib/neynar'
 
-const MIN_CHAT_NEYNAR_SCORE = 0.55; // Minimum Neynar score to use chat
+const MIN_CHAT_NEYNAR_SCORE = 0.3; // Minimum Neynar score to use chat
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {
