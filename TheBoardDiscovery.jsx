@@ -55,8 +55,15 @@ const TokenIcon = () => (
   </svg>
 );
 
+const PredictionIcon = () => (
+  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+    <path d="M10 2a8 8 0 100 16 8 8 0 000-16zM8 10a1 1 0 112 0v4a1 1 0 11-2 0v-4zm2-4a1 1 0 100 2 1 1 0 000-2z" />
+  </svg>
+);
+
 const CATEGORIES = [
   { id: 'main', label: 'FEATURED', icon: StarIcon },
+  { id: 'predictions', label: 'PREDICT', icon: PredictionIcon },
   { id: 'defi', label: 'DEFI', icon: ChartIcon },
   { id: 'tokens', label: 'TOKENS', icon: TokenIcon },
   { id: 'social', label: 'SOCIAL', icon: UsersIcon },
@@ -3709,17 +3716,13 @@ export default function Seen() {
               />
               
               {/* Claim section - SIMPLE CLAIM SYSTEM */}
-              <SimpleClaim
-                userFid={userInfo?.fid || null}
-                isInFarcaster={isInFarcaster}
-                hasClickedMiniapp={hasClickedMiniapp}
-              />
-
-              {/* Prediction Market - Farcaster miniapp rankings */}
-              <MiniappPrediction
-                userFid={userInfo?.fid || null}
-                isInFarcaster={isInFarcaster}
-              />
+              {category === 'main' && (
+                <SimpleClaim
+                  userFid={userInfo?.fid || null}
+                  isInFarcaster={isInFarcaster}
+                  hasClickedMiniapp={hasClickedMiniapp}
+                />
+              )}
             </div>
             
             {/* Chat + Leaderboard + More */}
@@ -3755,6 +3758,13 @@ export default function Seen() {
               </div>
             </div>
           </>
+        ) : category === 'predictions' ? (
+          <div className="space-y-4">
+            <MiniappPrediction
+              userFid={userInfo?.fid || null}
+              isInFarcaster={isInFarcaster}
+            />
+          </div>
         ) : (
           <CategoryRankings category={category} ethPrice={ethPrice} isInFarcaster={isInFarcaster} isConnected={isConnected} />
         )}
