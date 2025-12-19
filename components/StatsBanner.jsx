@@ -66,42 +66,31 @@ export default function StatsBanner() {
   return (
     <div className="border-b-2 border-white bg-black">
       <div className="max-w-4xl mx-auto px-4 py-3">
-        <div className="flex items-center justify-between gap-4">
-          {/* Slogan */}
-          <div className="flex-shrink-0">
+        <div className="flex items-center justify-center gap-6">
+          {/* Part 1: The Attention Layer */}
+          {sloganIndex === 0 && (
             <div className="text-sm font-black tracking-[0.3em] transition-all duration-500">
-              {SLOGANS[sloganIndex]}
+              THE ATTENTION LAYER
             </div>
-          </div>
+          )}
 
-          {/* Stats */}
-          <div className="flex items-center gap-4 overflow-x-auto scrollbar-thin">
-            <div className="flex items-center gap-1 whitespace-nowrap">
-              <span className="text-[10px] text-gray-500">VIEWS:</span>
-              <span className="text-sm font-black">{formatNumber(stats.totalViews)}</span>
+          {/* Part 2: Get Seen + Stats */}
+          {sloganIndex === 1 && (
+            <div className="flex items-center gap-4">
+              <div className="text-sm font-black tracking-[0.3em]">GET SEEN</div>
+              <div className="w-px h-4 bg-white"></div>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1 whitespace-nowrap">
+                  <span className="text-[10px] text-gray-500">VIEWS:</span>
+                  <span className="text-sm font-black">{formatNumber(stats.totalViews)}</span>
+                </div>
+                <div className="flex items-center gap-1 whitespace-nowrap">
+                  <span className="text-[10px] text-gray-500">CLICKS:</span>
+                  <span className="text-sm font-black">{formatNumber(stats.totalClicks)}</span>
+                </div>
+              </div>
             </div>
-
-            <div className="w-px h-4 bg-white"></div>
-
-            <div className="flex items-center gap-1 whitespace-nowrap">
-              <span className="text-[10px] text-gray-500">CLICKS:</span>
-              <span className="text-sm font-black">{formatNumber(stats.totalClicks)}</span>
-            </div>
-
-            <div className="w-px h-4 bg-white"></div>
-
-            <div className="flex items-center gap-1 whitespace-nowrap">
-              <span className="text-[10px] text-gray-500">LISTINGS:</span>
-              <span className="text-sm font-black">{formatNumber(stats.totalListings)}</span>
-            </div>
-
-            <div className="w-px h-4 bg-white"></div>
-
-            <div className="flex items-center gap-1 whitespace-nowrap">
-              <span className="text-[10px] text-gray-500">USERS:</span>
-              <span className="text-sm font-black">{formatNumber(stats.totalUsers)}</span>
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
