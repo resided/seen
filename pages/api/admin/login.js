@@ -1,21 +1,15 @@
 // API route for admin login
-// Triggering redeploy to pick up ADMIN_SECRET env var
+// Implements secure session management with Redis validation
+
 import { serialize } from 'cookie';
 import { checkRateLimit, getClientIP } from '../../../lib/rate-limit';
+import { createSession } from '../../../lib/admin-auth';
 
-const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'changeme123'; // Change this!
-const SESSION_SECRET = process.env.SESSION_SECRET || 'your-secret-key-change-this';
+// NO DEFAULTS - require environment variables to be set
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const RATE_LIMIT_REQUESTS = 5; // Max 5 login attempts
 const RATE_LIMIT_WINDOW = 300000; // Per 5 minutes (to prevent brute force)
-
-// Secure session token generation using crypto
-import { randomBytes } from 'crypto';
-
-function generateToken() {
-  // Generate 32 random bytes (256 bits) and encode as base64
-  return randomBytes(32).toString('base64');
-}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -39,26 +33,37 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Username and password required' });
   }
 
+  // Validate environment variables are set
+  if (!ADMIN_USERNAME || !ADMIN_PASSWORD) {
+    console.error('[ADMIN LOGIN] ADMIN_USERNAME or ADMIN_PASSWORD not set');
+    return res.status(500).json({ error: 'Server configuration error' });
+  }
+
   // Check credentials
   if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-    // Generate session token
-    const token = generateToken();
-    
-    // Set cookie with session token
-    const cookie = serialize('admin_session', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-      path: '/',
-    });
+    try {
+      // Create session in Redis and get token
+      const token = await createSession(username, clientIP);
 
-    res.setHeader('Set-Cookie', cookie);
-    
-    return res.status(200).json({
-      success: true,
-      message: 'Login successful',
-    });
+      // Set secure cookie with session token
+      const cookie = serialize('admin_session', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 60 * 60 * 24, // 24 hours (matches Redis expiry)
+        path: '/',
+      });
+
+      res.setHeader('Set-Cookie', cookie);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Login successful',
+      });
+    } catch (error) {
+      console.error('[ADMIN LOGIN] Session creation failed:', error);
+      return res.status(500).json({ error: 'Failed to create session' });
+    }
   } else {
     return res.status(401).json({ error: 'Invalid username or password' });
   }

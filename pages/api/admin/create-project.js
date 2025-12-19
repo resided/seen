@@ -1,36 +1,13 @@
 // API route to create a project directly (admin only)
 import { createProjectDirectly } from '../../../lib/projects';
 import { fetchUserByFid } from '../../../lib/neynar';
-import { parse } from 'cookie';
+import { isAuthenticated } from '../../../lib/admin-auth';
 import { checkRateLimit, getClientIP } from '../../../lib/rate-limit';
 
 const ADMIN_FID = 342433; // Admin FID
 const RATE_LIMIT_REQUESTS = 10; // Max 10 create actions
 const RATE_LIMIT_WINDOW = 60000; // Per minute
 
-function isAuthenticated(req) {
-  // SECURITY: Require ADMIN_SECRET for all admin operations
-  const adminSecret = process.env.ADMIN_SECRET;
-  if (!adminSecret) {
-    console.error('ADMIN_SECRET not configured - admin endpoints disabled');
-    return false;
-  }
-  
-  // Check for secret in header or body
-  const providedSecret = req.headers['x-admin-secret'] || req.body?.adminSecret;
-  if (providedSecret && providedSecret === adminSecret) {
-    return true;
-  }
-
-  // Check session cookie (web login) - only if ADMIN_PASSWORD is properly set
-  const cookies = parse(req.headers.cookie || '');
-  const sessionToken = cookies.admin_session;
-  if (sessionToken && process.env.ADMIN_PASSWORD && process.env.ADMIN_PASSWORD !== 'changeme123') {
-    return true;
-  }
-
-  return false;
-}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -38,7 +15,7 @@ export default async function handler(req, res) {
   }
 
   // Check admin authentication
-  if (!isAuthenticated(req)) {
+  if (!(await isAuthenticated(req))) {
     return res.status(403).json({ error: 'Unauthorized. Admin access required.' });
   }
 

@@ -8,12 +8,7 @@ import {
   getMonthlyMetrics,
   getQuarterlyMetrics,
 } from '../../../lib/analytics';
-
-// Admin FIDs (same as feedback admin)
-const ADMIN_FIDS = [
-  parseInt(process.env.ADMIN_FID || '0'),
-  // Add more admin FIDs here
-].filter(fid => fid > 0);
+import { isAuthenticated } from '../../../lib/admin-auth';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -21,12 +16,11 @@ export default async function handler(req, res) {
   }
 
   // Check admin authentication
-  const { fid, type, startDate, endDate, month, year, quarter } = req.query;
-  const fidNum = parseInt(fid);
-
-  if (!fid || !ADMIN_FIDS.includes(fidNum)) {
+  if (!(await isAuthenticated(req))) {
     return res.status(403).json({ error: 'Unauthorized' });
   }
+
+  const { type, startDate, endDate, month, year, quarter } = req.query;
 
   try {
     let metrics;

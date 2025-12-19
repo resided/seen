@@ -1,16 +1,11 @@
 // Admin API route to view all feedback submissions
-// Protected by admin FID check
+// Protected by admin authentication
 
 import { getRedisClient } from '../../../lib/redis';
+import { isAuthenticated } from '../../../lib/admin-auth';
 
 const FEEDBACK_KEY_PREFIX = 'feedback:';
 const FEEDBACK_LIST_KEY = 'feedback:all';
-
-// Admin FIDs (replace with your actual admin FIDs)
-const ADMIN_FIDS = [
-  parseInt(process.env.ADMIN_FID || '0'),
-  // Add more admin FIDs here
-].filter(fid => fid > 0);
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -18,10 +13,7 @@ export default async function handler(req, res) {
   }
 
   // Check admin authentication
-  const { fid } = req.query;
-  const fidNum = parseInt(fid);
-
-  if (!fid || !ADMIN_FIDS.includes(fidNum)) {
+  if (!(await isAuthenticated(req))) {
     return res.status(403).json({ error: 'Unauthorized' });
   }
 

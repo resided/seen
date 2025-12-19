@@ -1,34 +1,15 @@
 // Admin API to backup chat messages
 import { getChatMessages, getMessageCount } from '../../../lib/chat';
-import { parse } from 'cookie';
+import { isAuthenticated } from '../../../lib/admin-auth';
 import { getRedisClient } from '../../../lib/redis';
 
 const ADMIN_FID = 342433;
 
-function isAuthenticated(req) {
-  const adminSecret = process.env.ADMIN_SECRET;
-  if (!adminSecret) {
-    return false;
-  }
-  
-  const providedSecret = req.headers['x-admin-secret'] || req.body?.adminSecret;
-  if (providedSecret && providedSecret === adminSecret) {
-    return true;
-  }
-
-  const cookies = parse(req.headers.cookie || '');
-  const sessionToken = cookies.admin_session;
-  if (sessionToken && process.env.ADMIN_PASSWORD && process.env.ADMIN_PASSWORD !== 'changeme123') {
-    return true;
-  }
-
-  return false;
-}
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {
     // Export/backup messages
-    if (!isAuthenticated(req)) {
+    if (!(await isAuthenticated(req))) {
       return res.status(403).json({ error: 'Unauthorized. Admin access required.' });
     }
 
@@ -48,7 +29,7 @@ export default async function handler(req, res) {
     }
   } else if (req.method === 'POST') {
     // Restore messages from backup
-    if (!isAuthenticated(req)) {
+    if (!(await isAuthenticated(req))) {
       return res.status(403).json({ error: 'Unauthorized. Admin access required.' });
     }
 

@@ -1,36 +1,17 @@
 // API route to manage blocked FIDs (admin only)
 import { getRedisClient } from '../../../lib/redis';
-import { parse } from 'cookie';
+import { isAuthenticated } from '../../../lib/admin-auth';
 
 const ADMIN_FID = 342433;
 const BLOCKED_FIDS_KEY = 'admin:blocked:fids';
 
-function isAuthenticated(req) {
-  const adminSecret = process.env.ADMIN_SECRET;
-  if (!adminSecret) {
-    return false;
-  }
-  
-  const providedSecret = req.headers['x-admin-secret'] || req.body?.adminSecret;
-  if (providedSecret && providedSecret === adminSecret) {
-    return true;
-  }
-
-  const cookies = parse(req.headers.cookie || '');
-  const sessionToken = cookies.admin_session;
-  if (sessionToken && process.env.ADMIN_PASSWORD && process.env.ADMIN_PASSWORD !== 'changeme123') {
-    return true;
-  }
-
-  return false;
-}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  if (!isAuthenticated(req)) {
+  if (!(await isAuthenticated(req))) {
     return res.status(403).json({ error: 'Unauthorized. Admin access required.' });
   }
 
