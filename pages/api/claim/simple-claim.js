@@ -99,13 +99,34 @@ export default async function handler(req, res) {
       console.log('[SIMPLE CLAIM] Transaction verified:', { txHash, from: tx.from });
     } catch (error) {
       console.error('[SIMPLE CLAIM] Transaction verification failed:', error.message);
-      return res.status(400).json({ 
-        error: 'Could not verify transaction. Wait for confirmation and try again.', 
-        success: false 
+      return res.status(400).json({
+        error: 'Could not verify transaction. Wait for confirmation and try again.',
+        success: false
       });
     }
 
     const fidNum = parseInt(fid);
+
+    // SECURITY: Check if this transaction has already been used for a claim
+    // This prevents replay attacks where someone reuses a valid tx hash
+    const txUsedKey = `claim:tx:used:${txHash}`;
+    const txUsedData = await redis.get(txUsedKey);
+
+    if (txUsedData) {
+      const usedInfo = JSON.parse(txUsedData);
+      console.warn('[SIMPLE CLAIM] Transaction replay attempt detected:', {
+        txHash,
+        attemptedBy: { fid: fidNum, wallet: walletAddress },
+        originallyUsedBy: { fid: usedInfo.fid, wallet: usedInfo.wallet },
+        usedAt: usedInfo.timestamp
+      });
+
+      return res.status(400).json({
+        error: 'Transaction already used for a claim',
+        success: false,
+        txHash,
+      });
+    }
 
     // SECURITY: Neynar validation
     const apiKey = process.env.NEYNAR_API_KEY;
@@ -239,6 +260,21 @@ export default async function handler(req, res) {
         amount: TOKEN_AMOUNT,
         projectId: featured.id,
       }, parseFloat(TOKEN_AMOUNT));
+
+      // SECURITY: Mark transaction as used to prevent replay attacks
+      // Store for 1 year (longer than any reasonable claim window)
+      const txUsedData = {
+        fid: fidNum,
+        wallet: walletAddress,
+        timestamp: Date.now(),
+        projectId: featured.id,
+        amount: TOKEN_AMOUNT,
+      };
+      await redis.set(txUsedKey, JSON.stringify(txUsedData), {
+        EX: 365 * 24 * 60 * 60 // 1 year
+      });
+
+      console.log('[SIMPLE CLAIM] Transaction marked as used:', { txHash, fid: fidNum });
 
       return res.status(200).json({
         success: true,
