@@ -5,6 +5,7 @@ import { sdk } from '@farcaster/miniapp-sdk';
 import SubmitForm from './components/SubmitForm';
 import SimpleClaim from './components/SimpleClaim';
 import MiniappPrediction from './components/MiniappPrediction';
+import FeedbackBox from './components/FeedbackBox';
 
 // ============================================
 // SEEN. - MINI APP DISCOVERY
@@ -3614,25 +3615,35 @@ export default function Seen() {
           <div className="flex overflow-x-auto scrollbar-thin">
             {CATEGORIES.map(cat => {
               const IconComponent = cat.icon;
+              const isComingSoon = cat.id === 'predictions';
               return (
               <button
                 key={cat.id}
                   onClick={(e) => {
                     e.preventDefault();
+                    if (isComingSoon) return; // Don't allow clicking predictions tab
                     try {
                       setCategory(cat.id);
                     } catch (error) {
                       console.error('Error switching category:', error);
                     }
                   }}
-                  className={`px-6 py-3 text-xs font-bold tracking-[0.2em] transition-all border-r border-white last:border-r-0 whitespace-nowrap flex items-center gap-2 ${
-                  category === cat.id 
-                    ? 'bg-white text-black' 
-                    : 'bg-black text-white hover:bg-white/10'
+                  className={`px-6 py-3 text-xs font-bold tracking-[0.2em] transition-all border-r border-white last:border-r-0 whitespace-nowrap flex items-center gap-2 relative ${
+                  isComingSoon
+                    ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                    : category === cat.id
+                      ? 'bg-white text-black'
+                      : 'bg-black text-white hover:bg-white/10'
                 }`}
+                  disabled={isComingSoon}
               >
                   <IconComponent />
                 {cat.label}
+                {isComingSoon && (
+                  <span className="ml-2 text-[8px] px-1.5 py-0.5 bg-gray-700 text-gray-400 rounded">
+                    SOON
+                  </span>
+                )}
               </button>
               );
             })}
@@ -3724,7 +3735,15 @@ export default function Seen() {
                 />
               )}
             </div>
-            
+
+            {/* Feedback Box - centered below tabs */}
+            {category === 'main' && (
+              <FeedbackBox
+                userFid={userInfo?.fid || null}
+                isInFarcaster={isInFarcaster}
+              />
+            )}
+
             {/* Chat + Leaderboard + More */}
             <div className="space-y-4 mt-4">
               {/* Chat */}
