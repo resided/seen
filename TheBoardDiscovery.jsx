@@ -4,6 +4,7 @@ import { parseEther, parseUnits, erc20Abi, encodeFunctionData, toHex, stringToHe
 import { sdk } from '@farcaster/miniapp-sdk';
 import SubmitForm from './components/SubmitForm';
 import SimpleClaim from './components/SimpleClaim';
+import MiniappPrediction from './components/MiniappPrediction';
 
 // ============================================
 // SEEN. - MINI APP DISCOVERY
@@ -3708,10 +3709,16 @@ export default function Seen() {
               />
               
               {/* Claim section - SIMPLE CLAIM SYSTEM */}
-              <SimpleClaim 
+              <SimpleClaim
                 userFid={userInfo?.fid || null}
                 isInFarcaster={isInFarcaster}
                 hasClickedMiniapp={hasClickedMiniapp}
+              />
+
+              {/* Prediction Market - Farcaster miniapp rankings */}
+              <MiniappPrediction
+                userFid={userInfo?.fid || null}
+                isInFarcaster={isInFarcaster}
               />
             </div>
             
