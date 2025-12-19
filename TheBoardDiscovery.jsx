@@ -3563,7 +3563,6 @@ export default function Seen() {
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <div>
             <h1 className="text-xl font-black tracking-[-0.02em]">SEEN.</h1>
-            <p className="text-[9px] tracking-[0.3em] text-gray-500">PROJECT DISCOVERY</p>
           </div>
           <div className="flex items-center gap-6">
             <div className="text-right hidden sm:block">
