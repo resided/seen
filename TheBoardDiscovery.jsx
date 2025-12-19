@@ -6,6 +6,7 @@ import SubmitForm from './components/SubmitForm';
 import SimpleClaim from './components/SimpleClaim';
 import MiniappPrediction from './components/MiniappPrediction';
 import FeedbackBox from './components/FeedbackBox';
+import StatsBanner from './components/StatsBanner';
 
 // ============================================
 // SEEN. - MINI APP DISCOVERY
@@ -3608,7 +3609,10 @@ export default function Seen() {
       <div className="shrink-0">
         <ActivityTicker totalListings={totalListings} totalVolume={totalVolume} />
       </div>
-      
+
+      {/* Stats Banner */}
+      <StatsBanner />
+
       {/* Category nav */}
       <div className="border-b border-white shrink-0">
         <div className="max-w-4xl mx-auto">
