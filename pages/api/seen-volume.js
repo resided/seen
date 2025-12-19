@@ -9,6 +9,7 @@ const CUMULATIVE_VOLUME_KEY = 'seen:cumulative:volume';
 const LAST_24H_VOLUME_KEY = 'seen:last_24h_volume';
 const LAST_UPDATE_KEY = 'seen:volume_last_update';
 const BASELINE_VOLUME = 37000; // $37K baseline from Farcaster wallet
+const MAX_REASONABLE_VOLUME = 100000; // Reset if stored value is unreasonably high (old buggy data)
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -23,10 +24,11 @@ export default async function handler(req, res) {
     // Get current cumulative volume from Redis
     if (redis) {
       const storedCumulative = parseFloat(await redis.get(CUMULATIVE_VOLUME_KEY)) || 0;
-      // Initialize with baseline if nothing stored yet
-      if (storedCumulative === 0 || storedCumulative < BASELINE_VOLUME) {
+      // Reset if stored value is from old buggy system (too high) or too low
+      if (storedCumulative === 0 || storedCumulative < BASELINE_VOLUME || storedCumulative > MAX_REASONABLE_VOLUME) {
         cumulativeVolume = BASELINE_VOLUME;
         await redis.set(CUMULATIVE_VOLUME_KEY, BASELINE_VOLUME.toString());
+        console.log('[SEEN-VOLUME] Reset to baseline:', BASELINE_VOLUME, 'Previous value:', storedCumulative);
       } else {
         cumulativeVolume = storedCumulative;
       }
