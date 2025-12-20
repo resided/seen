@@ -1698,7 +1698,7 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
             </div>
           </div>
           
-          <div className="flex gap-2 shrink-0 w-full md:w-auto mt-2 md:mt-0">
+          <div className="flex flex-wrap gap-2 shrink-0 w-full md:w-auto mt-2 md:mt-0">
             {project.links?.miniapp && (
               <button
                 onClick={handleOpenClick}

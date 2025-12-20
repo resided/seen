@@ -130,10 +130,10 @@ const VoteButton = ({ project, userFid, onVoteSuccess }) => {
     <>
       <button
         onClick={handleVoteClick}
-        className="px-4 py-2 bg-white text-black font-black text-xs tracking-[0.2em] hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full px-6 py-3 md:px-3 md:py-2 bg-white text-black font-black text-sm md:text-[9px] tracking-[0.2em] hover:bg-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         disabled={!isConnected || !userFid}
       >
-        🗳️ VOTE
+        VOTE
       </button>
 
       {/* Vote Confirmation Modal */}
