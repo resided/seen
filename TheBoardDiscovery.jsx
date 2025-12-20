@@ -7,6 +7,7 @@ import SimpleClaim from './components/SimpleClaim';
 import MiniappPrediction from './components/MiniappPrediction';
 import FeedbackBox from './components/FeedbackBox';
 import StatsBanner from './components/StatsBanner';
+import VoteButton from './components/VoteButton';
 
 // ============================================
 // SEEN. - MINI APP DISCOVERY
@@ -1376,7 +1377,7 @@ const SubmitSection = ({ onSubmit, isInFarcaster = false, isMiniappInstalled = f
 // ============================================
 // PROJECT CARD (for category rankings)
 // ============================================
-const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isConnected = false, index = 0 }) => {
+const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isConnected = false, index = 0, userFid = null }) => {
   const [showDescription, setShowDescription] = useState(false);
   const [showTipModal, setShowTipModal] = useState(false);
   const [customTipAmount, setCustomTipAmount] = useState('');
@@ -1574,6 +1575,13 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
             </div>
             <p className="text-sm text-gray-500 mb-2">{project.tagline}</p>
 
+            {/* Community Votes */}
+            {(project.votes || 0) > 0 && (
+              <div className="text-xs text-yellow-400 mb-2 flex items-center gap-2">
+                <span>🗳️ {(project.votes || 0).toLocaleString()} VOTES</span>
+              </div>
+            )}
+
             {(project.builder || project.builderUsername || project.builderFid) && (
               <div className="text-[11px] text-gray-400 mb-2">
                 BUILDER:{' '}
@@ -1760,6 +1768,15 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
             >
               TIP
             </button>
+            <div className="flex-1 md:flex-none">
+              <VoteButton
+                project={project}
+                userFid={userFid}
+                onVoteSuccess={() => {
+                  // Refresh could be added here if needed
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -1962,7 +1979,7 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
 // ============================================
 // CATEGORY RANKINGS
 // ============================================
-const CategoryRankings = ({ category, ethPrice, isInFarcaster = false, isConnected = false }) => {
+const CategoryRankings = ({ category, ethPrice, isInFarcaster = false, isConnected = false, userFid = null }) => {
   const [rankings, setRankings] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -2081,6 +2098,7 @@ const CategoryRankings = ({ category, ethPrice, isInFarcaster = false, isConnect
               isInFarcaster={isInFarcaster}
               isConnected={isConnected}
               index={index}
+              userFid={userFid}
             />
           );
         }).filter(Boolean) : (
@@ -3775,7 +3793,7 @@ export default function Seen() {
             />
           </div>
         ) : (
-          <CategoryRankings category={category} ethPrice={ethPrice} isInFarcaster={isInFarcaster} isConnected={isConnected} />
+          <CategoryRankings category={category} ethPrice={ethPrice} isInFarcaster={isInFarcaster} isConnected={isConnected} userFid={userInfo?.fid || null} />
         )}
         </div>
       </main>
