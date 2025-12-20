@@ -234,6 +234,38 @@ export default function Admin() {
     }
   };
 
+  const handleManualAutoFeature = async () => {
+    if (!confirm('Trigger auto-feature? This will feature the highest voted project and reset all votes to 0.')) {
+      return;
+    }
+
+    try {
+      setMessage('Triggering auto-feature...');
+      const response = await fetch('/api/auto-feature-winner', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        if (data.action === 'featured') {
+          setMessage(`✅ ${data.message} Winner: ${data.winner.name} (${data.winner.votes} votes). All votes reset to 0.`);
+        } else {
+          setMessage(`ℹ️ ${data.message}`);
+        }
+        // Refresh projects
+        fetchSubmissions();
+        fetchLiveProjects();
+      } else {
+        setMessage(`Error: ${data.error || 'Failed to trigger auto-feature'}`);
+      }
+    } catch (error) {
+      setMessage('Error triggering auto-feature');
+      console.error(error);
+    }
+  };
+
   const fetchSubmissions = async () => {
     try {
       const response = await fetch('/api/admin/submissions', {
@@ -2057,6 +2089,12 @@ export default function Admin() {
                 className="px-4 py-2 bg-cyan-600 text-white font-bold hover:bg-cyan-500 transition-all"
               >
                 {showClaimSettings ? 'HIDE CLAIM SETTINGS' : 'CLAIM SETTINGS'}
+              </button>
+              <button
+                onClick={handleManualAutoFeature}
+                className="px-4 py-2 bg-yellow-600 text-white font-bold hover:bg-yellow-500 transition-all"
+              >
+                TRIGGER AUTO-FEATURE
               </button>
               <button
                 onClick={handleLogout}

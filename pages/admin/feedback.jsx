@@ -1,5 +1,5 @@
 // Admin page to view user feedback submissions
-// Only accessible by admin FIDs
+// Requires admin authentication (same as main admin panel)
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
@@ -9,8 +9,12 @@ export default function FeedbackAdmin() {
   const [feedback, setFeedback] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [adminFid, setAdminFid] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [showLogin, setShowLogin] = useState(false);
+  const [loginData, setLoginData] = useState({ username: '', password: '' });
+  const [loginError, setLoginError] = useState('');
 
   const fetchFeedback = async () => {
     if (!adminFid) return;

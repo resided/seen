@@ -2,7 +2,7 @@
 // Runs on schedule via cron or can be triggered manually
 // When current featured expires (24h), highest voted project wins
 
-import { getFeaturedProject, getActiveProjects, setFeaturedProject } from '../../lib/projects';
+import { getFeaturedProject, getActiveProjects, setFeaturedProject, resetAllVotes } from '../../lib/projects';
 import { isAuthenticated } from '../../lib/admin-auth';
 
 // How long a project stays featured before auto-rotation (24 hours)
@@ -117,6 +117,10 @@ export default async function handler(req, res) {
         duration: `${(timeElapsed / (60 * 60 * 1000)).toFixed(1)} hours`,
       },
     });
+
+    // Reset all votes for the next round
+    await resetAllVotes();
+    console.log('[AUTO-FEATURE] All votes reset to 0 for next round');
 
     return res.status(200).json({
       success: true,
