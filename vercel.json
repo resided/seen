@@ -13,6 +13,12 @@
     "pages/api/**/*.js": {
       "maxDuration": 30
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/auto-feature-winner",
+      "schedule": "0 * * * *"
+    }
+  ]
 }
 
