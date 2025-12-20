@@ -68,7 +68,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // Sort by votes (descending), then by submission date (oldest first as tiebreaker)
+    // Sort by votes (descending), then alphabetically by name
     const sortedByVotes = activeProjects
       .map(p => ({
         ...p,
@@ -79,8 +79,8 @@ export default async function handler(req, res) {
         if (b.votes !== a.votes) {
           return b.votes - a.votes;
         }
-        // Tiebreaker: oldest submission wins
-        return new Date(a.submittedAt) - new Date(b.submittedAt);
+        // Tiebreaker: alphabetical order
+        return a.name.localeCompare(b.name);
       });
 
     const winner = sortedByVotes[0];

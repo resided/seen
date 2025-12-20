@@ -46,8 +46,8 @@ export default async function handler(req, res) {
         if (b.votes !== a.votes) {
           return b.votes - a.votes;
         }
-        // If votes are equal, sort by submission date (oldest first)
-        return new Date(a.submittedAt) - new Date(b.submittedAt);
+        // If votes are equal, sort alphabetically by name
+        return a.name.localeCompare(b.name);
       });
 
     // Take top N projects
