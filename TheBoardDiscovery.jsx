@@ -1995,7 +1995,7 @@ const VotingLeaderboard = ({ featuredApp, userFid, isInFarcaster = false, isConn
   useEffect(() => {
     const fetchLeaderboard = async () => {
       try {
-        const response = await fetch('/api/vote-leaderboard?limit=10');
+        const response = await fetch('/api/vote-leaderboard?limit=100'); // Show all queue projects
         const data = await response.json();
         setLeaderboard(data.leaderboard || []);
         setTotalVotes(data.totalVotes || 0);
@@ -2053,7 +2053,7 @@ const VotingLeaderboard = ({ featuredApp, userFid, isInFarcaster = false, isConn
       <div className="border-b border-white pb-4">
         <h2 className="text-2xl font-black tracking-tight mb-2">VOTING LEADERBOARD</h2>
         <p className="text-[10px] tracking-[0.3em] text-gray-500 mb-4">
-          TOP VOTED PROJECTS • 100K $SEEN = 1 VOTE • UPDATES LIVE
+          ALL QUEUE PROJECTS • 100K $SEEN = 1 VOTE • SORTED BY VOTES
         </p>
 
         {/* Countdown */}
@@ -2151,7 +2151,7 @@ const VotingLeaderboard = ({ featuredApp, userFid, isInFarcaster = false, isConn
                     onVoteSuccess={() => {
                       // Refresh leaderboard after vote
                       setTimeout(() => {
-                        fetch('/api/vote-leaderboard?limit=10')
+                        fetch('/api/vote-leaderboard?limit=100')
                           .then(res => res.json())
                           .then(data => {
                             setLeaderboard(data.leaderboard || []);

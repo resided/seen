@@ -22,7 +22,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // Sort by votes (descending), then by submission date (oldest first)
+    // Show ALL queue projects, sorted by votes (descending), then by submission date
     const sortedProjects = queueProjects
       .map(project => ({
         id: project.id,
