@@ -10,7 +10,7 @@ import { base } from 'viem/chains';
 
 // Voting configuration
 const VOTE_COST = '100000'; // 100K $SEEN tokens per vote
-const SEEN_TOKEN_ADDRESS = '0x9d5753b2F926234e8e86E51bdfD0A521edb2a701';
+const SEEN_TOKEN_ADDRESS = '0x82a56d595ccdfa3a1dc6eef28d5f0a870f162b07';
 const BURN_ADDRESS = '0x000000000000000000000000000000000000dEaD'; // Standard burn address
 const MIN_NEYNAR_SCORE = 0.33;
 
