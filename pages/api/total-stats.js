@@ -38,22 +38,26 @@ export default async function handler(req, res) {
         let cursor = 0;
 
         do {
-          const result = await redis.scan(cursor, {
+          const [nextCursor, foundKeys] = await redis.scan(cursor, {
             MATCH: `${CLICKS_KEY}:*`,
             COUNT: 100,
           });
-          cursor = result.cursor;
-          clickKeys.push(...result.keys);
+          cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
+          if (foundKeys && foundKeys.length > 0) {
+            clickKeys.push(...foundKeys);
+          }
         } while (cursor !== 0);
 
         cursor = 0;
         do {
-          const result = await redis.scan(cursor, {
+          const [nextCursor, foundKeys] = await redis.scan(cursor, {
             MATCH: `${VIEWS_KEY}:*`,
             COUNT: 100,
           });
-          cursor = result.cursor;
-          viewKeys.push(...result.keys);
+          cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
+          if (foundKeys && foundKeys.length > 0) {
+            viewKeys.push(...foundKeys);
+          }
         } while (cursor !== 0);
 
         // Sum all click values
