@@ -120,7 +120,6 @@ const ActivityTicker = ({ totalListings = 0, totalVolume = 0 }) => {
 
   const items = [
     `${totalListings} MINI APPS LISTED`,
-    totalVolume > 0 ? `${formatValue(totalVolume)} $SEEN VOLUME TRADED` : null,
     'ACCEPTING SUBMISSIONS',
     'TIPS GO DIRECTLY TO THE MINIAPP CREATOR',
     'BUILT FOR FARCASTER MINI APPS',
