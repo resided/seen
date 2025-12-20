@@ -2053,7 +2053,7 @@ const VotingLeaderboard = ({ featuredApp, userFid, isInFarcaster = false, isConn
       <div className="border-b border-white pb-4">
         <h2 className="text-2xl font-black tracking-tight mb-2">VOTING LEADERBOARD</h2>
         <p className="text-[10px] tracking-[0.3em] text-gray-500 mb-4">
-          ALL ACTIVE PROJECTS • 100K $SEEN = 1 VOTE • SORTED BY VOTES
+          ALL ACTIVE PROJECTS • UNLIMITED VOTES • SORTED BY VOTES
         </p>
 
         {/* Countdown */}
