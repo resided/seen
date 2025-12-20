@@ -64,8 +64,15 @@ const PredictionIcon = () => (
   </svg>
 );
 
+const TrophyIcon = () => (
+  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+    <path d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" />
+  </svg>
+);
+
 const CATEGORIES = [
   { id: 'main', label: 'FEATURED', icon: StarIcon },
+  { id: 'voting', label: 'VOTE', icon: TrophyIcon },
   { id: 'predictions', label: 'PREDICT', icon: PredictionIcon },
   { id: 'defi', label: 'DEFI', icon: ChartIcon },
   { id: 'tokens', label: 'TOKENS', icon: TokenIcon },
@@ -1976,6 +1983,194 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
 };
 
 // ============================================
+// VOTING LEADERBOARD
+// ============================================
+const VotingLeaderboard = ({ featuredApp, userFid, isInFarcaster = false, isConnected = false }) => {
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [totalVotes, setTotalVotes] = useState(0);
+  const [timeRemaining, setTimeRemaining] = useState({ h: 0, m: 0, s: 0 });
+
+  // Fetch leaderboard
+  useEffect(() => {
+    const fetchLeaderboard = async () => {
+      try {
+        const response = await fetch('/api/vote-leaderboard?limit=10');
+        const data = await response.json();
+        setLeaderboard(data.leaderboard || []);
+        setTotalVotes(data.totalVotes || 0);
+      } catch (error) {
+        console.error('Error fetching leaderboard:', error);
+        setLeaderboard([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLeaderboard();
+    const interval = setInterval(fetchLeaderboard, 30000); // Refresh every 30s
+    return () => clearInterval(interval);
+  }, []);
+
+  // Calculate time until next featured rotation (24h from when current was featured)
+  useEffect(() => {
+    if (!featuredApp?.featuredAt) return;
+
+    const updateCountdown = () => {
+      const featuredAt = new Date(featuredApp.featuredAt);
+      const rotationEnd = new Date(featuredAt.getTime() + 24 * 60 * 60 * 1000);
+      const now = new Date();
+      const diff = rotationEnd - now;
+
+      if (diff <= 0) {
+        setTimeRemaining({ h: 0, m: 0, s: 0 });
+        return;
+      }
+
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      setTimeRemaining({ h: hours, m: minutes, s: seconds });
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [featuredApp]);
+
+  if (loading) {
+    return (
+      <div className="border border-white p-6 text-center">
+        <div className="text-sm text-gray-500">LOADING LEADERBOARD...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="border-b border-white pb-4">
+        <h2 className="text-2xl font-black tracking-tight mb-2">VOTING LEADERBOARD</h2>
+        <p className="text-[10px] tracking-[0.3em] text-gray-500 mb-4">
+          TOP VOTED PROJECTS • 100K $SEEN = 1 VOTE • UPDATES LIVE
+        </p>
+
+        {/* Countdown */}
+        <div className="border border-white p-4 bg-white/5">
+          <div className="text-[10px] tracking-[0.2em] text-gray-400 mb-2">NEXT FEATURED IN:</div>
+          <div className="font-mono text-3xl font-black text-yellow-400">
+            {timeRemaining.h.toString().padStart(2, '0')}:
+            {timeRemaining.m.toString().padStart(2, '0')}:
+            {timeRemaining.s.toString().padStart(2, '0')}
+          </div>
+          <div className="text-[9px] text-gray-500 mt-2">
+            Highest voted project auto-features when timer expires
+          </div>
+        </div>
+      </div>
+
+      {/* How it Works */}
+      <div className="border border-white/30 bg-white/5 p-4">
+        <div className="text-xs font-bold mb-2">HOW VOTING WORKS:</div>
+        <ul className="text-[11px] text-gray-400 space-y-1">
+          <li>• Vote button appears on all queue projects</li>
+          <li>• Each vote costs 100,000 $SEEN (permanently burned)</li>
+          <li>• Highest voted project wins when timer expires</li>
+          <li>• Winner gets 24h featured slot + reset</li>
+        </ul>
+      </div>
+
+      {/* Stats Banner */}
+      {totalVotes > 0 && (
+        <div className="border border-white p-3 bg-yellow-400/10">
+          <div className="text-[10px] tracking-[0.2em] text-yellow-400">
+            {(totalVotes * 100000).toLocaleString()} $SEEN BURNED IN VOTING
+          </div>
+        </div>
+      )}
+
+      {/* Leaderboard */}
+      {leaderboard.length === 0 ? (
+        <div className="text-center py-12 border border-white p-6">
+          <div className="text-xl font-black mb-2">NO VOTES YET</div>
+          <p className="text-sm text-gray-500">
+            Be the first to vote! Find a project you love and vote to get it featured.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {leaderboard.map((project, index) => {
+            const rankIcons = ['🥇', '🥈', '🥉'];
+            const isTop3 = index < 3;
+
+            return (
+              <div
+                key={project.id}
+                className={`border border-white p-4 ${
+                  isTop3 ? 'bg-yellow-400/10' : 'bg-white/5'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3 flex-1">
+                    {/* Rank */}
+                    <div className="text-2xl font-black w-8 shrink-0">
+                      {isTop3 ? rankIcons[index] : `#${index + 1}`}
+                    </div>
+
+                    {/* Project Info */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-black mb-1">{project.name}</h3>
+                      <p className="text-xs text-gray-400 mb-2">{project.tagline}</p>
+
+                      {project.builder && (
+                        <div className="text-[10px] text-gray-500">
+                          BUILDER: <span className="text-white">{project.builder}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Vote Count */}
+                  <div className="text-right shrink-0">
+                    <div className="text-2xl font-black text-yellow-400">
+                      {(project.votes || 0).toLocaleString()}
+                    </div>
+                    <div className="text-[9px] text-gray-500">VOTES</div>
+                    <div className="text-[8px] text-gray-600 mt-1">
+                      {((project.votes || 0) * 100000).toLocaleString()} $SEEN
+                    </div>
+                  </div>
+                </div>
+
+                {/* Vote Button */}
+                <div className="mt-3 pt-3 border-t border-white/20">
+                  <VoteButton
+                    project={project}
+                    userFid={userFid}
+                    onVoteSuccess={() => {
+                      // Refresh leaderboard after vote
+                      setTimeout(() => {
+                        fetch('/api/vote-leaderboard?limit=10')
+                          .then(res => res.json())
+                          .then(data => {
+                            setLeaderboard(data.leaderboard || []);
+                            setTotalVotes(data.totalVotes || 0);
+                          });
+                      }, 2000);
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ============================================
 // CATEGORY RANKINGS
 // ============================================
 const CategoryRankings = ({ category, ethPrice, isInFarcaster = false, isConnected = false, userFid = null }) => {
@@ -3784,6 +3979,13 @@ export default function Seen() {
               </div>
             </div>
           </>
+        ) : category === 'voting' ? (
+          <VotingLeaderboard
+            featuredApp={featuredApp}
+            userFid={userInfo?.fid || null}
+            isInFarcaster={isInFarcaster}
+            isConnected={isConnected}
+          />
         ) : category === 'predictions' ? (
           <div className="space-y-4">
             <MiniappPrediction
