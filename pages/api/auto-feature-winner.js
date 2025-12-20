@@ -1,8 +1,8 @@
-// Auto-feature the highest voted queue project
+// Auto-feature the highest voted active project
 // Runs on schedule via cron or can be triggered manually
 // When current featured expires (24h), highest voted project wins
 
-import { getFeaturedProject, getQueuedProjects, setFeaturedProject } from '../../lib/projects';
+import { getFeaturedProject, getActiveProjects, setFeaturedProject } from '../../lib/projects';
 import { isAuthenticated } from '../../lib/admin-auth';
 
 // How long a project stays featured before auto-rotation (24 hours)
@@ -54,12 +54,12 @@ export default async function handler(req, res) {
       });
     }
 
-    // Featured has expired - get highest voted queue project
-    const queueProjects = await getQueuedProjects();
+    // Featured has expired - get highest voted active project
+    const activeProjects = await getActiveProjects();
 
-    if (!queueProjects || queueProjects.length === 0) {
+    if (!activeProjects || activeProjects.length === 0) {
       return res.status(200).json({
-        message: 'No queue projects available to feature',
+        message: 'No active projects available to feature',
         action: 'none',
         expiredFeatured: {
           id: currentFeatured.id,
@@ -69,7 +69,7 @@ export default async function handler(req, res) {
     }
 
     // Sort by votes (descending), then by submission date (oldest first as tiebreaker)
-    const sortedByVotes = queueProjects
+    const sortedByVotes = activeProjects
       .map(p => ({
         ...p,
         votes: p.votes || 0,

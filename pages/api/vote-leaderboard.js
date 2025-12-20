@@ -1,7 +1,7 @@
 // API endpoint to get voting leaderboard
-// Returns top voted queue projects
+// Returns all active projects sorted by votes
 
-import { getQueuedProjects } from '../../lib/projects';
+import { getActiveProjects } from '../../lib/projects';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -12,18 +12,18 @@ export default async function handler(req, res) {
     const { limit = 10 } = req.query;
     const limitNum = parseInt(limit);
 
-    // Get all queue projects
-    const queueProjects = await getQueuedProjects();
+    // Get all active projects
+    const activeProjects = await getActiveProjects();
 
-    if (!queueProjects || queueProjects.length === 0) {
+    if (!activeProjects || activeProjects.length === 0) {
       return res.status(200).json({
         leaderboard: [],
         total: 0,
       });
     }
 
-    // Show ALL queue projects, sorted by votes (descending), then by submission date
-    const sortedProjects = queueProjects
+    // Show ALL active projects, sorted by votes (descending), then by submission date
+    const sortedProjects = activeProjects
       .map(project => ({
         id: project.id,
         name: project.name,

@@ -2053,7 +2053,7 @@ const VotingLeaderboard = ({ featuredApp, userFid, isInFarcaster = false, isConn
       <div className="border-b border-white pb-4">
         <h2 className="text-2xl font-black tracking-tight mb-2">VOTING LEADERBOARD</h2>
         <p className="text-[10px] tracking-[0.3em] text-gray-500 mb-4">
-          ALL QUEUE PROJECTS • 100K $SEEN = 1 VOTE • SORTED BY VOTES
+          ALL ACTIVE PROJECTS • 100K $SEEN = 1 VOTE • SORTED BY VOTES
         </p>
 
         {/* Countdown */}
@@ -2074,7 +2074,7 @@ const VotingLeaderboard = ({ featuredApp, userFid, isInFarcaster = false, isConn
       <div className="border border-white/30 bg-white/5 p-4">
         <div className="text-xs font-bold mb-2">HOW VOTING WORKS:</div>
         <ul className="text-[11px] text-gray-400 space-y-1">
-          <li>• Vote button appears on all queue projects</li>
+          <li>• Vote button appears on all active projects</li>
           <li>• Each vote costs 100,000 $SEEN (permanently burned)</li>
           <li>• Highest voted project wins when timer expires</li>
           <li>• Winner gets 24h featured slot + reset</li>

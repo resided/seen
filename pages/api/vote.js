@@ -179,10 +179,10 @@ export default async function handler(req, res) {
     return res.status(404).json({ error: 'Project not found' });
   }
 
-  // Only queue projects can receive votes
-  if (project.status !== 'queue') {
+  // Only active projects can receive votes
+  if (project.status !== 'active') {
     return res.status(400).json({
-      error: 'Only queued projects can receive votes',
+      error: 'Only active projects can receive votes',
       projectStatus: project.status,
     });
   }
