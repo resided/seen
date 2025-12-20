@@ -2075,7 +2075,8 @@ const VotingLeaderboard = ({ featuredApp, userFid, isInFarcaster = false, isConn
         <div className="text-xs font-bold mb-2">HOW VOTING WORKS:</div>
         <ul className="text-[11px] text-gray-400 space-y-1">
           <li>• Vote button appears on all active projects</li>
-          <li>• Each vote costs 100,000 $SEEN (sent to treasury)</li>
+          <li>• 100,000 $SEEN per vote (sent to treasury)</li>
+          <li>• Vote as many times as you like</li>
           <li>• Highest voted project wins when timer expires</li>
           <li>• Winner gets 24h featured slot + reset</li>
         </ul>
