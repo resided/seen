@@ -22,8 +22,13 @@ export default async function handler(req, res) {
       });
     }
 
+    // Remove any duplicates by ID (shouldn't happen, but be defensive)
+    const uniqueProjects = Array.from(
+      new Map(activeProjects.map(p => [p.id, p])).values()
+    );
+
     // Show ALL active projects, sorted by votes (descending), then by submission date
-    const sortedProjects = activeProjects
+    const sortedProjects = uniqueProjects
       .map(project => ({
         id: project.id,
         name: project.name,

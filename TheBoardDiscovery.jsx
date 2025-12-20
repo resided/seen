@@ -2075,7 +2075,7 @@ const VotingLeaderboard = ({ featuredApp, userFid, isInFarcaster = false, isConn
         <div className="text-xs font-bold mb-2">HOW VOTING WORKS:</div>
         <ul className="text-[11px] text-gray-400 space-y-1">
           <li>• Vote button appears on all active projects</li>
-          <li>• Each vote costs 100,000 $SEEN (permanently burned)</li>
+          <li>• Each vote costs 100,000 $SEEN (sent to treasury)</li>
           <li>• Highest voted project wins when timer expires</li>
           <li>• Winner gets 24h featured slot + reset</li>
         </ul>
@@ -2085,7 +2085,7 @@ const VotingLeaderboard = ({ featuredApp, userFid, isInFarcaster = false, isConn
       {totalVotes > 0 && (
         <div className="border border-white p-3 bg-yellow-400/10">
           <div className="text-[10px] tracking-[0.2em] text-yellow-400">
-            {(totalVotes * 100000).toLocaleString()} $SEEN BURNED IN VOTING
+            {(totalVotes * 100000).toLocaleString()} $SEEN SENT TO TREASURY
           </div>
         </div>
       )}

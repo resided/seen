@@ -1,6 +1,6 @@
 // API endpoint for community voting
-// Users burn 100K $SEEN to vote for a project to be featured
-// Implements burn model - tokens are permanently removed from circulation
+// Users send 100K $SEEN to treasury to vote for a project to be featured
+// Tokens are sent to treasury for future use
 
 import { getRedisClient } from '../../lib/redis';
 import { getProjectById, incrementProjectVotes } from '../../lib/projects';
@@ -11,7 +11,7 @@ import { base } from 'viem/chains';
 // Voting configuration
 const VOTE_COST = '100000'; // 100K $SEEN tokens per vote
 const SEEN_TOKEN_ADDRESS = '0x82a56d595ccdfa3a1dc6eef28d5f0a870f162b07';
-const BURN_ADDRESS = '0x000000000000000000000000000000000000dEaD'; // Standard burn address
+const TREASURY_ADDRESS = '0x32b907f125c4b929d5d9565fa24bc6bf9af39fbb'; // Treasury address
 const MIN_NEYNAR_SCORE = 0.33;
 
 export default async function handler(req, res) {
@@ -105,10 +105,10 @@ export default async function handler(req, res) {
     // Extract recipient address (bytes 4-36, but address is last 20 bytes)
     const recipientHex = '0x' + txData.slice(34, 74);
 
-    if (recipientHex.toLowerCase() !== BURN_ADDRESS.toLowerCase()) {
+    if (recipientHex.toLowerCase() !== TREASURY_ADDRESS.toLowerCase()) {
       return res.status(400).json({
-        error: 'Tokens must be sent to burn address',
-        expectedBurnAddress: BURN_ADDRESS,
+        error: 'Tokens must be sent to treasury',
+        expectedTreasury: TREASURY_ADDRESS,
         actualRecipient: recipientHex,
       });
     }
@@ -129,7 +129,7 @@ export default async function handler(req, res) {
     console.log('[VOTE] Transaction verified:', {
       txHash,
       from: tx.from,
-      burnedAmount: (amountBigInt / BigInt(10 ** 18)).toString()
+      sentAmount: (amountBigInt / BigInt(10 ** 18)).toString()
     });
 
   } catch (error) {
@@ -237,14 +237,14 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
-      message: `Vote recorded! ${VOTE_COST} $SEEN burned 🔥`,
+      message: `Vote recorded! ${VOTE_COST} $SEEN sent to treasury`,
       project: {
         id: updatedProject.id,
         name: updatedProject.name,
         votes: updatedProject.votes,
       },
       txHash,
-      burnedAmount: VOTE_COST,
+      sentAmount: VOTE_COST,
     });
 
   } catch (error) {

@@ -7,7 +7,7 @@ import { parseUnits } from 'viem';
 
 const VOTE_COST = '100000'; // 100K $SEEN per vote
 const SEEN_TOKEN_ADDRESS = '0x82a56d595ccdfa3a1dc6eef28d5f0a870f162b07';
-const BURN_ADDRESS = '0x000000000000000000000000000000000000dEaD';
+const TREASURY_ADDRESS = '0x32b907f125c4b929d5d9565fa24bc6bf9af39fbb';
 const ERC20_ABI = [
   {
     name: 'transfer',
@@ -56,7 +56,7 @@ const VoteButton = ({ project, userFid, onVoteSuccess }) => {
     setMessage('');
   };
 
-  const executeBurn = async () => {
+  const executeVote = async () => {
     try {
       setVoting(true);
       setMessage('Approve transaction in wallet...');
@@ -68,12 +68,12 @@ const VoteButton = ({ project, userFid, onVoteSuccess }) => {
         address: SEEN_TOKEN_ADDRESS,
         abi: ERC20_ABI,
         functionName: 'transfer',
-        args: [BURN_ADDRESS, amount],
+        args: [TREASURY_ADDRESS, amount],
       });
 
       setMessage('Waiting for transaction confirmation...');
     } catch (err) {
-      console.error('Burn transaction failed:', err);
+      console.error('Vote transaction failed:', err);
       setError(err.message || 'Transaction failed');
       setVoting(false);
     }
@@ -100,7 +100,7 @@ const VoteButton = ({ project, userFid, onVoteSuccess }) => {
         throw new Error(data.error || 'Failed to record vote');
       }
 
-      setMessage(`Vote recorded! ${VOTE_COST} $SEEN burned 🔥`);
+      setMessage(`Vote recorded! ${VOTE_COST} $SEEN sent to treasury`);
       setVoting(false);
 
       // Close modal after 2 seconds
@@ -144,7 +144,7 @@ const VoteButton = ({ project, userFid, onVoteSuccess }) => {
               <div>
                 <h3 className="text-xl font-black tracking-tight">VOTE FOR FEATURED</h3>
                 <p className="text-[9px] tracking-[0.2em] text-gray-500 mt-1">
-                  BURN 100K $SEEN
+                  SEND 100K $SEEN TO TREASURY
                 </p>
               </div>
               {!voting && (
@@ -168,10 +168,10 @@ const VoteButton = ({ project, userFid, onVoteSuccess }) => {
                 )}
               </div>
 
-              <div className="border border-red-500/50 bg-red-500/10 p-4 mb-4">
-                <div className="text-sm font-bold text-red-400 mb-2">⚠️ IMPORTANT</div>
-                <ul className="text-xs text-red-300 space-y-1 list-disc list-inside">
-                  <li>100,000 $SEEN will be permanently burned</li>
+              <div className="border border-yellow-500/50 bg-yellow-500/10 p-4 mb-4">
+                <div className="text-sm font-bold text-yellow-400 mb-2">⚠️ IMPORTANT</div>
+                <ul className="text-xs text-yellow-300 space-y-1 list-disc list-inside">
+                  <li>100,000 $SEEN will be sent to treasury</li>
                   <li>This action cannot be undone</li>
                   <li>Vote helps this project get featured</li>
                 </ul>
@@ -199,11 +199,11 @@ const VoteButton = ({ project, userFid, onVoteSuccess }) => {
                 CANCEL
               </button>
               <button
-                onClick={executeBurn}
+                onClick={executeVote}
                 disabled={voting || isConfirming}
                 className="flex-1 py-3 bg-white text-black font-black text-sm tracking-[0.2em] hover:bg-gray-200 transition-all disabled:opacity-50"
               >
-                {voting || isConfirming ? 'PROCESSING...' : 'BURN & VOTE'}
+                {voting || isConfirming ? 'PROCESSING...' : 'SEND & VOTE'}
               </button>
             </div>
           </div>
