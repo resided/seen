@@ -35,7 +35,9 @@ const VoteButton = ({ project, userFid, onVoteSuccess }) => {
 
   // Handle transaction confirmation
   React.useEffect(() => {
+    console.log('[VOTE] useEffect triggered:', { isConfirmed, txHash, voting });
     if (isConfirmed && txHash && voting) {
+      console.log('[VOTE] Calling submitVote with hash:', txHash);
       submitVote(txHash);
     }
   }, [isConfirmed, txHash, voting]);
@@ -81,6 +83,7 @@ const VoteButton = ({ project, userFid, onVoteSuccess }) => {
 
   const submitVote = async (transactionHash) => {
     try {
+      console.log('[VOTE] submitVote called with hash:', transactionHash);
       setMessage('Recording vote...');
 
       const response = await fetch('/api/vote', {
@@ -97,9 +100,11 @@ const VoteButton = ({ project, userFid, onVoteSuccess }) => {
       const data = await response.json();
 
       if (!response.ok) {
+        console.error('[VOTE] API Error:', data);
         throw new Error(data.error || 'Failed to record vote');
       }
 
+      console.log('[VOTE] Vote recorded successfully:', data);
       setMessage(`Vote recorded! ${VOTE_COST} $SEEN sent to treasury`);
       setVoting(false);
 
