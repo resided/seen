@@ -40,38 +40,11 @@ const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDispl
   const USDC_TOKEN_DECIMALS = 6; // USDC has 6 decimals
   
   // Featured submission pricing in USDC
-  const BASE_FEATURED_PRICE = 111; // $111 USDC base price
+  const FEATURED_PRICE_USDC = 111; // $111 USDC
+  const FEATURED_PRICE_DISPLAY = `${FEATURED_PRICE_USDC} USDC`;
+
   // Treasury address should be fetched from API or environment
   const [treasuryAddress, setTreasuryAddress] = useState(null);
-  
-  // Holder benefits for discount (30M+ SEEN holders = 20% off)
-  const [holderBenefits, setHolderBenefits] = useState(null);
-  const isHolder = holderBenefits?.isHolder || false;
-  
-  // Calculate discounted price for 30M+ SEEN holders (20% off)
-  const discountPercent = isHolder ? 20 : 0;
-  const FEATURED_PRICE_USDC = BASE_FEATURED_PRICE * (1 - discountPercent / 100);
-  
-  // Display text
-  const FEATURED_PRICE_DISPLAY = isHolder 
-    ? `${FEATURED_PRICE_USDC.toFixed(0)} USDC (20% holder discount!)` 
-    : `${BASE_FEATURED_PRICE} USDC`;
-
-  // Fetch holder benefits for discount
-  useEffect(() => {
-    if (address) {
-      fetch(`/api/holder-benefits?address=${address}`)
-        .then(res => res.json())
-        .then(data => {
-          setHolderBenefits(data);
-        })
-        .catch(() => {
-          setHolderBenefits(null);
-        });
-    } else {
-      setHolderBenefits(null);
-    }
-  }, [address]);
 
   // Fetch treasury address from API
   useEffect(() => {
@@ -525,14 +498,9 @@ const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDispl
                 <div className="flex-1">
                   <div className="text-sm font-bold">FEATURED SLOT</div>
                   <div className="text-[10px] text-gray-500">
-                    {FEATURED_PRICE_DISPLAY} 
+                    {FEATURED_PRICE_DISPLAY}
                     - Payment in USDC
                   </div>
-                  {isHolder && (
-                    <div className="text-[9px] text-green-400 mt-1 font-bold">
-                      30M+ HOLDER: 20% OFF (was {BASE_FEATURED_PRICE} USDC)
-                    </div>
-                  )}
                   <div className="text-[9px] text-yellow-400 mt-1 font-bold">
                     ⚠ MUST CHOOSE FEATURED DROPDOWN MENU
                   </div>
@@ -541,19 +509,6 @@ const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDispl
                   )}
                 </div>
               </label>
-            </div>
-            
-            {/* Holder discount info */}
-            <div className="mt-3 p-3 border border-white/30 bg-white/5">
-              <div className="text-[10px] tracking-[0.2em] text-gray-400 mb-1">$SEEN HOLDER DISCOUNT</div>
-              <div className="text-[9px] text-gray-500">
-                Hold 30M+ $SEEN for 20% off featured pricing
-              </div>
-              {isHolder && (
-                <div className="mt-1 text-[9px] text-green-400">
-                  You qualify ({holderBenefits?.balance?.toLocaleString()} $SEEN)
-                </div>
-              )}
             </div>
           </div>
 
