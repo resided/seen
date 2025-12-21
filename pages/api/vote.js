@@ -235,6 +235,10 @@ export default async function handler(req, res) {
       newVoteCount: updatedProject.votes,
     });
 
+    // Track battle vote if project is in active battle
+    const { trackBattleVote } = await import('../../lib/battle-analytics');
+    await trackBattleVote(projectIdNum, fidNum);
+
     return res.status(200).json({
       success: true,
       message: `Vote recorded! ${VOTE_COST} $SEEN sent to treasury`,

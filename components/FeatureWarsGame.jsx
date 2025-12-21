@@ -387,8 +387,20 @@ const CurrentBattle = ({ battle, userFid, isConnected, onBet }) => {
 
       {/* Battle Stats */}
       <div className="border-t border-white p-4 bg-black/50">
-        <div className="text-[10px] tracking-[0.3em] text-gray-400 mb-2">
-          BETTING {battle.status === 'active' ? 'OPEN' : 'CLOSED'}
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-[10px] tracking-[0.3em] text-gray-400">
+            BETTING {battle.status === 'active' ? 'OPEN' : 'CLOSED'}
+          </div>
+          <button
+            onClick={() => {
+              const frameUrl = `${window.location.origin}/api/game/frame`;
+              const shareUrl = `https://warpcast.com/~/compose?embeds[]=${encodeURIComponent(frameUrl)}`;
+              window.open(shareUrl, '_blank');
+            }}
+            className="text-[10px] tracking-[0.2em] border border-white px-3 py-1 hover:bg-white hover:text-black transition-all"
+          >
+            SHARE BATTLE
+          </button>
         </div>
         {!isConnected && (
           <p className="text-xs text-gray-500">

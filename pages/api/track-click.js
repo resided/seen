@@ -102,6 +102,14 @@ export default async function handler(req, res) {
       });
     }
 
+    // Track battle engagement if project is in active battle
+    const { trackBattleClick, trackBattleView } = await import('../../lib/battle-analytics');
+    if (type === 'click') {
+      await trackBattleClick(projectIdNum);
+    } else if (type === 'view') {
+      await trackBattleView(projectIdNum);
+    }
+
     return res.status(200).json({
       success: true,
       tracked: true,
