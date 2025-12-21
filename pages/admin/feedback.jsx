@@ -4,6 +4,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 
+const ADMIN_FID = 342433; // Admin FID
+
 export default function FeedbackAdmin() {
   const router = useRouter();
   const [feedback, setFeedback] = useState([]);
@@ -15,6 +17,7 @@ export default function FeedbackAdmin() {
   const [showLogin, setShowLogin] = useState(false);
   const [loginData, setLoginData] = useState({ username: '', password: '' });
   const [loginError, setLoginError] = useState('');
+  const [adminFid, setAdminFid] = useState(null);
 
   const fetchFeedback = async () => {
     if (!adminFid) return;

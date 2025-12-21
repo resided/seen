@@ -266,6 +266,61 @@ export default function Admin() {
     }
   };
 
+  // Battle management handlers
+  const handleCreateBattle = async () => {
+    if (!confirm('Create a new Feature Wars battle? This will select 2 random active projects.')) {
+      return;
+    }
+
+    try {
+      setMessage('Creating battle...');
+      const response = await fetch('/api/game/create-battle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setMessage(`✅ Battle created! ${data.battle.projectA.name} vs ${data.battle.projectB.name}`);
+      } else {
+        setMessage(`Error: ${data.error || 'Failed to create battle'}`);
+      }
+    } catch (error) {
+      setMessage('Error creating battle');
+      console.error(error);
+    }
+  };
+
+  const handleResolveBattle = async () => {
+    if (!confirm('Resolve current battle? This will determine the winner and distribute winnings.')) {
+      return;
+    }
+
+    try {
+      setMessage('Resolving battle...');
+      const response = await fetch('/api/game/resolve-battle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        if (data.action === 'resolved') {
+          setMessage(`✅ Battle resolved! Winner: Team ${data.result.winner}. Pool: ${data.result.totalPool} $SEEN`);
+        } else {
+          setMessage(`ℹ️ ${data.message}`);
+        }
+      } else {
+        setMessage(`Error: ${data.error || 'Failed to resolve battle'}`);
+      }
+    } catch (error) {
+      setMessage('Error resolving battle');
+      console.error(error);
+    }
+  };
+
   const fetchSubmissions = async () => {
     try {
       const response = await fetch('/api/admin/submissions', {
@@ -2095,6 +2150,18 @@ export default function Admin() {
                 className="px-4 py-2 bg-yellow-600 text-white font-bold hover:bg-yellow-500 transition-all"
               >
                 TRIGGER AUTO-FEATURE
+              </button>
+              <button
+                onClick={handleCreateBattle}
+                className="px-4 py-2 bg-purple-600 text-white font-bold hover:bg-purple-500 transition-all"
+              >
+                CREATE BATTLE
+              </button>
+              <button
+                onClick={handleResolveBattle}
+                className="px-4 py-2 bg-green-600 text-white font-bold hover:bg-green-500 transition-all"
+              >
+                RESOLVE BATTLE
               </button>
               <button
                 onClick={handleLogout}

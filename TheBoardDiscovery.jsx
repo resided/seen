@@ -8,6 +8,8 @@ import MiniappPrediction from './components/MiniappPrediction';
 import FeedbackBox from './components/FeedbackBox';
 import StatsBanner from './components/StatsBanner';
 import VoteButton from './components/VoteButton';
+import ModeLanding from './components/ModeLanding';
+import FeatureWarsGame from './components/FeatureWarsGame';
 
 // ============================================
 // SEEN. - MINI APP DISCOVERY
@@ -3254,6 +3256,8 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
 // MAIN APP
 // ============================================
 export default function Seen() {
+  // App mode state: 'landing' | 'discovery' | 'game'
+  const [appMode, setAppMode] = useState('landing');
   const [category, setCategory] = useState('main');
   const [messages, setMessages] = useState([]);
   const [chatLeaderboard, setChatLeaderboard] = useState([]);
@@ -3728,6 +3732,31 @@ export default function Seen() {
       });
   };
 
+  // Mode selection handlers
+  const handleModeSelect = (mode) => {
+    setAppMode(mode);
+  };
+
+  const handleBackToLanding = () => {
+    setAppMode('landing');
+  };
+
+  // Render mode-specific UIs
+  if (appMode === 'landing') {
+    return <ModeLanding onSelectMode={handleModeSelect} />;
+  }
+
+  if (appMode === 'game') {
+    return (
+      <FeatureWarsGame
+        onBack={handleBackToLanding}
+        userFid={userInfo?.fid}
+        isConnected={isConnected}
+      />
+    );
+  }
+
+  // Discovery mode (default)
   return (
     <div className="h-screen bg-black text-white w-full overflow-hidden flex flex-col" style={{ height: '100dvh' }}>
       {/* Read-only banner for web users */}
