@@ -164,6 +164,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
   const [customTipAmount, setCustomTipAmount] = useState(''); // Stored as ETH internally
   const [customTipAmountUsd, setCustomTipAmountUsd] = useState(''); // Display value in USD
   const pendingTipAmount = useRef(null); // Store tip amount when sending to avoid stale closures
+  const [treasuryAddress, setTreasuryAddress] = useState(null);
   
   // Minimum tip: $0.20 USD (20 cents)
   const MIN_TIP_USD = 0.20;
@@ -186,6 +187,18 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
     }
   }, [showTipModal, ethPrice, customTipAmount, customTipAmountUsd]);
   
+  // Fetch treasury address
+  useEffect(() => {
+    fetch('/api/payment/treasury-address')
+      .then(res => res.json())
+      .then(data => {
+        if (data.treasuryAddress) {
+          setTreasuryAddress(data.treasuryAddress);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Fetch builder data when modal opens if not already loaded
   useEffect(() => {
     if (showTipModal && !builderData && app.builderFid) {
@@ -253,8 +266,11 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
     address: SEEN_TOKEN_ADDRESS,
     abi: erc20Abi,
     functionName: 'balanceOf',
-    args: [TREASURY_ADDRESS],
+    args: treasuryAddress ? [treasuryAddress] : undefined,
     chainId: 8453, // Base
+    query: {
+      enabled: !!treasuryAddress, // Only query when treasury address is available
+    },
   });
 
   // Poll balance every 2 minutes for live updates
@@ -2324,7 +2340,6 @@ const CategoryRankings = ({ category, ethPrice, isInFarcaster = false, isConnect
 // ============================================
 // Token swap constants (moved to top for global access)
 const SEEN_TOKEN_ADDRESS = '0x82a56d595ccdfa3a1dc6eef28d5f0a870f162b07';
-const TREASURY_ADDRESS = '0x32b907f125C4b929D5D9565FA24Bc6BF9af39fBb';
 const BASE_ETH_CAIP19 = 'eip155:8453/native';
 const SEEN_CAIP19 = `eip155:8453/erc20:${SEEN_TOKEN_ADDRESS.toLowerCase()}`;
 const SEEN_TOKEN_DECIMALS = 18; // $SEEN token decimals

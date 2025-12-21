@@ -6,8 +6,6 @@ import { erc20Abi, parseUnits, encodeFunctionData } from 'viem';
 
 // $SEEN token on Base
 const SEEN_TOKEN_ADDRESS = '0xA29Cf6c8cD61FFE04108CaBd0Ab2A3310Bb44801';
-// Treasury address for bets
-const TREASURY_ADDRESS = '0x32b907f125c4b929d5d9565fa24bc6bf9af39fbb';
 // Bet amount (100K $SEEN)
 const BET_AMOUNT = '100000';
 
@@ -18,6 +16,7 @@ const FeatureWarsGame = ({ onBack, userFid, isConnected }) => {
   const [showBetModal, setShowBetModal] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [betStatus, setBetStatus] = useState('');
+  const [treasuryAddress, setTreasuryAddress] = useState(null);
 
   // Wagmi hooks for sending transactions
   const { sendTransaction, data: txData } = useSendTransaction();
@@ -30,6 +29,15 @@ const FeatureWarsGame = ({ onBack, userFid, isConnected }) => {
     if (userFid) {
       fetchMyBets();
     }
+    // Fetch treasury address
+    fetch('/api/payment/treasury-address')
+      .then(res => res.json())
+      .then(data => {
+        if (data.treasuryAddress) {
+          setTreasuryAddress(data.treasuryAddress);
+        }
+      })
+      .catch(() => {});
   }, [userFid]);
 
   const fetchCurrentBattle = async () => {
@@ -72,6 +80,11 @@ const FeatureWarsGame = ({ onBack, userFid, isConnected }) => {
 
   // Execute bet transaction
   const executeBet = async () => {
+    if (!treasuryAddress) {
+      setBetStatus('Loading treasury address...');
+      return;
+    }
+
     try {
       setBetStatus('Preparing transaction...');
 
@@ -79,7 +92,7 @@ const FeatureWarsGame = ({ onBack, userFid, isConnected }) => {
       const data = encodeFunctionData({
         abi: erc20Abi,
         functionName: 'transfer',
-        args: [TREASURY_ADDRESS, amount],
+        args: [treasuryAddress, amount],
       });
 
       sendTransaction({

@@ -7,9 +7,6 @@ import { base } from 'viem/chains';
 // $SEEN token on Base
 const SEEN_TOKEN_ADDRESS = '0xA29Cf6c8cD61FFE04108CaBd0Ab2A3310Bb44801';
 
-// Treasury address for bets
-const TREASURY_ADDRESS = '0x32b907f125c4b929d5d9565fa24bc6bf9af39fbb';
-
 // Minimum bet amount (100K $SEEN)
 const MIN_BET_AMOUNT = 100000;
 
@@ -87,6 +84,14 @@ export default async function handler(req, res) {
     if (!receipt || receipt.status !== 'success') {
       return res.status(400).json({
         error: 'Transaction failed or not found',
+      });
+    }
+
+    // Get treasury address from environment
+    const TREASURY_ADDRESS = process.env.TREASURY_ADDRESS;
+    if (!TREASURY_ADDRESS) {
+      return res.status(500).json({
+        error: 'Treasury address not configured',
       });
     }
 

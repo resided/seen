@@ -1,13 +1,12 @@
 // Community Voting Button Component
 // Allows users to vote for queue projects by burning 100K $SEEN tokens
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseUnits } from 'viem';
 
 const VOTE_COST = '100000'; // 100K $SEEN per vote
 const SEEN_TOKEN_ADDRESS = '0x82a56d595ccdfa3a1dc6eef28d5f0a870f162b07';
-const TREASURY_ADDRESS = '0x32b907f125c4b929d5d9565fa24bc6bf9af39fbb';
 const ERC20_ABI = [
   {
     name: 'transfer',
@@ -27,11 +26,24 @@ const VoteButton = ({ project, userFid, onVoteSuccess }) => {
   const [voting, setVoting] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [treasuryAddress, setTreasuryAddress] = useState(null);
 
   const { writeContract, data: txHash } = useWriteContract();
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash: txHash,
   });
+
+  // Fetch treasury address
+  useEffect(() => {
+    fetch('/api/payment/treasury-address')
+      .then(res => res.json())
+      .then(data => {
+        if (data.treasuryAddress) {
+          setTreasuryAddress(data.treasuryAddress);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Handle transaction confirmation
   React.useEffect(() => {
@@ -59,6 +71,11 @@ const VoteButton = ({ project, userFid, onVoteSuccess }) => {
   };
 
   const executeVote = async () => {
+    if (!treasuryAddress) {
+      setError('Loading treasury address...');
+      return;
+    }
+
     try {
       setVoting(true);
       setMessage('Approve transaction in wallet...');
@@ -70,7 +87,7 @@ const VoteButton = ({ project, userFid, onVoteSuccess }) => {
         address: SEEN_TOKEN_ADDRESS,
         abi: ERC20_ABI,
         functionName: 'transfer',
-        args: [TREASURY_ADDRESS, amount],
+        args: [treasuryAddress, amount],
       });
 
       setMessage('Waiting for transaction confirmation...');

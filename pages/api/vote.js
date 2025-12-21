@@ -11,7 +11,6 @@ import { base } from 'viem/chains';
 // Voting configuration
 const VOTE_COST = '100000'; // 100K $SEEN tokens per vote
 const SEEN_TOKEN_ADDRESS = '0x82a56d595ccdfa3a1dc6eef28d5f0a870f162b07';
-const TREASURY_ADDRESS = '0x32b907f125c4b929d5d9565fa24bc6bf9af39fbb'; // Treasury address
 const MIN_NEYNAR_SCORE = 0.33;
 
 export default async function handler(req, res) {
@@ -104,6 +103,13 @@ export default async function handler(req, res) {
 
     // Extract recipient address (bytes 4-36, but address is last 20 bytes)
     const recipientHex = '0x' + txData.slice(34, 74);
+
+    const TREASURY_ADDRESS = process.env.TREASURY_ADDRESS;
+    if (!TREASURY_ADDRESS) {
+      return res.status(500).json({
+        error: 'Treasury address not configured',
+      });
+    }
 
     if (recipientHex.toLowerCase() !== TREASURY_ADDRESS.toLowerCase()) {
       return res.status(400).json({
