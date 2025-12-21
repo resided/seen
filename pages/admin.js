@@ -1055,8 +1055,11 @@ const ProjectSection = ({
                     </span>
                   </div>
                   <p className="text-sm text-gray-400">{project.tagline}</p>
-                  <div className="text-xs text-gray-600 mt-1">
-                    Votes: {project.votes || 0}
+                  <div className="text-xs text-gray-600 mt-1 space-x-4">
+                    <span>Votes: {project.votes || 0}</span>
+                    <span>Views: {formatAmount(project.stats?.views || 0)}</span>
+                    <span>Clicks: {formatAmount(project.stats?.clicks || 0)}</span>
+                    <span>Total: {formatAmount((project.stats?.views || 0) + (project.stats?.clicks || 0))}</span>
                   </div>
                 </div>
                 <div className="flex gap-2">
