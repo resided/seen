@@ -85,7 +85,7 @@ function renderBattleImage(res, battle, leaderboard) {
   <rect width="1200" height="630" fill="#000000"/>
 
   <!-- Title -->
-  <text x="600" y="80" class="title" text-anchor="middle">FEATURE WARS</text>
+  <text x="600" y="80" class="title" text-anchor="middle">MOOD.</text>
   <text x="600" y="120" class="subtitle" text-anchor="middle">${poolTotal} $SEEN POOL</text>
 
   <!-- Divider -->

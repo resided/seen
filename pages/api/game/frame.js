@@ -1,4 +1,4 @@
-// Farcaster Frame for Feature Wars battles
+// Farcaster Frame for MOOD. battles
 // Displays current battle and allows sharing
 
 import { getCurrentBattle } from '../../../lib/battles';
@@ -74,7 +74,7 @@ function renderNoBattleFrame(res) {
   <meta property="fc:frame:button:1" content="Check SEEN" />
   <meta property="fc:frame:button:1:action" content="link" />
   <meta property="fc:frame:button:1:target" content="https://seen.zankers.eth.limo" />
-  <title>SEEN - Feature Wars</title>
+  <title>SEEN - MOOD.</title>
 </head>
 <body>
   <h1>NO ACTIVE BATTLE</h1>
@@ -102,10 +102,10 @@ function renderBattleFrame(res, battle, leaderboard) {
   <meta property="fc:frame:button:2" content="🅰 ${battle.projectA.name}" />
   <meta property="fc:frame:button:3" content="🅱 ${battle.projectB.name}" />
   <meta property="fc:frame:post_url" content="${getBaseUrl()}/api/game/frame" />
-  <title>SEEN - Feature Wars</title>
+  <title>SEEN - MOOD.</title>
 </head>
 <body>
-  <h1>FEATURE WARS</h1>
+  <h1>MOOD.</h1>
   <h2>${battle.projectA.name} vs ${battle.projectB.name}</h2>
   <p>Score: ${scoreA} - ${scoreB}</p>
   <p>Pool: ${totalPool}K $SEEN</p>

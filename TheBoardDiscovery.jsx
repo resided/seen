@@ -75,7 +75,6 @@ const TrophyIcon = () => (
 const CATEGORIES = [
   { id: 'main', label: 'FEATURED', icon: StarIcon },
   { id: 'voting', label: 'VOTE', icon: TrophyIcon },
-  { id: 'predictions', label: 'PREDICT', icon: PredictionIcon },
   { id: 'defi', label: 'DEFI', icon: ChartIcon },
   { id: 'tokens', label: 'TOKENS', icon: TokenIcon },
   { id: 'social', label: 'SOCIAL', icon: UsersIcon },

@@ -164,7 +164,7 @@ export default function Admin() {
   };
 
   const handleCreateBattle = async () => {
-    if (!confirm('Create a new Feature Wars battle?')) return;
+    if (!confirm('Create a new MOOD. battle?')) return;
 
     try {
       setMessage('Creating battle...');

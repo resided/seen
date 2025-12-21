@@ -49,10 +49,10 @@ const ModeLanding = ({ onSelectMode }) => {
             <div className="flex items-center justify-between">
               <div className="text-left">
                 <h2 className="text-2xl md:text-4xl font-black tracking-tight mb-2">
-                  SEEN (THE GAME)
+                  MOOD.
                 </h2>
                 <p className="text-xs md:text-sm tracking-[0.2em] text-gray-400 group-hover:text-gray-800 mb-2">
-                  FEATURE WARS • BET • WIN
+                  PREDICT • BET • WIN
                 </p>
                 <p className="text-[10px] tracking-[0.2em] text-gray-600 group-hover:text-gray-700">
                   THIS IS IN EARLY BETA AND MAY BREAK

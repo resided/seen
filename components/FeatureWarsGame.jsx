@@ -205,10 +205,10 @@ const FeatureWarsGame = ({ onBack, userFid, isConnected }) => {
           </div>
 
           <h1 className="text-4xl md:text-6xl font-black tracking-tight">
-            FEATURE WARS
+            MOOD.
           </h1>
           <p className="text-[10px] tracking-[0.3em] text-gray-500 mt-2">
-            BET ON PROJECTS • HIGHEST ENGAGEMENT WINS
+            PREDICT • BET • WIN
           </p>
         </div>
       </div>
