@@ -265,10 +265,7 @@ const NoBattleState = () => (
   <div className="border border-white p-12 text-center">
     <h2 className="text-2xl font-black mb-4">NO ACTIVE BATTLE</h2>
     <p className="text-sm text-gray-400 mb-2">
-      Battles start automatically every 24 hours
-    </p>
-    <p className="text-xs text-gray-600">
-      Check back soon or follow @seen on Farcaster for notifications
+      Check back soon or join /zankers channel
     </p>
   </div>
 );
