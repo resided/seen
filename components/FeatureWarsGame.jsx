@@ -9,6 +9,18 @@ const SEEN_TOKEN_ADDRESS = '0xA29Cf6c8cD61FFE04108CaBd0Ab2A3310Bb44801';
 // Bet amount (100K $SEEN)
 const BET_AMOUNT = '100000';
 
+// Format large numbers: 1000 -> 1K, 1000000 -> 1M, 1000000000 -> 1B
+const formatAmount = (amount) => {
+  if (amount >= 1000000000) {
+    return `${(amount / 1000000000).toFixed(1)}B`;
+  } else if (amount >= 1000000) {
+    return `${(amount / 1000000).toFixed(1)}M`;
+  } else if (amount >= 1000) {
+    return `${(amount / 1000).toFixed(0)}K`;
+  }
+  return amount.toString();
+};
+
 const FeatureWarsGame = ({ onBack, userFid, isConnected }) => {
   const [currentBattle, setCurrentBattle] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -327,7 +339,7 @@ const CurrentBattle = ({ battle, userFid, isConnected, onBet }) => {
           <div className="text-right">
             <div className="text-xs tracking-[0.3em]">TOTAL POOL</div>
             <div className="font-mono text-xl font-black">
-              {(totalPool / 1000).toFixed(0)}K $SEEN
+              {formatAmount(totalPool)} $SEEN
             </div>
           </div>
         </div>
@@ -348,7 +360,7 @@ const CurrentBattle = ({ battle, userFid, isConnected, onBet }) => {
             </div>
             <div className="flex justify-between text-sm">
               <span>Pool:</span>
-              <span className="font-mono font-bold">{(battle.poolA / 1000).toFixed(0)}K</span>
+              <span className="font-mono font-bold">{formatAmount(battle.poolA)}</span>
             </div>
           </div>
 
@@ -379,7 +391,7 @@ const CurrentBattle = ({ battle, userFid, isConnected, onBet }) => {
             </div>
             <div className="flex justify-between text-sm">
               <span>Pool:</span>
-              <span className="font-mono font-bold">{(battle.poolB / 1000).toFixed(0)}K</span>
+              <span className="font-mono font-bold">{formatAmount(battle.poolB)}</span>
             </div>
           </div>
 
