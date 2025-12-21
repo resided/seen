@@ -10,7 +10,7 @@ export default async function handler(req, res) {
   }
 
   // Allow cron to trigger this
-  const isCron = req.headers['x-vercel-cron'] === process.env.CRON_SECRET;
+  const isCron = req.headers['authorization'] === `Bearer ${process.env.CRON_SECRET}`;
 
   if (!isCron) {
     return res.status(403).json({ error: 'Unauthorized - cron only' });

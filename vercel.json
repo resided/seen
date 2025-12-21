@@ -17,15 +17,24 @@
   "crons": [
     {
       "path": "/api/auto-feature-winner",
-      "schedule": "0 * * * *"
+      "schedule": "0 * * * *",
+      "headers": {
+        "Authorization": "Bearer ${CRON_SECRET}"
+      }
     },
     {
       "path": "/api/game/update-battle-scores",
-      "schedule": "0 * * * *"
+      "schedule": "0 * * * *",
+      "headers": {
+        "Authorization": "Bearer ${CRON_SECRET}"
+      }
     },
     {
       "path": "/api/game/resolve-battle",
-      "schedule": "0 * * * *"
+      "schedule": "0 * * * *",
+      "headers": {
+        "Authorization": "Bearer ${CRON_SECRET}"
+      }
     }
   ]
 }
