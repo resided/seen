@@ -21,8 +21,9 @@ export default async function handler(req, res) {
       const endTime = new Date(currentBattle.endTime);
       const now = new Date();
       if (endTime > now) {
+        const remaining = Math.ceil((endTime - now) / (1000 * 60 * 60));
         return res.status(400).json({
-          error: 'Active battle already exists',
+          error: `Active battle already exists (${currentBattle.projectA.name} vs ${currentBattle.projectB.name}). ${remaining}h remaining. Resolve it first or wait for it to end.`,
           currentBattle,
         });
       }
