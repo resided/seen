@@ -31,7 +31,7 @@ const FeatureWarsGame = ({ onBack, userFid, isConnected }) => {
   const [treasuryAddress, setTreasuryAddress] = useState(null);
 
   // Wagmi hooks for sending transactions
-  const { sendTransaction, data: txData } = useSendTransaction();
+  const { sendTransaction, data: txData, error: txError } = useSendTransaction();
   const { isLoading: isTxPending, isSuccess: isTxSuccess } = useWaitForTransactionReceipt({
     hash: txData,
   });
@@ -118,6 +118,21 @@ const FeatureWarsGame = ({ onBack, userFid, isConnected }) => {
       setBetStatus(`Error: ${error.message}`);
     }
   };
+
+  // Handle transaction pending state
+  useEffect(() => {
+    if (isTxPending) {
+      setBetStatus('Transaction processing on-chain...');
+    }
+  }, [isTxPending]);
+
+  // Handle transaction errors
+  useEffect(() => {
+    if (txError) {
+      console.error('Transaction error:', txError);
+      setBetStatus(`Error: ${txError.message || 'Transaction failed'}`);
+    }
+  }, [txError]);
 
   // Handle successful transaction
   useEffect(() => {
