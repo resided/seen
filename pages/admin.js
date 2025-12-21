@@ -5,92 +5,27 @@ import { sdk } from '@farcaster/miniapp-sdk';
 const ADMIN_FID = 342433; // Admin FID
 
 export default function Admin() {
-  const [submissions, setSubmissions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState('');
+  // Auth state
   const [userFid, setUserFid] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [unauthorized, setUnauthorized] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [loginData, setLoginData] = useState({ username: '', password: '' });
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [creating, setCreating] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // UI state
+  const [message, setMessage] = useState('');
+  const [activeSection, setActiveSection] = useState('battles'); // battles, projects, automation, claims, tools
+
+  // Projects state
+  const [submissions, setSubmissions] = useState([]);
   const [liveProjects, setLiveProjects] = useState([]);
-  const [liveProjectsLoading, setLiveProjectsLoading] = useState(false);
   const [archivedProjects, setArchivedProjects] = useState([]);
-  const [archivedProjectsLoading, setArchivedProjectsLoading] = useState(false);
-  const [showArchived, setShowArchived] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
-  const [updating, setUpdating] = useState(false);
-  const editFormRef = useRef(null); // Ref for scrolling to edit form
-  const [ethPrice, setEthPrice] = useState(null);
-  const [tipsUsdDisplay, setTipsUsdDisplay] = useState({ edit: '', create: '' }); // Store USD values for display
-  const [claimsDisabled, setClaimsDisabled] = useState(null); // null = loading, true/false = state
-  const [currentFeatured, setCurrentFeatured] = useState(null);
-  const [claimStats, setClaimStats] = useState(null);
-  const [loadingStats, setLoadingStats] = useState(false);
-  const [traceWalletAddress, setTraceWalletAddress] = useState('');
-  const [traceResult, setTraceResult] = useState(null);
-  const [tracingWallet, setTracingWallet] = useState(false);
-  const [blockedFids, setBlockedFids] = useState([]);
-  const [blockFidInput, setBlockFidInput] = useState('');
-  const [loadingBlockedFids, setLoadingBlockedFids] = useState(false);
-  const [bonusTokenConfig, setBonusTokenConfig] = useState({
-    enabled: false,
-    contractAddress: '',
-    amount: '',
-    decimals: 18,
-    maxSupply: 0,
-    tokenName: '',
-  });
-  const [loadingBonusConfig, setLoadingBonusConfig] = useState(false);
-  const [showBonusTokenConfig, setShowBonusTokenConfig] = useState(false);
-  const [showClaimSettings, setShowClaimSettings] = useState(false);
-  const [claimSettings, setClaimSettings] = useState({
-    baseClaimAmount: 40000,
-    claimMultiplier: 1,
-    cooldownHours: 24,
-    minNeynarScore: 0.3,
-    claimsEnabled: true,
-  });
-  const [loadingClaimSettings, setLoadingClaimSettings] = useState(false);
-  // New Campaign Wizard
-  const [showCampaignWizard, setShowCampaignWizard] = useState(false);
-  const [campaignStep, setCampaignStep] = useState(1);
-  const [campaignData, setCampaignData] = useState({
-    selectedProject: null,
-    useBonusToken: false,
-    bonusTokenPreset: 'donut', // 'donut', 'custom', or 'none'
-    customBonusToken: {
-      tokenName: '',
-      contractAddress: '',
-      amount: '1',
-      decimals: 18,
-      maxSupply: 1000,
-    },
-  });
-  const [launchingCampaign, setLaunchingCampaign] = useState(false);
-  const [editFormData, setEditFormData] = useState({
-    name: '',
-    tagline: '',
-    description: '',
-    builder: '',
-    builderFid: '',
-    tokenName: '',
-    tokenContractAddress: '',
-    category: 'main',
-    status: 'active',
-    miniapp: '',
-    website: '',
-    github: '',
-    twitter: '',
-    stats: {
-      views: 0,
-      clicks: 0,
-      tips: 0,
-    },
-  });
+  const editFormRef = useRef(null);
+
+  // Form data
+  const [editFormData, setEditFormData] = useState({});
   const [createFormData, setCreateFormData] = useState({
     name: '',
     tagline: '',
@@ -100,122 +35,72 @@ export default function Admin() {
     tokenName: '',
     tokenContractAddress: '',
     category: 'main',
-    miniapp: '',
-    website: '',
-    github: '',
-    twitter: '',
-    setAsFeatured: false,
-    stats: {
-      views: 0,
-      clicks: 0,
-      tips: 0,
-    },
+    links: { twitter: '', website: '', farcaster: '' },
   });
 
-  // Fetch ETH price for USD conversion
-  useEffect(() => {
-    const fetchEthPrice = async () => {
-      try {
-        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd');
-        if (response.ok) {
-          const data = await response.json();
-          if (data.ethereum?.usd) {
-            setEthPrice(data.ethereum.usd);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching ETH price:', error);
-        setEthPrice(2800); // Approximate fallback
-      }
-    };
-    
-    fetchEthPrice();
-    // Refresh price every 60 seconds
-    const interval = setInterval(fetchEthPrice, 60000);
-    return () => clearInterval(interval);
-  }, []);
+  // Battle state
+  const [currentBattle, setCurrentBattle] = useState(null);
 
+  // Automation state
+  const [currentFeatured, setCurrentFeatured] = useState(null);
 
-  // Check authentication (FID or session cookie)
+  // Claims state
+  const [claimsDisabled, setClaimsDisabled] = useState(null);
+  const [claimStats, setClaimStats] = useState(null);
+  const [blockedFids, setBlockedFids] = useState([]);
+  const [blockFidInput, setBlockFidInput] = useState('');
+
+  // Tools state
+  const [traceWalletAddress, setTraceWalletAddress] = useState('');
+  const [traceResult, setTraceResult] = useState(null);
+  const [tracingWallet, setTracingWallet] = useState(false);
+
+  // Check authentication
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // Try Farcaster SDK first
-        try {
-          const context = await sdk.context;
-          if (context?.user?.fid) {
-            const fid = context.user.fid;
-            setUserFid(fid);
-            if (fid === ADMIN_FID) {
-              setIsAuthenticated(true);
-              setAuthLoading(false);
-              return;
-            }
-          }
-        } catch (error) {
-          // Not in Farcaster, check for session cookie
-        }
-
-        // Check for session cookie (web access)
-        const checkSession = async () => {
-          try {
-            const response = await fetch('/api/admin/submissions', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ checkSession: true }),
-              credentials: 'include',
-            });
-            
-            if (response.ok) {
-              setIsAuthenticated(true);
-            } else {
-              setShowLogin(true);
-            }
-          } catch (error) {
+        const contextResponse = await sdk.context;
+        if (contextResponse?.user?.fid) {
+          const fidNum = parseInt(contextResponse.user.fid);
+          setUserFid(fidNum);
+          if (fidNum === ADMIN_FID) {
+            setIsAuthenticated(true);
+            setShowLogin(false);
+          } else {
             setShowLogin(true);
-          } finally {
-            setAuthLoading(false);
           }
-        };
-
-        checkSession();
-      } catch (error) {
-        console.error('Error checking auth:', error);
+        } else {
+          setShowLogin(true);
+        }
+      } catch {
         setShowLogin(true);
+      } finally {
         setAuthLoading(false);
       }
     };
-    
     checkAuth();
   }, []);
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchSubmissions();
-      fetchLiveProjects();
-    }
-  }, [isAuthenticated]);
-
+  // Login handler
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
       const response = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(loginData),
         credentials: 'include',
+        body: JSON.stringify(loginData),
       });
 
-      const data = await response.json();
       if (response.ok) {
         setIsAuthenticated(true);
         setShowLogin(false);
-        setMessage('Login successful!');
+        setMessage('');
       } else {
-        setMessage(data.error || 'Login failed');
+        setMessage('Invalid credentials');
       }
     } catch (error) {
-      setMessage('Error logging in');
+      setMessage('Login failed');
     }
   };
 
@@ -227,50 +112,47 @@ export default function Admin() {
       });
       setIsAuthenticated(false);
       setShowLogin(true);
-      setSubmissions([]);
-      setMessage('Logged out successfully');
+      window.location.reload();
     } catch (error) {
       console.error('Error logging out:', error);
     }
   };
 
-  const handleManualAutoFeature = async () => {
-    if (!confirm('Trigger auto-feature? This will feature the highest voted project and reset all votes to 0.')) {
-      return;
+  // Load data based on active section
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    if (activeSection === 'battles') {
+      fetchCurrentBattle();
+    } else if (activeSection === 'projects') {
+      fetchSubmissions();
+      fetchLiveProjects();
+    } else if (activeSection === 'automation') {
+      fetchCurrentFeatured();
+    } else if (activeSection === 'claims') {
+      fetchClaimStats();
+      fetchBlockedFids();
     }
+  }, [isAuthenticated, activeSection]);
 
+  // ============================================
+  // BATTLE MANAGEMENT
+  // ============================================
+
+  const fetchCurrentBattle = async () => {
     try {
-      setMessage('Triggering auto-feature...');
-      const response = await fetch('/api/auto-feature-winner', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-      });
-
+      const response = await fetch('/api/game/current-battle');
       const data = await response.json();
-      if (response.ok) {
-        if (data.action === 'featured') {
-          setMessage(`✅ ${data.message} Winner: ${data.winner.name} (${data.winner.votes} votes). All votes reset to 0.`);
-        } else {
-          setMessage(`ℹ️ ${data.message}`);
-        }
-        // Refresh projects
-        fetchSubmissions();
-        fetchLiveProjects();
-      } else {
-        setMessage(`Error: ${data.error || 'Failed to trigger auto-feature'}`);
+      if (data.battle) {
+        setCurrentBattle(data.battle);
       }
     } catch (error) {
-      setMessage('Error triggering auto-feature');
-      console.error(error);
+      console.error('Error fetching battle:', error);
     }
   };
 
-  // Battle management handlers
   const handleCreateBattle = async () => {
-    if (!confirm('Create a new Feature Wars battle? This will select 2 random active projects.')) {
-      return;
-    }
+    if (!confirm('Create a new Feature Wars battle?')) return;
 
     try {
       setMessage('Creating battle...');
@@ -279,23 +161,20 @@ export default function Admin() {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
       });
-
       const data = await response.json();
       if (response.ok) {
         setMessage(`✅ Battle created! ${data.battle.projectA.name} vs ${data.battle.projectB.name}`);
+        fetchCurrentBattle();
       } else {
-        setMessage(`Error: ${data.error || 'Failed to create battle'}`);
+        setMessage(`Error: ${data.error}`);
       }
     } catch (error) {
       setMessage('Error creating battle');
-      console.error(error);
     }
   };
 
   const handleResolveBattle = async () => {
-    if (!confirm('Resolve current battle? This will determine the winner and distribute winnings.')) {
-      return;
-    }
+    if (!confirm('Resolve current battle?')) return;
 
     try {
       setMessage('Resolving battle...');
@@ -304,38 +183,35 @@ export default function Admin() {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
       });
-
       const data = await response.json();
       if (response.ok) {
         if (data.action === 'resolved') {
-          setMessage(`✅ Battle resolved! Winner: Team ${data.result.winner}. Pool: ${data.result.totalPool} $SEEN`);
+          setMessage(`✅ Battle resolved! Winner: Team ${data.result.winner}`);
         } else {
           setMessage(`ℹ️ ${data.message}`);
         }
+        fetchCurrentBattle();
       } else {
-        setMessage(`Error: ${data.error || 'Failed to resolve battle'}`);
+        setMessage(`Error: ${data.error}`);
       }
     } catch (error) {
       setMessage('Error resolving battle');
-      console.error(error);
     }
   };
 
+  // ============================================
+  // PROJECT MANAGEMENT
+  // ============================================
+
   const fetchSubmissions = async () => {
     try {
+      setLoading(true);
       const response = await fetch('/api/admin/submissions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fid: userFid || null }),
         credentials: 'include',
       });
-      
-      if (response.status === 403) {
-        setIsAuthenticated(false);
-        setShowLogin(true);
-        return;
-      }
-      
       if (response.ok) {
         const data = await response.json();
         setSubmissions(data.submissions || []);
@@ -348,833 +224,125 @@ export default function Admin() {
   };
 
   const fetchLiveProjects = async () => {
-    setLiveProjectsLoading(true);
     try {
       const response = await fetch('/api/admin/live-projects', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fid: userFid || null }),
         credentials: 'include',
       });
-      
       if (response.ok) {
         const data = await response.json();
         setLiveProjects(data.projects || []);
       }
     } catch (error) {
       console.error('Error fetching live projects:', error);
-    } finally {
-      setLiveProjectsLoading(false);
     }
   };
 
-  const fetchArchivedProjects = async () => {
-    setArchivedProjectsLoading(true);
+  const handleApprove = async (submissionId) => {
     try {
-      const response = await fetch('/api/admin/archived-projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fid: userFid || null }),
-        credentials: 'include',
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setArchivedProjects(data.projects || []);
-      }
-    } catch (error) {
-      console.error('Error fetching archived projects:', error);
-    } finally {
-      setArchivedProjectsLoading(false);
-    }
-  };
-
-  // Auto-scroll to edit form when it opens
-  useEffect(() => {
-    if (editingProject && editFormRef.current) {
-      setTimeout(() => {
-        editFormRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 100);
-    }
-  }, [editingProject]);
-
-  const handleEdit = async (project) => {
-    // Fetch fresh project data by ID to ensure we have the latest
-    try {
-      const response = await fetch('/api/admin/get-project', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId: project.id, fid: userFid || null }),
-        credentials: 'include',
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        const freshProject = data.project || project;
-        setEditingProject(freshProject);
-        setEditFormData({
-          name: freshProject.name || '',
-          tagline: freshProject.tagline || '',
-          description: freshProject.description || '',
-          builder: freshProject.builder || '',
-          builderFid: freshProject.builderFid || '',
-          tokenName: freshProject.tokenName || '',
-          tokenContractAddress: freshProject.tokenContractAddress || '',
-          category: freshProject.category || 'main',
-          status: freshProject.status || 'active',
-          miniapp: freshProject.links?.miniapp || '',
-          website: freshProject.links?.website || '',
-          github: freshProject.links?.github || '',
-          twitter: freshProject.links?.twitter || '',
-          stats: freshProject.stats || { views: 0, clicks: 0, tips: 0 },
-        });
-      } else {
-        // Fallback to using the project passed in
-        setEditingProject(project);
-        setEditFormData({
-          name: project.name || '',
-          tagline: project.tagline || '',
-          description: project.description || '',
-          builder: project.builder || '',
-          builderFid: project.builderFid || '',
-          tokenName: project.tokenName || '',
-          tokenContractAddress: project.tokenContractAddress || '',
-          category: project.category || 'main',
-          status: project.status || 'active',
-          miniapp: project.links?.miniapp || '',
-          website: project.links?.website || '',
-          github: project.links?.github || '',
-          twitter: project.links?.twitter || '',
-          stats: project.stats || { views: 0, clicks: 0, tips: 0 },
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching project for edit:', error);
-      // Fallback to using the project passed in
-      setEditingProject(project);
-      setEditFormData({
-        name: project.name || '',
-        tagline: project.tagline || '',
-        description: project.description || '',
-        builder: project.builder || '',
-        builderFid: project.builderFid || '',
-        tokenName: project.tokenName || '',
-        tokenContractAddress: project.tokenContractAddress || '',
-        category: project.category || 'main',
-        status: project.status || 'queued',
-        miniapp: project.links?.miniapp || '',
-        website: project.links?.website || '',
-        github: project.links?.github || '',
-        twitter: project.links?.twitter || '',
-        stats: project.stats || { views: 0, clicks: 0, tips: 0 },
-      });
-    }
-  };
-
-  const handleUpdateProject = async (e) => {
-    e.preventDefault();
-    setUpdating(true);
-    setMessage('');
-
-    try {
-      // Convert tips from USD back to ETH before saving
-      const updateData = { ...editFormData };
-      if (ethPrice && tipsUsdDisplay.edit) {
-        const tipsUsd = parseFloat(tipsUsdDisplay.edit) || 0;
-        updateData.stats = {
-          ...updateData.stats,
-          tips: tipsUsd / ethPrice, // Convert USD to ETH
-        };
-      }
-
-      const response = await fetch('/api/admin/update-project', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId: editingProject.id,
-          ...updateData,
-          fid: userFid || null,
-        }),
-        credentials: 'include',
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        setMessage(data.message || 'Project updated successfully! Refreshing...');
-        setEditingProject(null);
-        // Immediately refresh to show updated stats
-        setTimeout(() => {
-          fetchLiveProjects(); // Refresh live projects
-          fetchArchivedProjects(); // Refresh archived projects
-          fetchSubmissions(); // Refresh submissions in case status changed
-          setMessage('Project updated successfully!');
-        }, 500);
-      } else {
-        setMessage(data.error || 'Failed to update project');
-      }
-    } catch (error) {
-      setMessage('Error updating project');
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  const handleEditFormChange = async (e) => {
-    const { name, value, type, checked } = e.target;
-    if (name.startsWith('stats.')) {
-      const statName = name.split('.')[1];
-      if (statName === 'tips') {
-        // Store USD value for tips
-        setTipsUsdDisplay(prev => ({
-          ...prev,
-          edit: value
-        }));
-      } else {
-        setEditFormData({
-          ...editFormData,
-          stats: {
-            ...editFormData.stats,
-            [statName]: parseFloat(value) || 0,
-          },
-        });
-      }
-    } else {
-      const newFormData = {
-        ...editFormData,
-        [name]: type === 'checkbox' ? checked : value,
-      };
-      
-      // Auto-populate builder info from FID when FID is entered
-      if (name === 'builderFid' && value && parseInt(value) > 0) {
-        try {
-          const response = await fetch('/api/user-profile', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fid: parseInt(value) }),
-          });
-          
-          if (response.ok) {
-            const userData = await response.json();
-            // Auto-populate builder name if not already set or if it's empty
-            if (!newFormData.builder || newFormData.builder.trim() === '') {
-              newFormData.builder = userData.username || userData.displayName || '';
-            }
-            // Update FID
-            newFormData.builderFid = userData.fid || value;
-          }
-        } catch (error) {
-          console.error('Error fetching user data from FID:', error);
-        }
-      }
-      
-      setEditFormData(newFormData);
-    }
-  };
-
-  const handleApprove = async (projectId) => {
-    if (!projectId) {
-      setMessage('ERROR: Invalid project ID');
-      return;
-    }
-    
-    try {
-      console.log('Approving project:', projectId);
-      setMessage('Approving project...');
-      
+      setMessage('Approving...');
       const response = await fetch('/api/admin/approve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId: String(projectId), action: 'approve', fid: userFid || null }),
         credentials: 'include',
+        body: JSON.stringify({ id: submissionId }),
       });
-
-      let data;
-      try {
-        data = await response.json();
-      } catch (jsonError) {
-        console.error('Failed to parse response:', jsonError);
-        const text = await response.text();
-        setMessage(`ERROR: Invalid response from server. Status: ${response.status}. Response: ${text.substring(0, 200)}`);
-        return;
-      }
-
       if (response.ok) {
-        setMessage(`SUCCESS: Project ${projectId} approved and added to queue! Refreshing...`);
-        // Immediately refresh to show updated status
-        setTimeout(() => {
-          fetchSubmissions(); // Refresh list
-          fetchLiveProjects(); // Refresh live projects
-          setMessage(`Project ${projectId} approved and added to queue!`);
-        }, 500);
-      } else {
-        const errorMsg = data.error || `Failed to approve (Status: ${response.status})`;
-        setMessage(`ERROR: ${errorMsg}`);
-        console.error('Approve error:', { status: response.status, data, projectId });
+        setMessage('✅ Approved!');
+        fetchSubmissions();
+        fetchLiveProjects();
       }
     } catch (error) {
-      console.error('Error approving project:', error);
-      setMessage(`ERROR: Error approving project: ${error.message || 'Network error'}`);
+      setMessage('Error approving');
     }
   };
 
   const handleFeature = async (projectId) => {
-    if (!projectId) {
-      setMessage('ERROR: Invalid project ID');
-      return;
-    }
-    
-    if (!confirm('Feature this project immediately? This will replace the current featured project.')) {
-      return;
-    }
-
     try {
-      console.log('Featuring project:', projectId);
-      const response = await fetch('/api/admin/approve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId: String(projectId), action: 'feature', fid: userFid || null }),
-        credentials: 'include',
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        setMessage(`Project ${projectId} approved and featured immediately!`);
-        fetchSubmissions(); // Refresh list
-        fetchLiveProjects(); // Refresh live projects
-      } else {
-        setMessage(data.error || 'Failed to feature project');
-        console.error('Feature error:', data);
-      }
-    } catch (error) {
-      console.error('Error featuring project:', error);
-      setMessage('Error featuring project: ' + error.message);
-    }
-  };
-
-  const handleSchedule = async (projectId) => {
-    if (!projectId) {
-      setMessage('ERROR: Invalid project ID');
-      return;
-    }
-    
-    // Prompt for date/time (UK timezone)
-    const dateInput = prompt('Enter date/time to feature this project (UK time, YYYY-MM-DD HH:MM format, 24-hour):\nExample: 2025-12-15 14:00\n\nNote: Enter time in UK timezone (GMT/BST). System will convert automatically.');
-    if (!dateInput) return;
-    
-    // Parse date input as UK time
-    let scheduledDate;
-    try {
-      // Try parsing as "YYYY-MM-DD HH:MM"
-      const [datePart, timePart] = dateInput.trim().split(' ');
-      if (!datePart || !timePart) {
-        throw new Error('Invalid format');
-      }
-      const [year, month, day] = datePart.split('-');
-      const [hour, minute] = timePart.split(':');
-      
-      // Create date assuming UK timezone
-      // We'll create an ISO string with explicit timezone and parse it
-      // Format: YYYY-MM-DDTHH:MM:00 (as if it were UK time, then convert)
-      const ukDateString = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${hour.padStart(2, '0')}:${(minute || '00').padStart(2, '0')}:00`;
-      
-      // Parse as if it's in UK timezone
-      // Create date in local time (assuming browser is in UK or we adjust)
-      // For now, we'll use the browser's local time and trust it's UK
-      // The Date constructor with year, month, day, hour, minute uses local timezone
-      scheduledDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute) || 0);
-      
-      // Display what time it will be in UK for confirmation
-      const ukTimeString = scheduledDate.toLocaleString('en-GB', { timeZone: 'Europe/London', dateStyle: 'short', timeStyle: 'short' });
-      console.log('Scheduled as UK time:', ukTimeString);
-      
-      if (isNaN(scheduledDate.getTime())) {
-        throw new Error('Invalid date');
-      }
-      
-      // Check if date is in the future
-      if (scheduledDate <= new Date()) {
-        if (!confirm('Scheduled date is in the past. Schedule anyway?')) {
-          return;
-        }
-      }
-    } catch (error) {
-      setMessage('ERROR: Invalid date format. Use YYYY-MM-DD HH:MM');
-      return;
-    }
-
-    try {
-      console.log('Scheduling project:', projectId, 'for', scheduledDate.toISOString());
-      const response = await fetch('/api/admin/approve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          projectId: String(projectId), 
-          action: 'schedule', 
-          scheduledDate: scheduledDate.toISOString(),
-          fid: userFid || null 
-        }),
-        credentials: 'include',
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        // Display in UK timezone
-        const ukTimeString = scheduledDate.toLocaleString('en-GB', { 
-          timeZone: 'Europe/London',
-          dateStyle: 'long',
-          timeStyle: 'short'
-        });
-        setMessage(`Project ${projectId} scheduled to be featured on ${ukTimeString} (UK time)!`);
-        fetchSubmissions(); // Refresh list
-        fetchLiveProjects(); // Refresh live projects
-      } else {
-        setMessage(data.error || 'Failed to schedule project');
-        console.error('Schedule error:', data);
-      }
-    } catch (error) {
-      console.error('Error scheduling project:', error);
-      setMessage('Error scheduling project: ' + error.message);
-    }
-  };
-
-  const handleRefund = async (projectId) => {
-    if (!projectId) {
-      setMessage('ERROR: Invalid project ID');
-      return;
-    }
-    
-    const submission = submissions.find(s => s.id === projectId);
-    if (!confirm(`Are you sure you want to refund ${submission?.paymentAmount || 0} ETH?`)) {
-      return;
-    }
-
-    try {
-      console.log('Refunding project:', projectId);
-      const response = await fetch('/api/admin/refund', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          projectId: String(projectId),
-          fid: userFid || null 
-        }),
-        credentials: 'include',
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        setMessage(`Refund sent! TX: ${data.refundTxHash?.slice(0, 10)}...`);
-        // Refresh submissions
-        fetchSubmissions();
-      } else {
-        setMessage(data.error || 'Failed to refund');
-        console.error('Refund error:', data);
-      }
-    } catch (error) {
-      console.error('Error processing refund:', error);
-      setMessage('Error processing refund: ' + error.message);
-    }
-  };
-
-  const FeaturedTimer = ({ project, onUpdate, userFid }) => {
-    const [timeRemaining, setTimeRemaining] = useState({ h: 0, m: 0, s: 0 });
-    const [updating, setUpdating] = useState(false);
-
-    useEffect(() => {
-      const calculateTimeRemaining = () => {
-        if (!project.featuredAt) return { h: 0, m: 0, s: 0 };
-        const featuredAt = new Date(project.featuredAt);
-        const expiresAt = new Date(featuredAt.getTime() + 24 * 60 * 60 * 1000); // 24 hours from featuredAt
-        const now = new Date();
-        const diff = expiresAt - now;
-        
-        if (diff <= 0) return { h: 0, m: 0, s: 0 };
-        
-        const h = Math.floor(diff / (1000 * 60 * 60));
-        const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        const s = Math.floor((diff % (1000 * 60)) / 1000);
-        return { h, m, s };
-      };
-
-      setTimeRemaining(calculateTimeRemaining());
-      const timer = setInterval(() => {
-        setTimeRemaining(calculateTimeRemaining());
-      }, 1000);
-
-      return () => clearInterval(timer);
-    }, [project.featuredAt]);
-
-    const handleSetTimer = async (hours) => {
-      if (!confirm(`Set timer to ${hours} hour${hours !== 1 ? 's' : ''} from now?`)) return;
-      
-      setUpdating(true);
-      try {
-        const newFeaturedAt = new Date(Date.now() - (24 - hours) * 60 * 60 * 1000).toISOString();
-        
-        const response = await fetch('/api/admin/update-project', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            projectId: String(project.id),
-            featuredAt: newFeaturedAt,
-            fid: userFid || null,
-          }),
-          credentials: 'include',
-        });
-
-        const data = await response.json();
-        if (response.ok) {
-          setMessage(`Timer set to ${hours} hour${hours !== 1 ? 's' : ''}! Refreshing...`);
-          setTimeout(() => {
-            onUpdate();
-            setMessage('');
-          }, 500);
-        } else {
-          setMessage(data.error || 'Failed to update timer');
-        }
-      } catch (error) {
-        console.error('Error updating timer:', error);
-        setMessage('Error updating timer: ' + error.message);
-      } finally {
-        setUpdating(false);
-      }
-    };
-
-    const handleSetMidnight = async () => {
-      // Calculate 11:59pm UK time today (or tomorrow if already past)
-      const now = new Date();
-      const ukTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/London' }));
-      
-      // Set target to 11:59pm UK time
-      let target = new Date(ukTime);
-      target.setHours(23, 59, 0, 0);
-      
-      // If it's already past 11:59pm, set for tomorrow
-      if (ukTime >= target) {
-        target.setDate(target.getDate() + 1);
-      }
-      
-      // Calculate hours until target
-      const hoursUntil = (target - ukTime) / (1000 * 60 * 60);
-      const targetTimeStr = target.toLocaleString('en-GB', { timeZone: 'Europe/London', dateStyle: 'short', timeStyle: 'short' });
-      
-      if (!confirm(`Set timer to expire at 11:59pm UK time (${targetTimeStr})?\n\nThat's approximately ${hoursUntil.toFixed(1)} hours from now.`)) return;
-      
-      setUpdating(true);
-      try {
-        // Calculate featuredAt so that featuredAt + 24h = target
-        // Convert target back to actual Date object for ISO string
-        const targetActual = new Date(target.toLocaleString('en-US', { timeZone: 'Europe/London' }));
-        // Adjust for timezone offset between local and UK
-        const localNow = new Date();
-        const ukNow = new Date(localNow.toLocaleString('en-US', { timeZone: 'Europe/London' }));
-        const offset = localNow - ukNow;
-        
-        // Target in local time
-        const targetLocal = new Date(target.getTime() + offset);
-        const newFeaturedAt = new Date(targetLocal.getTime() - 24 * 60 * 60 * 1000).toISOString();
-        
-        const response = await fetch('/api/admin/update-project', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            projectId: String(project.id),
-            featuredAt: newFeaturedAt,
-            fid: userFid || null,
-          }),
-          credentials: 'include',
-        });
-
-        const data = await response.json();
-        if (response.ok) {
-          setMessage(`Timer set to expire at 11:59pm UK! Refreshing...`);
-          setTimeout(() => {
-            onUpdate();
-            setMessage('');
-          }, 500);
-        } else {
-          setMessage(data.error || 'Failed to update timer');
-        }
-      } catch (error) {
-        console.error('Error updating timer:', error);
-        setMessage('Error updating timer: ' + error.message);
-      } finally {
-        setUpdating(false);
-      }
-    };
-
-    return (
-      <div className="mt-3 p-3 border border-yellow-500/30 bg-yellow-500/5">
-        <div className="flex items-center justify-between mb-2">
-          <div>
-            <div className="text-[10px] tracking-[0.2em] text-yellow-400 mb-1">FEATURED TIMER</div>
-            <div className="text-lg font-mono font-bold">
-              {String(timeRemaining.h).padStart(2, '0')}:{String(timeRemaining.m).padStart(2, '0')}:{String(timeRemaining.s).padStart(2, '0')}
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-1">
-            {[1, 6, 12, 24].map(hours => (
-              <button
-                key={hours}
-                onClick={() => handleSetTimer(hours)}
-                disabled={updating}
-                className="px-2 py-1 text-[9px] tracking-[0.1em] border border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/20 transition-all disabled:opacity-50"
-                title={`Set to ${hours} hour${hours !== 1 ? 's' : ''}`}
-              >
-                {hours}H
-              </button>
-            ))}
-            <button
-              onClick={handleSetMidnight}
-              disabled={updating}
-              className="px-2 py-1 text-[9px] tracking-[0.1em] border border-purple-500/50 text-purple-400 hover:bg-purple-500/20 transition-all disabled:opacity-50"
-              title="Set to expire at 11:59pm UK time"
-            >
-              11:59PM
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const handleQuickStatsUpdate = async (projectId, statType, value) => {
-    if (!projectId || !statType || value === null || value === undefined) {
-      setMessage('ERROR: Invalid stats update');
-      return;
-    }
-
-    try {
-      console.log('Quick updating stats:', { projectId, statType, value });
-      const currentProject = liveProjects.find(p => p.id === projectId) || archivedProjects.find(p => p.id === projectId);
-      const currentStats = currentProject?.stats || { views: 0, clicks: 0, tips: 0 };
-      
-      const updatedStats = {
-        ...currentStats,
-        [statType]: value,
-      };
-
+      setMessage('Featuring...');
       const response = await fetch('/api/admin/update-project', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId: String(projectId),
-          stats: updatedStats,
-          fid: userFid || null,
-        }),
         credentials: 'include',
+        body: JSON.stringify({ id: projectId, status: 'featured' }),
       });
-
-      const data = await response.json();
       if (response.ok) {
-        setMessage(`${statType.toUpperCase()} updated to ${value}! Refreshing...`);
-        // Immediately refresh to show updated stats
-        setTimeout(() => {
-          fetchLiveProjects();
-          fetchArchivedProjects();
-          setMessage('');
-        }, 500);
-      } else {
-        setMessage(data.error || `Failed to update ${statType}`);
-        console.error('Quick stats update error:', data);
-      }
-    } catch (error) {
-      console.error('Error updating stats:', error);
-      setMessage(`Error updating ${statType}: ` + error.message);
-    }
-  };
-
-  const handleResetStatsWindow = async (projectId, projectName) => {
-    if (!confirm(`Reset stats window for ${projectName}?\n\nThis will set a new featuredAt timestamp, resetting clicks/views to 0.\n\nThis cannot be undone.`)) {
-      return;
-    }
-
-    try {
-      const response = await fetch('/api/admin/update-project', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId,
-          featuredAt: new Date().toISOString(),
-        }),
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        setMessage(`Stats window reset for ${projectName}`);
+        setMessage('✅ Featured!');
         fetchLiveProjects();
-      } else {
-        setMessage(data.error || 'Failed to reset stats window');
+        fetchCurrentFeatured();
       }
     } catch (error) {
-      console.error('Error resetting stats window:', error);
-      setMessage('Error resetting stats window: ' + error.message);
+      setMessage('Error featuring project');
     }
   };
 
-  const handleReject = async (projectId) => {
-    if (!projectId) {
-      setMessage('ERROR: Invalid project ID');
-      return;
-    }
-    
-    if (!confirm('Are you sure you want to reject this submission?')) {
-      return;
-    }
+  // ============================================
+  // AUTOMATION
+  // ============================================
 
-    try {
-      console.log('Rejecting project:', projectId);
-      const response = await fetch('/api/admin/approve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId: String(projectId), action: 'reject', fid: userFid || null }),
-        credentials: 'include',
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        setMessage(`Project ${projectId} rejected!`);
-        fetchSubmissions(); // Refresh list
-      } else {
-        setMessage(data.error || 'Failed to reject');
-        console.error('Reject error:', data);
-      }
-    } catch (error) {
-      console.error('Error rejecting project:', error);
-      setMessage('Error rejecting project: ' + error.message);
-    }
-  };
-
-  // ========================================
-  // NEW CAMPAIGN WIZARD
-  // ========================================
-  const startCampaignWizard = () => {
-    setCampaignStep(1);
-    setCampaignData({
-      selectedProject: null,
-      useBonusToken: true,
-      bonusTokenPreset: 'donut',
-      customBonusToken: {
-        tokenName: '',
-        contractAddress: '',
-        amount: '1',
-        decimals: 18,
-        maxSupply: 1000,
-      },
-    });
-    setShowCampaignWizard(true);
-  };
-
-  const launchCampaign = async () => {
-    if (!campaignData.selectedProject) {
-      setMessage('Please select a project to feature');
-      return;
-    }
-
-    setLaunchingCampaign(true);
-    setMessage('Launching campaign...');
-
-    try {
-      // Step 1: Configure bonus token if enabled
-      if (campaignData.useBonusToken) {
-        let bonusConfig;
-        if (campaignData.bonusTokenPreset === 'donut') {
-          bonusConfig = {
-            enabled: true,
-            tokenName: 'DONUT',
-            contractAddress: '0xAE4a37d554C6D6F3E398546d8566B25052e0169C',
-            amount: '1',
-            decimals: 18,
-            maxSupply: 1000,
-          };
-        } else if (campaignData.bonusTokenPreset === 'custom') {
-          bonusConfig = {
-            enabled: true,
-            ...campaignData.customBonusToken,
-          };
-        } else {
-          bonusConfig = { enabled: false };
-        }
-
-        const bonusRes = await fetch('/api/admin/bonus-token-config', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...bonusConfig, fid: userFid || null }),
-          credentials: 'include',
-        });
-        if (!bonusRes.ok) {
-          throw new Error('Failed to configure bonus token');
-        }
-        setMessage('Bonus token configured...');
-      }
-
-      // Step 2: Set project as featured
-      const updateRes = await fetch('/api/admin/update-project', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId: campaignData.selectedProject.id,
-          status: 'featured',
-          fid: userFid || null,
-        }),
-        credentials: 'include',
-      });
-      if (!updateRes.ok) {
-        throw new Error('Failed to set project as featured');
-      }
-      setMessage('Project featured...');
-
-      // Step 3: SIMPLE RESET - Clear claims for the new project
-      // NOTE: With SIMPLE claim system, new project ID = automatic fresh claims
-      // This reset is optional but cleans up any stale data
-      const resetRes = await fetch('/api/admin/simple-reset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-      });
-      if (!resetRes.ok) {
-        console.warn('Simple reset failed (optional):', await resetRes.text());
-        // Don't fail the whole launch if reset fails - new project ID means fresh claims anyway
-      }
-
-      setMessage(`🎉 CAMPAIGN LAUNCHED! "${campaignData.selectedProject.name}" is now featured with fresh claims.`);
-      setShowCampaignWizard(false);
-      
-      // Refresh data
-      fetchLiveProjects();
-      fetchCurrentFeatured();
-      
-    } catch (error) {
-      console.error('Error launching campaign:', error);
-      setMessage(`Error: ${error.message}`);
-    } finally {
-      setLaunchingCampaign(false);
-    }
-  };
-
-  // Automation functions
   const fetchCurrentFeatured = async () => {
     try {
-      const response = await fetch('/api/featured-project', {
-        method: 'GET',
+      const response = await fetch('/api/featured-project');
+      const data = await response.json();
+      setCurrentFeatured(data.featured);
+    } catch (error) {
+      console.error('Error fetching featured:', error);
+    }
+  };
+
+  const handleManualAutoFeature = async () => {
+    if (!confirm('Trigger auto-feature? This will feature the highest voted project and reset all votes to 0.')) return;
+
+    try {
+      setMessage('Triggering auto-feature...');
+      const response = await fetch('/api/auto-feature-winner', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (response.ok) {
+        if (data.action === 'featured') {
+          setMessage(`✅ ${data.message} Winner: ${data.winner.name} (${data.winner.votes} votes)`);
+        } else {
+          setMessage(`ℹ️ ${data.message}`);
+        }
+        fetchCurrentFeatured();
+      } else {
+        setMessage(`Error: ${data.error}`);
+      }
+    } catch (error) {
+      setMessage('Error triggering auto-feature');
+    }
+  };
+
+  // ============================================
+  // CLAIMS
+  // ============================================
+
+  const fetchClaimStats = async () => {
+    try {
+      const response = await fetch('/api/admin/simple-stats', {
+        method: 'POST',
         credentials: 'include',
       });
       if (response.ok) {
         const data = await response.json();
-        setCurrentFeatured(data.project);
+        setClaimStats(data);
+        setClaimsDisabled(data.disabled);
       }
     } catch (error) {
-      console.error('Error fetching featured project:', error);
+      console.error('Error fetching claim stats:', error);
     }
   };
 
   const fetchBlockedFids = async () => {
-    setLoadingBlockedFids(true);
     try {
       const response = await fetch('/api/admin/block-fid', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'list' }),
         credentials: 'include',
+        body: JSON.stringify({ action: 'list' }),
       });
       if (response.ok) {
         const data = await response.json();
@@ -1182,2792 +350,528 @@ export default function Admin() {
       }
     } catch (error) {
       console.error('Error fetching blocked FIDs:', error);
-    } finally {
-      setLoadingBlockedFids(false);
     }
   };
 
-  const handleTraceWallet = async () => {
-    if (!traceWalletAddress || !traceWalletAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
-      setMessage('Invalid wallet address format');
-      return;
+  const handleToggleClaims = async () => {
+    try {
+      const newState = !claimsDisabled;
+      const response = await fetch('/api/admin/simple-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ disable: newState }),
+      });
+      if (response.ok) {
+        setClaimsDisabled(newState);
+        setMessage(`✅ Claims ${newState ? 'DISABLED' : 'ENABLED'}`);
+        fetchClaimStats();
+      }
+    } catch (error) {
+      setMessage('Error toggling claims');
     }
+  };
+
+  const handleBlockFid = async () => {
+    if (!blockFidInput) return;
+    try {
+      const response = await fetch('/api/admin/block-fid', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ action: 'block', fid: parseInt(blockFidInput) }),
+      });
+      if (response.ok) {
+        setMessage('✅ FID blocked');
+        setBlockFidInput('');
+        fetchBlockedFids();
+      }
+    } catch (error) {
+      setMessage('Error blocking FID');
+    }
+  };
+
+  const handleUnblockFid = async (fid) => {
+    try {
+      const response = await fetch('/api/admin/block-fid', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ action: 'unblock', fid }),
+      });
+      if (response.ok) {
+        setMessage('✅ FID unblocked');
+        fetchBlockedFids();
+      }
+    } catch (error) {
+      setMessage('Error unblocking FID');
+    }
+  };
+
+  // ============================================
+  // TOOLS
+  // ============================================
+
+  const handleTraceWallet = async () => {
+    if (!traceWalletAddress) return;
 
     setTracingWallet(true);
-    setTraceResult(null);
-    setMessage('');
-
     try {
       const response = await fetch('/api/admin/trace-wallet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ walletAddress: traceWalletAddress }),
         credentials: 'include',
+        body: JSON.stringify({ walletAddress: traceWalletAddress }),
       });
-      
+      const data = await response.json();
       if (response.ok) {
-        const data = await response.json();
         setTraceResult(data);
-        if (data.foundFIDs && data.foundFIDs.length > 0) {
-          setMessage(`Found ${data.foundFIDs.length} FID(s) associated with this wallet: ${data.foundFIDs.join(', ')}`);
-        } else {
-          setMessage('No FIDs found for this wallet address');
-        }
       } else {
-        const error = await response.json();
-        setMessage(error.error || 'Failed to trace wallet');
+        setTraceResult({ error: data.error });
       }
     } catch (error) {
-      console.error('Error tracing wallet:', error);
-      setMessage('Error tracing wallet');
+      setTraceResult({ error: 'Failed to trace wallet' });
     } finally {
       setTracingWallet(false);
     }
   };
 
-  const handleBlockFid = async (fidToBlock) => {
-    const fidNum = parseInt(fidToBlock);
-    if (isNaN(fidNum) || fidNum <= 0) {
-      setMessage('Invalid FID format');
-      return;
-    }
-
-    if (!confirm(`Block FID ${fidNum}? They will not be able to claim anymore.`)) {
-      return;
-    }
-
-    try {
-      const response = await fetch('/api/admin/block-fid', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'add', fid: fidNum }),
-        credentials: 'include',
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setBlockedFids(data.blockedFids || []);
-        setMessage(data.message || `FID ${fidNum} blocked`);
-        // Clear input if it matches
-        if (blockFidInput === fidToBlock.toString()) {
-          setBlockFidInput('');
-        }
-      } else {
-        const error = await response.json();
-        setMessage(error.error || 'Failed to block FID');
-      }
-    } catch (error) {
-      console.error('Error blocking FID:', error);
-      setMessage('Error blocking FID');
-    }
-  };
-
-  const handleUnblockFid = async (fidToUnblock) => {
-    if (!confirm(`Unblock FID ${fidToUnblock}? They will be able to claim again.`)) {
-      return;
-    }
-
-    try {
-      const response = await fetch('/api/admin/block-fid', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'remove', fid: fidToUnblock }),
-        credentials: 'include',
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setBlockedFids(data.blockedFids || []);
-        setMessage(data.message || `FID ${fidToUnblock} unblocked`);
-      } else {
-        const error = await response.json();
-        setMessage(error.error || 'Failed to unblock FID');
-      }
-    } catch (error) {
-      console.error('Error unblocking FID:', error);
-      setMessage('Error unblocking FID');
-    }
-  };
-
-  // Fetch blocked FIDs on load
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchBlockedFids();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
-
-  const handleQuickSetFeatured = async (projectId) => {
-    if (!confirm(`Set project ${projectId} as featured? This will move current featured to queued.`)) {
-      return;
-    }
-    try {
-      const response = await fetch('/api/admin/update-project', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          projectId, 
-          status: 'featured',
-          fid: userFid || null 
-        }),
-        credentials: 'include',
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setMessage(`Project ${projectId} set as featured! Claims reset automatically.`);
-        fetchLiveProjects();
-        fetchCurrentFeatured();
-      } else {
-        setMessage(data.error || 'Failed to set featured project');
-      }
-    } catch (error) {
-      setMessage('Error setting featured project');
-    }
-  };
-
-  const handleResetBonusEligibility = async () => {
-    if (!confirm('Reset bonus token eligibility ONLY?\n\nThis will:\n✓ Clear all bonus token user flags\n✓ Reset bonus token counters\n✓ Allow users to receive bonus tokens again\n\nThis will NOT:\n✗ Reset claims\n✗ Change featured project\n✗ Affect claim counts')) {
-      return;
-    }
-
-    const confirmation = prompt('Type RESET_BONUS to confirm:');
-    if (confirmation !== 'RESET_BONUS') {
-      if (confirmation !== null) {
-        setMessage('Confirmation failed. You must type "RESET_BONUS" exactly.');
-      }
-      return;
-    }
-
-    try {
-      setMessage('Resetting bonus eligibility...');
-      const response = await fetch('/api/admin/reset-bonus-eligibility', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          confirm: 'RESET_BONUS',
-          fid: userFid || null 
-        }),
-        credentials: 'include',
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        setMessage(data.message || 'Bonus eligibility reset successfully! Users can now receive bonus tokens again.');
-      } else {
-        setMessage(data.error || 'Failed to reset bonus eligibility');
-      }
-    } catch (error) {
-      console.error('Error resetting bonus eligibility:', error);
-      setMessage(`Error: ${error.message || 'Failed to reset bonus eligibility'}`);
-    }
-  };
-
-  const handleClearOldClaims = async () => {
-    if (!confirm('Clear all expired claim data? This will remove old claim locks and counters that have expired.')) {
-      return;
-    }
-    const confirmation = prompt('Type CLEAR to confirm:');
-    if (confirmation !== 'CLEAR') {
-      if (confirmation !== null) {
-        setMessage('Confirmation failed. You must type "CLEAR" exactly.');
-      }
-      return;
-    }
-    try {
-      const response = await fetch('/api/admin/clear-old-claims', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ confirm: 'CLEAR', fid: userFid || null }),
-        credentials: 'include',
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setMessage(data.message || 'Old claim data cleared successfully');
-      } else {
-        setMessage(data.error || 'Failed to clear old claims');
-      }
-    } catch (error) {
-      setMessage('Error clearing old claims');
-    }
-  };
-
-  // Fetch current featured, bonus token config, and claim settings on load
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchCurrentFeatured();
-      fetchBonusTokenConfig();
-      fetchClaimSettings();
-      fetchClaimStats();
-    }
-  }, [isAuthenticated]);
-
-  const fetchBonusTokenConfig = async () => {
-    setLoadingBonusConfig(true);
-    try {
-      const response = await fetch('/api/admin/bonus-token-config', {
-        method: 'GET',
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setBonusTokenConfig(data.config || {
-          enabled: false,
-          contractAddress: '',
-          amount: '',
-          decimals: 18,
-          maxSupply: 0,
-          tokenName: '',
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching bonus token config:', error);
-    } finally {
-      setLoadingBonusConfig(false);
-    }
-  };
-
-  // Fetch simple claim stats
-  const fetchClaimStats = async () => {
-    setLoadingStats(true);
-    try {
-      const response = await fetch('/api/admin/simple-stats', {
-        method: 'GET',
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setClaimStats(data);
-      }
-    } catch (error) {
-      console.error('Error fetching claim stats:', error);
-    } finally {
-      setLoadingStats(false);
-    }
-  };
-
-  const handleSaveBonusTokenConfig = async () => {
-    if (bonusTokenConfig.enabled) {
-      if (!bonusTokenConfig.contractAddress || !bonusTokenConfig.contractAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
-        setMessage('ERROR: Valid contract address is required when enabled');
-        return;
-      }
-      if (!bonusTokenConfig.amount || parseFloat(bonusTokenConfig.amount) <= 0) {
-        setMessage('ERROR: Valid amount > 0 is required when enabled');
-        return;
-      }
-      if (!bonusTokenConfig.maxSupply || parseInt(bonusTokenConfig.maxSupply) <= 0) {
-        setMessage('ERROR: Valid maxSupply > 0 is required when enabled');
-        return;
-      }
-    }
-
-    setLoadingBonusConfig(true);
-    try {
-      const response = await fetch('/api/admin/bonus-token-config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ config: bonusTokenConfig, fid: userFid || null }),
-        credentials: 'include',
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setMessage(data.message || 'Bonus token config saved successfully');
-        setShowBonusTokenConfig(false);
-      } else {
-        setMessage(data.error || 'Failed to save bonus token config');
-      }
-    } catch (error) {
-      setMessage('Error saving bonus token config');
-    } finally {
-      setLoadingBonusConfig(false);
-    }
-  };
-
-  // Claim Settings Functions
-  const fetchClaimSettings = async () => {
-    setLoadingClaimSettings(true);
-    try {
-      const response = await fetch('/api/admin/claim-settings', {
-        method: 'GET',
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setClaimSettings(data.settings || {
-          baseClaimAmount: 40000,
-          claimMultiplier: 1,
-          cooldownHours: 24,
-          minNeynarScore: 0.6,
-          claimsEnabled: true,
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching claim settings:', error);
-    } finally {
-      setLoadingClaimSettings(false);
-    }
-  };
-
-  const handleSaveClaimSettings = async () => {
-    setLoadingClaimSettings(true);
-    try {
-      const response = await fetch('/api/admin/claim-settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ settings: claimSettings, fid: userFid || null }),
-        credentials: 'include',
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setMessage(data.message || 'Claim settings saved successfully');
-      } else {
-        setMessage(data.error || 'Failed to save claim settings');
-      }
-    } catch (error) {
-      setMessage('Error saving claim settings');
-    } finally {
-      setLoadingClaimSettings(false);
-    }
-  };
-
-  const handleQuickMultiplier = async (multiplier) => {
-    const newSettings = { ...claimSettings, claimMultiplier: multiplier };
-    setClaimSettings(newSettings);
-    setLoadingClaimSettings(true);
-    try {
-      const response = await fetch('/api/admin/claim-settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ settings: newSettings }),
-        credentials: 'include',
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setMessage(`Claim multiplier set to ${multiplier}x! (${Math.floor(claimSettings.baseClaimAmount * multiplier).toLocaleString()} tokens per claim)`);
-      } else {
-        setMessage(data.error || 'Failed to update multiplier');
-      }
-    } catch (error) {
-      setMessage('Error updating multiplier');
-    } finally {
-      setLoadingClaimSettings(false);
-    }
-  };
-
-  const handleToggleClaims = async () => {
-    const newEnabled = !claimSettings.claimsEnabled;
-    const newSettings = { ...claimSettings, claimsEnabled: newEnabled };
-    setClaimSettings(newSettings);
-    setLoadingClaimSettings(true);
-    try {
-      const response = await fetch('/api/admin/claim-settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ settings: newSettings }),
-        credentials: 'include',
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setMessage(newEnabled ? 'Claims ENABLED!' : 'Claims DISABLED!');
-      } else {
-        setMessage(data.error || 'Failed to toggle claims');
-      }
-    } catch (error) {
-      setMessage('Error toggling claims');
-    } finally {
-      setLoadingClaimSettings(false);
-    }
-  };
-
-  const handleArchive = async (projectId, archive = true) => {
-    const action = archive ? 'archive' : 'unarchive';
-    const confirmMsg = archive 
-      ? 'Are you sure you want to archive this project? It will be hidden from the queue but can be restored later.'
-      : 'Are you sure you want to restore this project?';
-    
-    if (!confirm(confirmMsg)) {
-      return;
-    }
-
-    try {
-      const response = await fetch('/api/admin/update-project', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          projectId, 
-          status: archive ? 'archived' : 'active',
-          fid: userFid || null 
-        }),
-        credentials: 'include',
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        setMessage(`Project ${projectId} ${archive ? 'archived' : 'restored'}!`);
-        fetchLiveProjects(); // Refresh live projects
-        fetchArchivedProjects(); // Refresh archived projects
-      } else {
-        setMessage(data.error || `Failed to ${action} project`);
-      }
-    } catch (error) {
-      setMessage(`Error ${action}ing project`);
-    }
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString();
-  };
-
-  const handleCreateProject = async (e) => {
-    e.preventDefault();
-    setCreating(true);
-    setMessage('');
-
-    try {
-      // Convert tips from USD back to ETH before saving
-      const createData = { ...createFormData };
-      if (ethPrice && tipsUsdDisplay.create) {
-        const tipsUsd = parseFloat(tipsUsdDisplay.create) || 0;
-        createData.stats = {
-          ...createData.stats,
-          tips: tipsUsd / ethPrice, // Convert USD to ETH
-        };
-      }
-
-      const response = await fetch('/api/admin/create-project', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...createData,
-          fid: userFid || null,
-        }),
-        credentials: 'include',
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        setMessage(data.message || 'Project created successfully!');
-        setShowCreateForm(false);
-        fetchLiveProjects(); // Refresh live projects
-        // Reset form
-        setCreateFormData({
-          name: '',
-          tagline: '',
-          description: '',
-          builder: '',
-          builderFid: '',
-          tokenName: '',
-          tokenContractAddress: '',
-          category: 'main',
-          miniapp: '',
-          website: '',
-          github: '',
-          twitter: '',
-          setAsFeatured: false,
-          stats: {
-            views: 0,
-            clicks: 0,
-            tips: 0,
-          },
-        });
-      } else {
-        setMessage(data.error || 'Failed to create project');
-      }
-    } catch (error) {
-      setMessage('Error creating project');
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const handleCreateFormChange = async (e) => {
-    const { name, value, type, checked } = e.target;
-    if (name.startsWith('stats.')) {
-      const statName = name.split('.')[1];
-      if (statName === 'tips') {
-        // Store USD value for tips
-        setTipsUsdDisplay(prev => ({
-          ...prev,
-          create: value
-        }));
-      } else {
-        setCreateFormData({
-          ...createFormData,
-          stats: {
-            ...createFormData.stats,
-            [statName]: parseFloat(value) || 0,
-          },
-        });
-      }
-    } else {
-      const newFormData = {
-        ...createFormData,
-        [name]: type === 'checkbox' ? checked : value,
-      };
-      
-      // Auto-populate builder info from FID when FID is entered
-      if (name === 'builderFid' && value && parseInt(value) > 0) {
-        try {
-          const response = await fetch('/api/user-profile', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fid: parseInt(value) }),
-          });
-          
-          if (response.ok) {
-            const userData = await response.json();
-            // Auto-populate builder name if not already set
-            if (!newFormData.builder || newFormData.builder.trim() === '') {
-              newFormData.builder = userData.username || userData.displayName || '';
-            }
-            // Update FID if it changed
-            newFormData.builderFid = userData.fid || value;
-          }
-        } catch (error) {
-          console.error('Error fetching user data from FID:', error);
-        }
-      }
-      
-      setCreateFormData(newFormData);
-    }
-  };
+  // ============================================
+  // RENDER
+  // ============================================
 
   if (authLoading) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-gray-500">Checking authorization...</div>
-        </div>
+        <div className="text-sm tracking-[0.2em]">LOADING...</div>
       </div>
     );
   }
 
-  if (showLogin || !isAuthenticated) {
+  if (showLogin) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
         <div className="border border-white p-8 max-w-md w-full">
-          <h1 className="text-2xl font-black mb-6">ADMIN LOGIN</h1>
-          {message && (
-            <div className={`mb-4 p-3 border ${message.includes('success') ? 'border-white bg-white text-black' : 'border-red-500 text-red-500'}`}>
-              {message}
-            </div>
-          )}
+          <h1 className="text-3xl font-black mb-6">ADMIN LOGIN</h1>
           <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                USERNAME
-              </label>
-              <input
-                type="text"
-                value={loginData.username}
-                onChange={(e) => setLoginData({ ...loginData, username: e.target.value })}
-                required
-                className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                placeholder="Enter username"
-              />
-            </div>
-            <div>
-              <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                PASSWORD
-              </label>
-              <input
-                type="password"
-                value={loginData.password}
-                onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                required
-                className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                placeholder="Enter password"
-              />
-            </div>
+            <input
+              type="text"
+              placeholder="Username"
+              value={loginData.username}
+              onChange={(e) => setLoginData({ ...loginData, username: e.target.value })}
+              className="w-full p-3 bg-black border border-white text-white"
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={loginData.password}
+              onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+              className="w-full p-3 bg-black border border-white text-white"
+            />
             <button
               type="submit"
-              className="w-full py-3 bg-white text-black font-black text-sm tracking-[0.2em] hover:bg-gray-200 transition-all"
+              className="w-full py-3 bg-white text-black font-black hover:bg-gray-200"
             >
               LOGIN
             </button>
           </form>
+          {message && (
+            <div className="mt-4 p-3 border border-red-500 text-red-400 text-sm">
+              {message}
+            </div>
+          )}
         </div>
       </div>
     );
   }
 
   return (
-    <>
+    <div className="min-h-screen bg-black text-white p-4 md:p-8 font-mono">
       <Head>
-        <title>Admin - Seen. Submissions</title>
+        <title>SEEN Admin Panel</title>
       </Head>
-      
-      {/* NEW CAMPAIGN WIZARD MODAL */}
-      {showCampaignWizard && (
-        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-900 border-2 border-green-500 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-6">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="text-2xl font-black text-white">🚀 NEW CAMPAIGN WIZARD</h2>
-                  <p className="text-green-100 text-sm">Step {campaignStep} of 3</p>
+
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8 pb-4 border-b border-white">
+          <div>
+            <h1 className="text-4xl font-black">SEEN ADMIN</h1>
+            <p className="text-xs text-gray-500 mt-1">Logged in as FID {userFid}</p>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="px-4 py-2 border border-white text-sm hover:bg-white hover:text-black transition-all"
+          >
+            LOGOUT
+          </button>
+        </div>
+
+        {/* Message Display */}
+        {message && (
+          <div className={`mb-6 p-4 border ${
+            message.includes('Error') || message.includes('failed')
+              ? 'border-red-500 text-red-400 bg-red-500/10'
+              : message.includes('✅')
+              ? 'border-green-500 text-green-400 bg-green-500/10'
+              : 'border-yellow-500 text-yellow-400 bg-yellow-500/10'
+          }`}>
+            {message}
+          </div>
+        )}
+
+        {/* Navigation */}
+        <div className="flex gap-2 mb-8 flex-wrap">
+          {[
+            { id: 'battles', label: 'BATTLES' },
+            { id: 'projects', label: 'PROJECTS' },
+            { id: 'automation', label: 'AUTOMATION' },
+            { id: 'claims', label: 'CLAIMS' },
+            { id: 'tools', label: 'TOOLS' },
+          ].map((section) => (
+            <button
+              key={section.id}
+              onClick={() => setActiveSection(section.id)}
+              className={`px-6 py-3 font-black text-sm tracking-[0.2em] transition-all ${
+                activeSection === section.id
+                  ? 'bg-white text-black'
+                  : 'border border-white hover:bg-white hover:text-black'
+              }`}
+            >
+              {section.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Sections */}
+        {activeSection === 'battles' && (
+          <BattleSection
+            currentBattle={currentBattle}
+            onCreateBattle={handleCreateBattle}
+            onResolveBattle={handleResolveBattle}
+          />
+        )}
+
+        {activeSection === 'projects' && (
+          <ProjectSection
+            submissions={submissions}
+            liveProjects={liveProjects}
+            loading={loading}
+            onApprove={handleApprove}
+            onFeature={handleFeature}
+          />
+        )}
+
+        {activeSection === 'automation' && (
+          <AutomationSection
+            currentFeatured={currentFeatured}
+            onTriggerAutoFeature={handleManualAutoFeature}
+          />
+        )}
+
+        {activeSection === 'claims' && (
+          <ClaimsSection
+            claimsDisabled={claimsDisabled}
+            claimStats={claimStats}
+            blockedFids={blockedFids}
+            blockFidInput={blockFidInput}
+            onToggleClaims={handleToggleClaims}
+            onBlockFid={handleBlockFid}
+            onUnblockFid={handleUnblockFid}
+            setBlockFidInput={setBlockFidInput}
+          />
+        )}
+
+        {activeSection === 'tools' && (
+          <ToolsSection
+            traceWalletAddress={traceWalletAddress}
+            traceResult={traceResult}
+            tracingWallet={tracingWallet}
+            setTraceWalletAddress={setTraceWalletAddress}
+            onTraceWallet={handleTraceWallet}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// SECTION COMPONENTS
+// ============================================
+
+const BattleSection = ({ currentBattle, onCreateBattle, onResolveBattle }) => (
+  <div className="space-y-6">
+    <div className="border border-white p-6">
+      <h2 className="text-2xl font-black mb-4">BATTLE MANAGEMENT</h2>
+
+      <div className="flex gap-3 mb-6">
+        <button
+          onClick={onCreateBattle}
+          className="px-6 py-3 bg-purple-600 text-white font-black hover:bg-purple-500"
+        >
+          CREATE BATTLE
+        </button>
+        <button
+          onClick={onResolveBattle}
+          className="px-6 py-3 bg-green-600 text-white font-black hover:bg-green-500"
+        >
+          RESOLVE BATTLE
+        </button>
+      </div>
+
+      {currentBattle ? (
+        <div className="border border-white/30 p-4">
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <div className="text-xs text-gray-500 mb-1">PROJECT A</div>
+              <div className="text-xl font-black">{currentBattle.projectA.name}</div>
+              <div className="text-sm text-gray-400">Score: {currentBattle.scoreA}</div>
+              <div className="text-sm text-gray-400">Pool: {(currentBattle.poolA / 1000).toFixed(0)}K $SEEN</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500 mb-1">PROJECT B</div>
+              <div className="text-xl font-black">{currentBattle.projectB.name}</div>
+              <div className="text-sm text-gray-400">Score: {currentBattle.scoreB}</div>
+              <div className="text-sm text-gray-400">Pool: {(currentBattle.poolB / 1000).toFixed(0)}K $SEEN</div>
+            </div>
+          </div>
+          <div className="mt-4 text-sm text-gray-500">
+            Status: {currentBattle.status} | Ends: {new Date(currentBattle.endTime).toLocaleString()}
+          </div>
+        </div>
+      ) : (
+        <div className="border border-white/30 p-4 text-center text-gray-500">
+          No active battle
+        </div>
+      )}
+    </div>
+  </div>
+);
+
+const ProjectSection = ({ submissions, liveProjects, loading, onApprove, onFeature }) => (
+  <div className="space-y-6">
+    {/* Pending Submissions */}
+    <div className="border border-white p-6">
+      <h2 className="text-2xl font-black mb-4">PENDING SUBMISSIONS ({submissions.length})</h2>
+      {loading ? (
+        <div className="text-gray-500">Loading...</div>
+      ) : submissions.length === 0 ? (
+        <div className="text-gray-500">No pending submissions</div>
+      ) : (
+        <div className="space-y-4">
+          {submissions.map((sub) => (
+            <div key={sub.id} className="border border-white/30 p-4">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <h3 className="text-xl font-black mb-2">{sub.name}</h3>
+                  <p className="text-sm text-gray-400 mb-2">{sub.tagline}</p>
+                  <div className="text-xs text-gray-600">
+                    Builder: {sub.builder} | FID: {sub.builderFid}
+                  </div>
                 </div>
-                <button 
-                  onClick={() => setShowCampaignWizard(false)}
-                  className="text-white hover:text-red-300 text-2xl font-bold"
+                <button
+                  onClick={() => onApprove(sub.id)}
+                  className="px-4 py-2 bg-green-600 text-white font-black hover:bg-green-500"
                 >
-                  ✕
+                  APPROVE
                 </button>
               </div>
-              {/* Progress bar */}
-              <div className="mt-4 h-2 bg-green-900 rounded-full">
-                <div 
-                  className="h-full bg-white rounded-full transition-all duration-300"
-                  style={{ width: `${(campaignStep / 3) * 100}%` }}
-                />
-              </div>
             </div>
+          ))}
+        </div>
+      )}
+    </div>
 
-            {/* Step 1: Select Project */}
-            {campaignStep === 1 && (
-              <div className="p-6">
-                <h3 className="text-xl font-bold mb-4 text-green-400">STEP 1: SELECT PROJECT TO FEATURE</h3>
-                <p className="text-gray-400 text-sm mb-4">Choose a project from your live listings to feature as the new campaign.</p>
-                
-                <div className="max-h-60 overflow-y-auto space-y-2 border border-gray-700 p-2">
-                  {liveProjects.filter(p => p.status !== 'featured' && p.status !== 'archived').length === 0 ? (
-                    <div className="text-gray-500 text-center py-4">No projects available. Create a project first.</div>
-                  ) : (
-                    liveProjects
-                      .filter(p => p.status !== 'featured' && p.status !== 'archived')
-                      .sort((a, b) => a.name.localeCompare(b.name))
-                      .map(project => (
-                        <button
-                          key={project.id}
-                          onClick={() => setCampaignData({ ...campaignData, selectedProject: project })}
-                          className={`w-full p-3 text-left border transition-all ${
-                            campaignData.selectedProject?.id === project.id
-                              ? 'border-green-500 bg-green-500/20'
-                              : 'border-gray-700 hover:border-gray-500 bg-gray-800'
-                          }`}
-                        >
-                          <div className="font-bold">{project.name}</div>
-                          <div className="text-xs text-gray-400">{project.tagline}</div>
-                        </button>
-                      ))
-                  )}
+    {/* Live Projects */}
+    <div className="border border-white p-6">
+      <h2 className="text-2xl font-black mb-4">LIVE PROJECTS ({liveProjects.length})</h2>
+      <div className="space-y-4">
+        {liveProjects.map((project) => (
+          <div key={project.id} className="border border-white/30 p-4">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className="text-xl font-black">{project.name}</h3>
+                  <span className={`text-xs px-2 py-1 border ${
+                    project.status === 'featured'
+                      ? 'border-yellow-500 text-yellow-500'
+                      : 'border-gray-500 text-gray-500'
+                  }`}>
+                    {project.status.toUpperCase()}
+                  </span>
                 </div>
-
-                {/* Currently featured */}
-                {liveProjects.find(p => p.status === 'featured') && (
-                  <div className="mt-4 p-3 border border-yellow-500/50 bg-yellow-500/10">
-                    <div className="text-xs text-yellow-400 mb-1">CURRENTLY FEATURED:</div>
-                    <div className="font-bold text-yellow-300">{liveProjects.find(p => p.status === 'featured')?.name}</div>
-                    <div className="text-xs text-gray-400">This will be moved to queue when new campaign launches.</div>
-                  </div>
-                )}
-
-                <div className="mt-6 flex justify-end">
-                  <button
-                    onClick={() => campaignData.selectedProject && setCampaignStep(2)}
-                    disabled={!campaignData.selectedProject}
-                    className="px-6 py-3 bg-green-600 text-white font-bold hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    NEXT →
-                  </button>
+                <p className="text-sm text-gray-400">{project.tagline}</p>
+                <div className="text-xs text-gray-600 mt-1">
+                  Votes: {project.votes || 0}
                 </div>
               </div>
-            )}
+              {project.status !== 'featured' && (
+                <button
+                  onClick={() => onFeature(project.id)}
+                  className="px-4 py-2 border border-yellow-500 text-yellow-500 font-black hover:bg-yellow-500 hover:text-black"
+                >
+                  FEATURE
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+);
 
-            {/* Step 2: Configure Bonus Token */}
-            {campaignStep === 2 && (
-              <div className="p-6">
-                <h3 className="text-xl font-bold mb-4 text-green-400">STEP 2: BONUS TOKEN (OPTIONAL)</h3>
-                <p className="text-gray-400 text-sm mb-4">Include a bonus token with claims? Users get 1 bonus token + 40,000 SEEN per claim.</p>
-                
-                <div className="space-y-3">
-                  <button
-                    onClick={() => setCampaignData({ ...campaignData, useBonusToken: true, bonusTokenPreset: 'donut' })}
-                    className={`w-full p-4 text-left border transition-all ${
-                      campaignData.useBonusToken && campaignData.bonusTokenPreset === 'donut'
-                        ? 'border-green-500 bg-green-500/20'
-                        : 'border-gray-700 hover:border-gray-500 bg-gray-800'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">🍩</span>
-                      <div>
-                        <div className="font-bold">DONUT BONUS (Recommended)</div>
-                        <div className="text-xs text-gray-400">1 DONUT per claim • Max 1000 total • Contract: 0xAE4a...0169C</div>
-                      </div>
-                    </div>
-                  </button>
+const AutomationSection = ({ currentFeatured, onTriggerAutoFeature }) => (
+  <div className="space-y-6">
+    <div className="border border-white p-6">
+      <h2 className="text-2xl font-black mb-4">AUTOMATION</h2>
 
-                  <button
-                    onClick={() => setCampaignData({ ...campaignData, useBonusToken: true, bonusTokenPreset: 'custom' })}
-                    className={`w-full p-4 text-left border transition-all ${
-                      campaignData.useBonusToken && campaignData.bonusTokenPreset === 'custom'
-                        ? 'border-green-500 bg-green-500/20'
-                        : 'border-gray-700 hover:border-gray-500 bg-gray-800'
-                    }`}
-                  >
-                    <div className="font-bold">CUSTOM BONUS TOKEN</div>
-                    <div className="text-xs text-gray-400">Configure your own token</div>
-                  </button>
+      <div className="mb-6">
+        <button
+          onClick={onTriggerAutoFeature}
+          className="px-6 py-3 bg-yellow-600 text-white font-black hover:bg-yellow-500"
+        >
+          TRIGGER AUTO-FEATURE
+        </button>
+        <p className="text-xs text-gray-500 mt-2">
+          Features the highest voted project and resets all votes to 0
+        </p>
+      </div>
 
-                  {/* Custom token form */}
-                  {campaignData.useBonusToken && campaignData.bonusTokenPreset === 'custom' && (
-                    <div className="ml-4 p-4 border border-gray-700 space-y-3">
-                      <input
-                        type="text"
-                        placeholder="Token Name (e.g., BONUS)"
-                        value={campaignData.customBonusToken.tokenName}
-                        onChange={(e) => setCampaignData({
-                          ...campaignData,
-                          customBonusToken: { ...campaignData.customBonusToken, tokenName: e.target.value }
-                        })}
-                        className="w-full p-2 bg-black border border-gray-600 text-white"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Contract Address (0x...)"
-                        value={campaignData.customBonusToken.contractAddress}
-                        onChange={(e) => setCampaignData({
-                          ...campaignData,
-                          customBonusToken: { ...campaignData.customBonusToken, contractAddress: e.target.value }
-                        })}
-                        className="w-full p-2 bg-black border border-gray-600 text-white"
-                      />
-                      <div className="grid grid-cols-3 gap-2">
-                        <input
-                          type="number"
-                          placeholder="Amount"
-                          value={campaignData.customBonusToken.amount}
-                          onChange={(e) => setCampaignData({
-                            ...campaignData,
-                            customBonusToken: { ...campaignData.customBonusToken, amount: e.target.value }
-                          })}
-                          className="p-2 bg-black border border-gray-600 text-white"
-                        />
-                        <input
-                          type="number"
-                          placeholder="Decimals"
-                          value={campaignData.customBonusToken.decimals}
-                          onChange={(e) => setCampaignData({
-                            ...campaignData,
-                            customBonusToken: { ...campaignData.customBonusToken, decimals: parseInt(e.target.value) || 18 }
-                          })}
-                          className="p-2 bg-black border border-gray-600 text-white"
-                        />
-                        <input
-                          type="number"
-                          placeholder="Max Supply"
-                          value={campaignData.customBonusToken.maxSupply}
-                          onChange={(e) => setCampaignData({
-                            ...campaignData,
-                            customBonusToken: { ...campaignData.customBonusToken, maxSupply: parseInt(e.target.value) || 1000 }
-                          })}
-                          className="p-2 bg-black border border-gray-600 text-white"
-                        />
-                      </div>
-                    </div>
-                  )}
+      {currentFeatured && (
+        <div className="border border-white/30 p-4">
+          <div className="text-xs text-gray-500 mb-2">CURRENT FEATURED</div>
+          <div className="text-2xl font-black mb-2">{currentFeatured.name}</div>
+          <div className="text-sm text-gray-400">{currentFeatured.tagline}</div>
+          <div className="text-xs text-gray-600 mt-2">
+            Featured at: {new Date(currentFeatured.featuredAt).toLocaleString()}
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+);
 
-                  <button
-                    onClick={() => setCampaignData({ ...campaignData, useBonusToken: false, bonusTokenPreset: 'none' })}
-                    className={`w-full p-4 text-left border transition-all ${
-                      !campaignData.useBonusToken
-                        ? 'border-green-500 bg-green-500/20'
-                        : 'border-gray-700 hover:border-gray-500 bg-gray-800'
-                    }`}
-                  >
-                    <div className="font-bold">NO BONUS TOKEN</div>
-                    <div className="text-xs text-gray-400">Only SEEN tokens (40,000 per claim)</div>
-                  </button>
-                </div>
+const ClaimsSection = ({ claimsDisabled, claimStats, blockedFids, blockFidInput, onToggleClaims, onBlockFid, onUnblockFid, setBlockFidInput }) => (
+  <div className="space-y-6">
+    <div className="border border-white p-6">
+      <h2 className="text-2xl font-black mb-4">CLAIM SYSTEM</h2>
 
-                <div className="mt-6 flex justify-between">
-                  <button
-                    onClick={() => setCampaignStep(1)}
-                    className="px-6 py-3 bg-gray-700 text-white font-bold hover:bg-gray-600"
-                  >
-                    ← BACK
-                  </button>
-                  <button
-                    onClick={() => setCampaignStep(3)}
-                    className="px-6 py-3 bg-green-600 text-white font-bold hover:bg-green-500"
-                  >
-                    NEXT →
-                  </button>
-                </div>
-              </div>
-            )}
+      <div className="flex gap-3 mb-6">
+        <button
+          onClick={onToggleClaims}
+          className={`px-6 py-3 font-black ${
+            claimsDisabled
+              ? 'bg-green-600 text-white hover:bg-green-500'
+              : 'bg-red-600 text-white hover:bg-red-500'
+          }`}
+        >
+          {claimsDisabled ? 'ENABLE CLAIMS' : 'DISABLE CLAIMS'}
+        </button>
+      </div>
 
-            {/* Step 3: Confirm & Launch */}
-            {campaignStep === 3 && (
-              <div className="p-6">
-                <h3 className="text-xl font-bold mb-4 text-green-400">STEP 3: CONFIRM & LAUNCH</h3>
-                <p className="text-gray-400 text-sm mb-4">Review your campaign settings before launching.</p>
-                
-                <div className="space-y-4">
-                  {/* Summary */}
-                  <div className="p-4 border border-green-500/50 bg-green-500/10">
-                    <div className="text-xs text-green-400 mb-2">FEATURED PROJECT:</div>
-                    <div className="font-bold text-xl">{campaignData.selectedProject?.name}</div>
-                    <div className="text-sm text-gray-400">{campaignData.selectedProject?.tagline}</div>
-                  </div>
-
-                  <div className="p-4 border border-gray-700">
-                    <div className="text-xs text-gray-400 mb-2">BONUS TOKEN:</div>
-                    {campaignData.useBonusToken ? (
-                      campaignData.bonusTokenPreset === 'donut' ? (
-                        <div className="font-bold">🍩 DONUT - 1 per claim (max 1000)</div>
-                      ) : (
-                        <div className="font-bold">{campaignData.customBonusToken.tokenName || 'Custom Token'} - {campaignData.customBonusToken.amount} per claim</div>
-                      )
-                    ) : (
-                      <div className="font-bold text-gray-500">None (SEEN only)</div>
-                    )}
-                  </div>
-
-                  <div className="p-4 border border-yellow-500/50 bg-yellow-500/10">
-                    <div className="text-xs text-yellow-400 mb-2">THIS WILL:</div>
-                    <ul className="text-sm space-y-1">
-                      <li>✓ Set "{campaignData.selectedProject?.name}" as featured</li>
-                      <li>✓ Configure bonus token (if selected)</li>
-                      <li>✓ Reset ALL claims - everyone can claim fresh</li>
-                      <li>✓ Reset bonus token eligibility</li>
-                    </ul>
-                  </div>
-                </div>
-
-                <div className="mt-6 flex justify-between">
-                  <button
-                    onClick={() => setCampaignStep(2)}
-                    className="px-6 py-3 bg-gray-700 text-white font-bold hover:bg-gray-600"
-                  >
-                    ← BACK
-                  </button>
-                  <button
-                    onClick={launchCampaign}
-                    disabled={launchingCampaign}
-                    className="px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-black text-lg hover:from-green-400 hover:to-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {launchingCampaign ? 'LAUNCHING...' : '🚀 LAUNCH CAMPAIGN'}
-                  </button>
-                </div>
-              </div>
-            )}
+      {claimStats && (
+        <div className="border border-white/30 p-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <div className="text-xs text-gray-500">STATUS</div>
+              <div className="text-xl font-black">{claimsDisabled ? 'DISABLED' : 'ENABLED'}</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">TOTAL CLAIMS</div>
+              <div className="text-xl font-black">{claimStats.totalClaims || 0}</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">UNIQUE USERS</div>
+              <div className="text-xl font-black">{claimStats.uniqueClaimers || 0}</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">TOTAL SENT</div>
+              <div className="text-xl font-black">{((claimStats.totalSent || 0) / 1000000).toFixed(1)}M</div>
+            </div>
           </div>
         </div>
       )}
 
-      <div className="min-h-screen bg-black text-white p-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="mb-8 flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-black mb-2">ADMIN PANEL</h1>
-              <p className="text-sm text-gray-500">Manage Project Submissions</p>
-              {userFid && (
-                <p className="text-xs text-gray-600 mt-1">Authenticated as FID: {userFid}</p>
-              )}
-            </div>
-            <div className="flex gap-3 flex-wrap">
-              {/* NEW CAMPAIGN WIZARD - Primary Action */}
+      {/* Block FIDs */}
+      <div className="border-t border-white/30 pt-6">
+        <h3 className="text-lg font-black mb-3">BLOCKED FIDs ({blockedFids.length})</h3>
+        <div className="flex gap-2 mb-4">
+          <input
+            type="number"
+            placeholder="FID to block"
+            value={blockFidInput}
+            onChange={(e) => setBlockFidInput(e.target.value)}
+            className="flex-1 p-2 bg-black border border-white text-white"
+          />
+          <button
+            onClick={onBlockFid}
+            className="px-4 py-2 bg-red-600 text-white font-black hover:bg-red-500"
+          >
+            BLOCK
+          </button>
+        </div>
+        <div className="space-y-2">
+          {blockedFids.map((fid) => (
+            <div key={fid} className="flex items-center justify-between p-2 border border-white/30">
+              <span>FID: {fid}</span>
               <button
-                onClick={startCampaignWizard}
-                className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-black text-lg hover:from-green-400 hover:to-emerald-500 transition-all shadow-lg border-2 border-green-400"
-                title="Launch a new featured campaign with guided setup"
+                onClick={() => onUnblockFid(fid)}
+                className="text-xs px-3 py-1 border border-white hover:bg-white hover:text-black"
               >
-                🚀 NEW CAMPAIGN
-              </button>
-              <button
-                onClick={() => setShowCreateForm(!showCreateForm)}
-                className="px-4 py-2 bg-yellow-500 text-black font-bold hover:bg-yellow-400 transition-all"
-              >
-                {showCreateForm ? 'CANCEL' : '+ CREATE PROJECT'}
-              </button>
-              <button
-                onClick={async () => {
-                  if (!confirm('Reset SIMPLE claims for current featured project? This allows everyone to claim again.')) return;
-                  try {
-                    const res = await fetch('/api/admin/simple-reset', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      credentials: 'include',
-                    });
-                    const data = await res.json();
-                    setMessage(data.message || (data.success ? 'Simple claims reset!' : 'Failed'));
-                  } catch (e) {
-                    setMessage('Error: ' + e.message);
-                  }
-                }}
-                className="px-4 py-2 bg-red-600 text-white font-bold hover:bg-red-500 transition-all"
-                title="Reset claims for current featured project (SIMPLE system)"
-              >
-                🔄 RESET CLAIMS
-              </button>
-              <button
-                onClick={fetchCurrentFeatured}
-                className="px-4 py-2 bg-green-600 text-white font-bold hover:bg-green-500 transition-all"
-              >
-                REFRESH FEATURED
-              </button>
-              <button
-                onClick={handleResetBonusEligibility}
-                className="px-4 py-2 bg-pink-600 text-white font-bold hover:bg-pink-500 transition-all"
-                title="Reset bonus token eligibility only (does NOT reset claims)"
-              >
-                RESET BONUS ELIGIBILITY
-              </button>
-              <button
-                onClick={handleClearOldClaims}
-                className="px-4 py-2 bg-orange-600 text-white font-bold hover:bg-orange-500 transition-all"
-              >
-                CLEAR OLD CLAIMS
-              </button>
-              <button
-                onClick={() => {
-                  setShowBonusTokenConfig(!showBonusTokenConfig);
-                  if (!showBonusTokenConfig) {
-                    fetchBonusTokenConfig();
-                  }
-                }}
-                className="px-4 py-2 bg-purple-600 text-white font-bold hover:bg-purple-500 transition-all"
-              >
-                {showBonusTokenConfig ? 'HIDE BONUS TOKEN' : 'CONFIGURE BONUS TOKEN'}
-              </button>
-              <button
-                onClick={() => {
-                  setShowClaimSettings(!showClaimSettings);
-                  if (!showClaimSettings) {
-                    fetchClaimSettings();
-                  }
-                }}
-                className="px-4 py-2 bg-cyan-600 text-white font-bold hover:bg-cyan-500 transition-all"
-              >
-                {showClaimSettings ? 'HIDE CLAIM SETTINGS' : 'CLAIM SETTINGS'}
-              </button>
-              <button
-                onClick={handleManualAutoFeature}
-                className="px-4 py-2 bg-yellow-600 text-white font-bold hover:bg-yellow-500 transition-all"
-              >
-                TRIGGER AUTO-FEATURE
-              </button>
-              <button
-                onClick={handleCreateBattle}
-                className="px-4 py-2 bg-purple-600 text-white font-bold hover:bg-purple-500 transition-all"
-              >
-                CREATE BATTLE
-              </button>
-              <button
-                onClick={handleResolveBattle}
-                className="px-4 py-2 bg-green-600 text-white font-bold hover:bg-green-500 transition-all"
-              >
-                RESOLVE BATTLE
-              </button>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 border border-white text-sm hover:bg-white hover:text-black transition-all"
-              >
-                LOGOUT
+                UNBLOCK
               </button>
             </div>
-          </div>
-
-          {message && (
-            <div className={`mb-4 p-4 border ${
-              message.includes('error') || message.includes('Error') || message.includes('failed') || message.includes('Failed')
-                ? 'border-red-500 bg-red-900/20 text-red-400'
-                : message.includes('success') || message.includes('Success')
-                ? 'border-green-500 bg-green-900/20 text-green-400'
-                : 'border-white bg-white text-black'
-            }`}>
-              <div className="font-bold mb-1">
-                {message.includes('error') || message.includes('Error') || message.includes('failed') || message.includes('Failed')
-                  ? 'ERROR:'
-                  : message.includes('success') || message.includes('Success')
-                  ? 'SUCCESS:'
-                  : 'INFO:'}
-              </div>
-              <div>{message}</div>
-              <button
-                onClick={() => setMessage('')}
-                className="mt-2 text-sm underline opacity-70 hover:opacity-100"
-              >
-                Dismiss
-              </button>
-            </div>
-          )}
-
-          {/* Quick Reference Legend */}
-          <div className="mb-8 border border-gray-700 bg-gray-900/50">
-            <button
-              onClick={() => {
-                const el = document.getElementById('admin-legend');
-                if (el) el.classList.toggle('hidden');
-              }}
-              className="w-full p-3 flex items-center justify-between text-left hover:bg-gray-800/50 transition-all"
-            >
-              <span className="text-sm font-bold tracking-[0.1em] text-gray-400">QUICK REFERENCE LEGEND</span>
-              <span className="text-gray-500 text-xs">Click to expand/collapse</span>
-            </button>
-            <div id="admin-legend" className="hidden border-t border-gray-700 p-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                
-                {/* Actions that RESET Claims */}
-                <div className="border border-red-500/50 bg-red-500/5 p-3">
-                  <div className="text-[10px] tracking-[0.2em] text-red-400 mb-2 font-bold">🔴 RESETS ALL CLAIMS</div>
-                  <ul className="text-xs space-y-1 text-gray-300">
-                    <li>• <span className="text-red-400 font-bold">SET FEATURED</span> - New project = fresh claims</li>
-                    <li>• <span className="text-red-400 font-bold">RESET CLAIMS</span> - Manual reset button</li>
-                    <li>• <span className="text-red-400 font-bold">Approve & Feature</span> - New submission goes live</li>
-                    <li>• <span className="text-red-400 font-bold">Scheduled</span> - When scheduled project goes live</li>
-                  </ul>
-                  <div className="text-[9px] text-gray-500 mt-2">Everyone can claim again immediately</div>
-                </div>
-
-                {/* Actions that DON'T affect claims */}
-                <div className="border border-green-500/50 bg-green-500/5 p-3">
-                  <div className="text-[10px] tracking-[0.2em] text-green-400 mb-2 font-bold">🟢 SAFE - NO CLAIM RESET</div>
-                  <ul className="text-xs space-y-1 text-gray-300">
-                    <li>• <span className="text-green-400 font-bold">Timer buttons</span> - 1H, 6H, 12H, 24H, 11:59PM</li>
-                    <li>• <span className="text-green-400 font-bold">Edit project</span> - Name, description, links</li>
-                    <li>• <span className="text-green-400 font-bold">Update stats</span> - Views, clicks, tips</li>
-                    <li>• <span className="text-green-400 font-bold">Archive/Restore</span> - Moving projects</li>
-                  </ul>
-                  <div className="text-[9px] text-gray-500 mt-2">Claim status stays unchanged</div>
-                </div>
-
-                {/* Claim Settings */}
-                <div className="border border-cyan-500/50 bg-cyan-500/5 p-3">
-                  <div className="text-[10px] tracking-[0.2em] text-cyan-400 mb-2 font-bold">🔵 CLAIM SETTINGS</div>
-                  <ul className="text-xs space-y-1 text-gray-300">
-                    <li>• <span className="text-cyan-400 font-bold">Multiplier</span> - 1x, 2x, 3x... token amount</li>
-                    <li>• <span className="text-cyan-400 font-bold">Cooldown</span> - Hours between claims</li>
-                    <li>• <span className="text-cyan-400 font-bold">Enable/Disable</span> - Master claims toggle</li>
-                  </ul>
-                  <div className="text-[9px] text-gray-500 mt-2">Changes apply immediately, persist until changed</div>
-                </div>
-
-                {/* Featured Timer */}
-                <div className="border border-yellow-500/50 bg-yellow-500/5 p-3">
-                  <div className="text-[10px] tracking-[0.2em] text-yellow-400 mb-2 font-bold">🟡 FEATURED TIMER</div>
-                  <ul className="text-xs space-y-1 text-gray-300">
-                    <li>• <span className="text-yellow-400 font-bold">1H/6H/12H/24H</span> - Set hours remaining</li>
-                    <li>• <span className="text-yellow-400 font-bold">11:59PM</span> - Expire at midnight UK</li>
-                    <li>• Timer only affects <span className="italic">display countdown</span></li>
-                    <li>• Does NOT affect claim eligibility</li>
-                  </ul>
-                  <div className="text-[9px] text-gray-500 mt-2">Adjust freely without affecting claims</div>
-                </div>
-
-                {/* Bonus Token */}
-                <div className="border border-purple-500/50 bg-purple-500/5 p-3">
-                  <div className="text-[10px] tracking-[0.2em] text-purple-400 mb-2 font-bold">🟣 BONUS TOKEN</div>
-                  <ul className="text-xs space-y-1 text-gray-300">
-                    <li>• <span className="text-purple-400 font-bold">Enable</span> - Add bonus token to claims</li>
-                    <li>• <span className="text-purple-400 font-bold">Contract</span> - Any ERC20 on Base</li>
-                    <li>• <span className="text-purple-400 font-bold">Amount/Max</span> - Per claim & total supply</li>
-                    <li>• Sent alongside $SEEN automatically</li>
-                  </ul>
-                  <div className="text-[9px] text-gray-500 mt-2">Configure per campaign, 1 bonus per wallet</div>
-                </div>
-
-                {/* Reset Bonus Eligibility */}
-                <div className="border border-pink-500/50 bg-pink-500/5 p-3">
-                  <div className="text-[10px] tracking-[0.2em] text-pink-400 mb-2 font-bold">🌸 RESET BONUS ELIGIBILITY</div>
-                  <ul className="text-xs space-y-1 text-gray-300">
-                    <li>• <span className="text-pink-400 font-bold">Clears</span> - All bonus user flags</li>
-                    <li>• <span className="text-pink-400 font-bold">Resets</span> - Bonus token counters</li>
-                    <li>• <span className="text-pink-400 font-bold">Allows</span> - Users to get bonus again</li>
-                    <li>• <span className="text-green-400 font-bold">SAFE</span> - Does NOT reset claims</li>
-                  </ul>
-                  <div className="text-[9px] text-gray-500 mt-2">Use when bonus tokens aren't distributing correctly</div>
-                </div>
-
-                {/* Personal Cooldown */}
-                <div className="border border-orange-500/50 bg-orange-500/5 p-3">
-                  <div className="text-[10px] tracking-[0.2em] text-orange-400 mb-2 font-bold">🟠 PERSONAL COOLDOWN</div>
-                  <ul className="text-xs space-y-1 text-gray-300">
-                    <li>• Each wallet: 24h between claims</li>
-                    <li>• Resets: New featured OR Reset button</li>
-                    <li>• Persists: Timer changes, stats updates</li>
-                  </ul>
-                  <div className="text-[9px] text-gray-500 mt-2">Prevents spam within same featured project</div>
-                </div>
-
-              </div>
-
-              {/* Quick Formula */}
-              <div className="mt-4 p-3 bg-white/5 border border-white/20">
-                <div className="text-[10px] tracking-[0.2em] text-white mb-2 font-bold">CLAIM FORMULA</div>
-                <div className="text-sm font-mono text-gray-300">
-                  Tokens per claim = <span className="text-cyan-400">Base Amount</span> × <span className="text-cyan-400">Multiplier</span>
-                </div>
-                <div className="text-xs text-gray-500 mt-1">
-                  Example: 40,000 × 2x = 80,000 tokens per claim
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Automation Dashboard */}
-          <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Current Featured Project */}
-            <div className="border border-white p-4">
-              <h2 className="text-lg font-black mb-3">CURRENT FEATURED PROJECT</h2>
-              {currentFeatured ? (
-                <div className="space-y-2">
-                  <div className="text-sm">
-                    <span className="text-gray-500">Name:</span> <span className="font-bold">{currentFeatured.name}</span>
-                  </div>
-                  <div className="text-sm">
-                    <span className="text-gray-500">ID:</span> <span className="font-mono">{currentFeatured.id}</span>
-                  </div>
-                  {currentFeatured.featuredAt && (
-                    <div className="text-sm">
-                      <span className="text-gray-500">Featured At:</span> <span className="font-mono text-xs">{new Date(currentFeatured.featuredAt).toLocaleString()}</span>
-                    </div>
-                  )}
-                  <div className="flex gap-2 mt-3">
-                    <button
-                      onClick={() => handleEdit(currentFeatured)}
-                      className="px-3 py-1 text-xs border border-white hover:bg-white hover:text-black transition-all"
-                    >
-                      EDIT
-                    </button>
-                    <button
-                      onClick={() => handleQuickSetFeatured(currentFeatured.id)}
-                      className="px-3 py-1 text-xs bg-green-600 text-white hover:bg-green-500 transition-all"
-                      disabled={currentFeatured.status === 'featured'}
-                    >
-                      {currentFeatured.status === 'featured' ? 'CURRENTLY FEATURED' : 'SET FEATURED'}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-sm text-gray-500">No featured project</div>
-              )}
-            </div>
-
-            {/* Claim Stats */}
-            <div className="border border-white p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-black">CLAIM SYSTEM STATUS</h2>
-                <button
-                  onClick={fetchClaimStats}
-                  disabled={loadingStats}
-                  className="px-2 py-1 text-xs border border-white hover:bg-white hover:text-black transition-all disabled:opacity-50"
-                >
-                  {loadingStats ? 'LOADING...' : 'REFRESH'}
-                </button>
-              </div>
-              {claimStats ? (
-                <div className="space-y-3 text-sm">
-                  {/* System Status */}
-                  <div className="p-2 bg-cyan-900/20 border border-cyan-500/50">
-                    <div className="text-xs text-cyan-400 mb-2 font-bold">SYSTEM STATUS</div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`w-2 h-2 rounded-full ${claimSettings.claimsEnabled ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
-                      <span className="text-xs">
-                        Claims: <span className={claimSettings.claimsEnabled ? 'text-green-400 font-bold' : 'text-red-400 font-bold'}>
-                          {claimSettings.claimsEnabled ? 'ENABLED ✅' : 'DISABLED ❌'}
-                        </span>
-                      </span>
-                    </div>
-                    <div className="text-xs text-gray-400 mt-1">
-                      Amount: <span className="text-cyan-400 font-bold">{((claimSettings.baseClaimAmount || 40000) * (claimSettings.claimMultiplier || 1)).toLocaleString()}</span> tokens per claim
-                    </div>
-                    <div className="text-xs text-gray-400 mt-1">
-                      Max Claims: <span className="text-cyan-400 font-bold">1</span> per FID per featured project
-                    </div>
-                  </div>
-                  
-                  {/* Claim Statistics */}
-                  <div className="space-y-1">
-                    <div>
-                      <span className="text-gray-500">Total Claims:</span> <span className="font-bold text-white">{claimStats.totalClaims || 0}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Unique Wallets:</span> <span className="font-bold text-white">{claimStats.uniqueWallets || 0}</span>
-                    </div>
-                  </div>
-                  
-                  {/* Status Indicators */}
-                  {claimStats.totalClaims > 0 && (
-                    <div className="p-2 bg-green-900/20 border border-green-500/50">
-                      <div className="text-xs text-green-400 font-bold">
-                        ✅ SYSTEM WORKING - {claimStats.totalClaims} claim(s) processed successfully
-                      </div>
-                    </div>
-                  )}
-                  {claimStats.totalClaims === 0 && claimSettings.claimsEnabled && (
-                    <div className="p-2 bg-yellow-900/20 border border-yellow-500/50">
-                      <div className="text-xs text-yellow-400">
-                        ⚠️ No claims yet - System is ready, waiting for users to claim
-                      </div>
-                    </div>
-                  )}
-                  {!claimSettings.claimsEnabled && (
-                    <div className="p-2 bg-red-900/20 border border-red-500/50">
-                      <div className="text-xs text-red-400">
-                        ❌ Claims are disabled - Enable in Claim Settings above
-                      </div>
-                    </div>
-                  )}
-                  
-                  {claimStats.featuredProject && (
-                    <div className="mt-2 pt-2 border-t border-white/20">
-                      <div className="text-xs text-gray-500">Featured: {claimStats.featuredProject.name} (ID: {claimStats.featuredProject.id})</div>
-                    </div>
-                  )}
-                </div>
-              ) : loadingStats ? (
-                <div className="text-sm text-gray-500">Loading...</div>
-              ) : (
-                <div className="text-sm text-gray-500">Click REFRESH to check status</div>
-              )}
-            </div>
-
-            {/* Trace Wallet */}
-            <div className="border border-white p-4 mt-4">
-              <h2 className="text-lg font-black mb-3">TRACE WALLET → FID</h2>
-              <p className="text-xs text-gray-500 mb-3">Find FID(s) associated with a wallet address</p>
-              <div className="flex gap-2 mb-3">
-                <input
-                  type="text"
-                  value={traceWalletAddress}
-                  onChange={(e) => setTraceWalletAddress(e.target.value)}
-                  placeholder="0x..."
-                  className="flex-1 bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                />
-                <button
-                  onClick={handleTraceWallet}
-                  disabled={tracingWallet || !traceWalletAddress}
-                  className="px-4 py-2 bg-yellow-600 text-white font-bold hover:bg-yellow-500 transition-all disabled:opacity-50"
-                >
-                  {tracingWallet ? 'TRACING...' : 'TRACE'}
-                </button>
-              </div>
-              {traceResult && (
-                <div className="mt-4 space-y-3 text-sm border-t border-white/20 pt-3">
-                  <div>
-                    <span className="text-gray-500">Wallet:</span>{' '}
-                    <span className="font-mono text-xs break-all">{traceResult.walletAddress}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Found FIDs:</span>{' '}
-                    <span className="font-bold text-yellow-400">
-                      {traceResult.foundFIDs && traceResult.foundFIDs.length > 0
-                        ? traceResult.foundFIDs.join(', ')
-                        : 'NONE'}
-                    </span>
-                    {traceResult.foundFIDs && traceResult.foundFIDs.length > 0 && (
-                      <div className="mt-2 flex gap-2 flex-wrap">
-                        {traceResult.foundFIDs.map((fid) => (
-                          <button
-                            key={fid}
-                            onClick={() => handleBlockFid(fid)}
-                            disabled={blockedFids.includes(fid)}
-                            className={`px-3 py-1 text-xs font-bold transition-all ${
-                              blockedFids.includes(fid)
-                                ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                                : 'bg-red-600 text-white hover:bg-red-500'
-                            }`}
-                          >
-                            {blockedFids.includes(fid) ? `FID ${fid} BLOCKED` : `BLOCK FID ${fid}`}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {traceResult.summary && (
-                    <div className="text-xs text-gray-500 space-y-1">
-                      <div>Claim Records: {traceResult.summary.totalClaimRecords}</div>
-                      <div>Transactions: {traceResult.summary.totalTransactions}</div>
-                      <div>Project Rotations: {traceResult.summary.uniqueProjectRotations}</div>
-                    </div>
-                  )}
-                  {traceResult.allKeys && traceResult.allKeys.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-white/10">
-                      <div className="text-xs text-gray-500 mb-2">Claim Details:</div>
-                      <div className="space-y-1 max-h-40 overflow-y-auto">
-                        {traceResult.allKeys.slice(0, 10).map((key, idx) => (
-                          <div key={idx} className="text-[10px] font-mono text-gray-400">
-                            FID {key.fid} | {key.projectId}:{key.rotationId} | Count: {key.fidClaimCount || key.claimCount || 'N/A'}
-                            {key.matchStrength && ` (${key.matchStrength})`}
-                          </div>
-                        ))}
-                        {traceResult.allKeys.length > 10 && (
-                          <div className="text-[10px] text-gray-600">... and {traceResult.allKeys.length - 10} more</div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Blocked FIDs Management */}
-            <div className="border border-white p-4 mt-4">
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <h2 className="text-lg font-black">BLOCKED FIDs</h2>
-                  <p className="text-xs text-gray-500">Block FIDs from claiming tokens</p>
-                </div>
-                <button
-                  onClick={fetchBlockedFids}
-                  disabled={loadingBlockedFids}
-                  className="px-3 py-1 text-xs border border-white hover:bg-white hover:text-black transition-all"
-                >
-                  {loadingBlockedFids ? 'LOADING...' : 'REFRESH'}
-                </button>
-              </div>
-              
-              <div className="flex gap-2 mb-3">
-                <input
-                  type="number"
-                  value={blockFidInput}
-                  onChange={(e) => setBlockFidInput(e.target.value)}
-                  placeholder="Enter FID to block..."
-                  className="flex-1 bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                />
-                <button
-                  onClick={() => {
-                    if (blockFidInput) {
-                      handleBlockFid(blockFidInput);
-                    }
-                  }}
-                  disabled={!blockFidInput || loadingBlockedFids}
-                  className="px-4 py-2 bg-red-600 text-white font-bold hover:bg-red-500 transition-all disabled:opacity-50"
-                >
-                  BLOCK
-                </button>
-              </div>
-
-              {blockedFids.length > 0 ? (
-                <div className="mt-3 space-y-2">
-                  <div className="text-xs text-gray-500 mb-2">
-                    {blockedFids.length} FID{blockedFids.length !== 1 ? 's' : ''} blocked
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {blockedFids.map((fid) => (
-                      <div
-                        key={fid}
-                        className="flex items-center gap-2 px-3 py-1 bg-red-900/30 border border-red-500/50"
-                      >
-                        <span className="text-sm font-bold">FID {fid}</span>
-                        <button
-                          onClick={() => handleUnblockFid(fid)}
-                          className="text-xs text-red-400 hover:text-red-300 font-bold"
-                        >
-                          UNBLOCK
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-sm text-gray-500 mt-3">No FIDs blocked</div>
-              )}
-            </div>
-          </div>
-
-          {/* Bonus Token Configuration */}
-          {showBonusTokenConfig && (
-            <div className="mb-8 border border-white p-6 bg-black">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-2xl font-black">BONUS TOKEN CONFIGURATION</h2>
-                  <p className="text-xs text-gray-500 mt-1">Configure a bonus token to be sent alongside $SEEN claims. Works for any ERC20 token on Base.</p>
-                </div>
-                <button
-                  onClick={() => setShowBonusTokenConfig(false)}
-                  className="text-white hover:text-gray-400 text-2xl"
-                >
-                  ×
-                </button>
-              </div>
-              
-              {/* Quick Setup for DONUT */}
-              <div className="mb-4 p-4 border border-purple-500/50 bg-purple-500/10">
-                <div className="text-sm font-bold text-purple-400 mb-2">QUICK SETUP: DONUT</div>
-                <p className="text-xs text-gray-400 mb-3">Click to auto-fill DONUT configuration:</p>
-                <button
-                  onClick={() => setBonusTokenConfig({
-                    enabled: true,
-                    tokenName: 'DONUT',
-                    contractAddress: '0xAE4a37d554C6D6F3E398546d8566B25052e0169C',
-                    amount: '1',
-                    decimals: 18,
-                    maxSupply: 1000,
-                  })}
-                  className="px-4 py-2 bg-purple-600 text-white font-bold text-sm hover:bg-purple-500 transition-all"
-                >
-                  USE DONUT PRESET
-                </button>
-                <p className="text-[10px] text-gray-500 mt-2">Sets: 1 DONUT per wallet, max 1000 total</p>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    id="bonusEnabled"
-                    checked={bonusTokenConfig.enabled}
-                    onChange={(e) => setBonusTokenConfig({ ...bonusTokenConfig, enabled: e.target.checked })}
-                    className="w-5 h-5"
-                  />
-                  <label htmlFor="bonusEnabled" className="text-sm font-bold">
-                    ENABLE BONUS TOKEN
-                  </label>
-                </div>
-                {bonusTokenConfig.enabled && (
-                  <>
-                    <div>
-                      <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                        TOKEN NAME (displayed in UI)
-                      </label>
-                      <input
-                        type="text"
-                        value={bonusTokenConfig.tokenName}
-                        onChange={(e) => setBonusTokenConfig({ ...bonusTokenConfig, tokenName: e.target.value })}
-                        className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                        placeholder="e.g., DONUT, BONUS, etc."
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                        CONTRACT ADDRESS *
-                      </label>
-                      <input
-                        type="text"
-                        value={bonusTokenConfig.contractAddress}
-                        onChange={(e) => setBonusTokenConfig({ ...bonusTokenConfig, contractAddress: e.target.value })}
-                        className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black font-mono"
-                        placeholder="0x..."
-                        pattern="^0x[a-fA-F0-9]{40}$"
-                      />
-                      <p className="text-[10px] text-gray-600 mt-1">Token contract address on Base network (DONUT: 0xAE4a37d554C6D6F3E398546d8566B25052e0169C)</p>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                          AMOUNT PER CLAIM *
-                        </label>
-                        <input
-                          type="text"
-                          value={bonusTokenConfig.amount}
-                          onChange={(e) => setBonusTokenConfig({ ...bonusTokenConfig, amount: e.target.value })}
-                          className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                          placeholder="1"
-                        />
-                        <p className="text-[10px] text-gray-500 mt-1">1 per wallet</p>
-                      </div>
-                      <div>
-                        <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                          DECIMALS
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          max="18"
-                          value={bonusTokenConfig.decimals}
-                          onChange={(e) => setBonusTokenConfig({ ...bonusTokenConfig, decimals: parseInt(e.target.value) || 18 })}
-                          className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                          placeholder="18"
-                        />
-                        <p className="text-[10px] text-gray-500 mt-1">Usually 18</p>
-                      </div>
-                      <div>
-                        <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                          MAX SUPPLY *
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          value={bonusTokenConfig.maxSupply}
-                          onChange={(e) => setBonusTokenConfig({ ...bonusTokenConfig, maxSupply: parseInt(e.target.value) || 0 })}
-                          className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                          placeholder="1000"
-                        />
-                        <p className="text-[10px] text-gray-500 mt-1">Total to give out</p>
-                      </div>
-                    </div>
-                    <div className="p-3 bg-green-900/20 border border-green-500 text-green-400 text-xs">
-                      <strong>HOW IT WORKS:</strong>
-                      <ul className="mt-1 space-y-1 list-disc list-inside">
-                        <li>Each wallet can receive the bonus token <strong>once</strong></li>
-                        <li>Sent automatically alongside $SEEN on each claim</li>
-                        <li>Stops when MAX SUPPLY is reached</li>
-                        <li>Treasury must have enough tokens to send</li>
-                      </ul>
-                    </div>
-                  </>
-                )}
-                <div className="flex gap-3">
-                  <button
-                    onClick={handleSaveBonusTokenConfig}
-                    disabled={loadingBonusConfig}
-                    className="px-4 py-2 bg-green-600 text-white font-bold hover:bg-green-500 transition-all disabled:opacity-50"
-                  >
-                    {loadingBonusConfig ? 'SAVING...' : 'SAVE CONFIG'}
-                  </button>
-                  <button
-                    onClick={fetchBonusTokenConfig}
-                    disabled={loadingBonusConfig}
-                    className="px-4 py-2 border border-white text-sm hover:bg-white hover:text-black transition-all disabled:opacity-50"
-                  >
-                    REFRESH
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Claim Settings Panel */}
-          {showClaimSettings && (
-            <div className="mb-8 border border-cyan-500/50 p-6 bg-cyan-500/5">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-2xl font-black text-cyan-400">CLAIM SETTINGS</h2>
-                  <p className="text-xs text-gray-500 mt-1">Control claim amounts, cooldowns, and more. Changes apply immediately.</p>
-                </div>
-                <button
-                  onClick={() => setShowClaimSettings(false)}
-                  className="text-white hover:text-gray-400 text-2xl"
-                >
-                  ×
-                </button>
-              </div>
-
-              {/* Quick Actions */}
-              <div className="mb-6 p-4 border border-cyan-500/30 bg-black">
-                <div className="text-[10px] tracking-[0.2em] text-cyan-400 mb-3">QUICK ACTIONS</div>
-                
-                {/* Master Toggle */}
-                <div className="flex items-center gap-4 mb-4">
-                  <button
-                    onClick={handleToggleClaims}
-                    disabled={loadingClaimSettings}
-                    className={`px-6 py-3 font-black text-sm tracking-[0.1em] transition-all disabled:opacity-50 ${
-                      claimSettings.claimsEnabled 
-                        ? 'bg-green-600 text-white hover:bg-green-500' 
-                        : 'bg-red-600 text-white hover:bg-red-500'
-                    }`}
-                  >
-                    {claimSettings.claimsEnabled ? 'CLAIMS ENABLED' : 'CLAIMS DISABLED'}
-                  </button>
-                  <span className="text-xs text-gray-500">Click to toggle</span>
-                </div>
-
-                {/* Multiplier Buttons */}
-                <div className="mb-4">
-                  <div className="text-[10px] tracking-[0.2em] text-gray-500 mb-2">CLAIM MULTIPLIER</div>
-                  <div className="flex flex-wrap gap-2">
-                    {[1, 1.5, 2, 2.5, 3, 5, 10].map((mult) => (
-                      <button
-                        key={mult}
-                        onClick={() => handleQuickMultiplier(mult)}
-                        disabled={loadingClaimSettings}
-                        className={`px-4 py-2 text-sm font-bold transition-all disabled:opacity-50 ${
-                          claimSettings.claimMultiplier === mult 
-                            ? 'bg-cyan-500 text-black' 
-                            : 'border border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/20'
-                        }`}
-                      >
-                        {mult}x
-                      </button>
-                    ))}
-                  </div>
-                  <div className="text-xs text-gray-600 mt-2">
-                    Current: <span className="text-cyan-400 font-bold">{(claimSettings.baseClaimAmount * claimSettings.claimMultiplier).toLocaleString()}</span> tokens per claim
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Detailed Settings */}
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                    BASE CLAIM AMOUNT
-                  </label>
-                  <input
-                    type="number"
-                    value={claimSettings.baseClaimAmount}
-                    onChange={(e) => setClaimSettings({ ...claimSettings, baseClaimAmount: parseInt(e.target.value) || 40000 })}
-                    className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                    placeholder="40000"
-                  />
-                  <p className="text-[10px] text-gray-600 mt-1">Base tokens per claim (before multiplier)</p>
-                </div>
-                <div>
-                  <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                    COOLDOWN HOURS
-                  </label>
-                  <input
-                    type="number"
-                    value={claimSettings.cooldownHours}
-                    onChange={(e) => setClaimSettings({ ...claimSettings, cooldownHours: parseInt(e.target.value) || 24 })}
-                    className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                    placeholder="24"
-                  />
-                  <p className="text-[10px] text-gray-600 mt-1">Hours between claims per wallet</p>
-                </div>
-                <div>
-                  <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                    MIN NEYNAR SCORE
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    max="1"
-                    value={claimSettings.minNeynarScore}
-                    onChange={(e) => setClaimSettings({ ...claimSettings, minNeynarScore: parseFloat(e.target.value) || 0.3 })}
-                    className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                    placeholder="0.3"
-                  />
-                  <p className="text-[10px] text-gray-600 mt-1">Min score to claim (0.0-1.0)</p>
-                </div>
-                <div>
-                  <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                    CUSTOM MULTIPLIER
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0.1"
-                    value={claimSettings.claimMultiplier}
-                    onChange={(e) => setClaimSettings({ ...claimSettings, claimMultiplier: parseFloat(e.target.value) || 1 })}
-                    className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                    placeholder="1"
-                  />
-                  <p className="text-[10px] text-gray-600 mt-1">Enter custom multiplier (e.g., 1.5, 2.5)</p>
-                </div>
-              </div>
-
-              <div className="p-3 bg-cyan-900/20 border border-cyan-500 text-cyan-400 text-xs mb-4">
-                <strong>CURRENT SETTINGS:</strong> {(claimSettings.baseClaimAmount * claimSettings.claimMultiplier).toLocaleString()} tokens per claim, 
-                min Neynar score {claimSettings.minNeynarScore}
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={handleSaveClaimSettings}
-                  disabled={loadingClaimSettings}
-                  className="px-4 py-2 bg-cyan-600 text-white font-bold hover:bg-cyan-500 transition-all disabled:opacity-50"
-                >
-                  {loadingClaimSettings ? 'SAVING...' : 'SAVE SETTINGS'}
-                </button>
-                <button
-                  onClick={fetchClaimSettings}
-                  disabled={loadingClaimSettings}
-                  className="px-4 py-2 border border-white text-sm hover:bg-white hover:text-black transition-all disabled:opacity-50"
-                >
-                  REFRESH
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Edit Project Form */}
-          {editingProject && (
-            <div ref={editFormRef} className="mb-8 border-2 border-white p-6 bg-black shadow-lg">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-2xl font-black">EDIT PROJECT: {editingProject.name}</h2>
-                  <p className="text-xs text-gray-500 mt-1">Project ID: {editingProject.id} | Builder: {editingProject.builder}</p>
-                </div>
-                <button
-                  onClick={() => setEditingProject(null)}
-                  className="text-white hover:text-gray-400 text-2xl"
-                >
-                  ×
-                </button>
-              </div>
-              <form onSubmit={handleUpdateProject} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      PROJECT NAME *
-                    </label>
-                    <input
-                      type="text"
-                      name="name"
-                      value={editFormData.name}
-                      onChange={handleEditFormChange}
-                      required
-                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                      placeholder="PROJECT NAME"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      TAGLINE *
-                    </label>
-                    <input
-                      type="text"
-                      name="tagline"
-                      value={editFormData.tagline}
-                      onChange={handleEditFormChange}
-                      required
-                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                      placeholder="SHORT TAGLINE"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      TOKEN NAME (OPTIONAL)
-                    </label>
-                    <input
-                      type="text"
-                      name="tokenName"
-                      value={editFormData.tokenName}
-                      onChange={handleEditFormChange}
-                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                      placeholder="$TOKEN"
-                    />
-                  </div>
-                </div>
-
-                {editFormData.category === 'tokens' && (
-                  <div>
-                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      TOKEN CONTRACT ADDRESS (OPTIONAL)
-                    </label>
-                    <input
-                      type="text"
-                      name="tokenContractAddress"
-                      value={editFormData.tokenContractAddress}
-                      onChange={handleEditFormChange}
-                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black font-mono"
-                      placeholder="0x..."
-                      pattern="^0x[a-fA-F0-9]{40}$"
-                    />
-                    <p className="text-[10px] text-gray-600 mt-1">Contract address on Base network</p>
-                  </div>
-                )}
-
-                {/* Token Contract Address for Featured/Other Categories (optional) */}
-                {editFormData.category !== 'tokens' && (
-                  <div>
-                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      TOKEN CONTRACT ADDRESS (OPTIONAL)
-                    </label>
-                    <input
-                      type="text"
-                      name="tokenContractAddress"
-                      value={editFormData.tokenContractAddress}
-                      onChange={handleEditFormChange}
-                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black font-mono"
-                      placeholder="0x..."
-                      pattern="^0x[a-fA-F0-9]{40}$"
-                    />
-                    <p className="text-[10px] text-gray-600 mt-1">Optional: Add a token contract address to enable swap button. Must be a valid Ethereum address on Base network.</p>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                    DESCRIPTION *
-                  </label>
-                  <textarea
-                    name="description"
-                    value={editFormData.description}
-                    onChange={handleEditFormChange}
-                    required
-                    rows="4"
-                    className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                    placeholder="DESCRIBE THE PROJECT"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      BUILDER NAME *
-                    </label>
-                    <input
-                      type="text"
-                      name="builder"
-                      value={editFormData.builder}
-                      onChange={handleEditFormChange}
-                      required
-                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                      placeholder="BUILDER.ETH"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      BUILDER FID (OPTIONAL)
-                    </label>
-                    <input
-                      type="number"
-                      name="builderFid"
-                      value={editFormData.builderFid}
-                      onChange={handleEditFormChange}
-                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                      placeholder="12345"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      CATEGORY *
-                    </label>
-                    <select
-                      name="category"
-                      value={editFormData.category}
-                      onChange={handleEditFormChange}
-                      required
-                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                    >
-                      <option value="main">FEATURED</option>
-                      <option value="defi">DEFI</option>
-                      <option value="social">SOCIAL</option>
-                      <option value="games">GAMES</option>
-                      <option value="tools">TOOLS</option>
-                      <option value="nft">NFT</option>
-                      <option value="tokens">TOKENS</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      STATUS *
-                    </label>
-                    <select
-                      name="status"
-                      value={editFormData.status}
-                      onChange={handleEditFormChange}
-                      required
-                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                    >
-                      <option value="active">ACTIVE</option>
-                      <option value="queued">QUEUED</option>
-                      <option value="featured">FEATURED</option>
-                      <option value="archived">ARCHIVED</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                    MINI APP URL
-                  </label>
-                  <input
-                    type="url"
-                    name="miniapp"
-                    value={editFormData.miniapp}
-                    onChange={handleEditFormChange}
-                    className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                    placeholder="https://warpcast.com/~/mini-app/..."
-                  />
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      WEBSITE
-                    </label>
-                    <input
-                      type="url"
-                      name="website"
-                      value={editFormData.website}
-                      onChange={handleEditFormChange}
-                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                      placeholder="https://..."
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      GITHUB
-                    </label>
-                    <input
-                      type="url"
-                      name="github"
-                      value={editFormData.github}
-                      onChange={handleEditFormChange}
-                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                      placeholder="https://github.com/..."
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      TWITTER / X
-                    </label>
-                    <input
-                      type="text"
-                      name="twitter"
-                      value={editFormData.twitter}
-                      onChange={handleEditFormChange}
-                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                      placeholder="@username"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      VIEWS
-                    </label>
-                    <input
-                      type="number"
-                      name="stats.views"
-                      value={editFormData.stats.views}
-                      onChange={handleEditFormChange}
-                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                      placeholder="0"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      CLICKS
-                    </label>
-                    <input
-                      type="number"
-                      name="stats.clicks"
-                      value={editFormData.stats.clicks}
-                      onChange={handleEditFormChange}
-                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                      placeholder="0"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      TIPS ($)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      name="stats.tips"
-                      value={tipsUsdDisplay.edit !== '' ? tipsUsdDisplay.edit : (ethPrice && editFormData.stats.tips ? (editFormData.stats.tips * ethPrice).toFixed(2) : '0')}
-                      onChange={handleEditFormChange}
-                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                      placeholder="0"
-                    />
-                    {ethPrice && tipsUsdDisplay.edit && parseFloat(tipsUsdDisplay.edit) > 0 && (
-                      <p className="text-[10px] text-gray-600 mt-1">
-                        ≈ {(parseFloat(tipsUsdDisplay.edit) / ethPrice).toFixed(6)} ETH
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex gap-4 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setEditingProject(null)}
-                    className="px-6 py-2 border border-white font-bold hover:bg-white hover:text-black transition-all"
-                  >
-                    CANCEL
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={updating}
-                    className="px-6 py-2 bg-white text-black font-bold hover:bg-gray-200 transition-all disabled:opacity-50"
-                  >
-                    {updating ? 'UPDATING...' : 'UPDATE PROJECT'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-
-          {/* Live Projects Section */}
-          {/* ═══════════════════════════════════════════════════════════ */}
-          {/* SECTION 1: LIVE PROJECTS - Featured + Queued, sorted A-Z */}
-          {/* ═══════════════════════════════════════════════════════════ */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-2xl font-black">1. LIVE PROJECTS</h2>
-                <p className="text-xs text-gray-500 mt-1">Currently active projects (Featured + Queued) - Sorted A-Z</p>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    setShowArchived(!showArchived);
-                    if (!showArchived) {
-                      fetchArchivedProjects();
-                    }
-                  }}
-                  className="px-4 py-2 border border-white text-sm hover:bg-white hover:text-black transition-all"
-                >
-                  {showArchived ? 'HIDE ARCHIVED' : 'SHOW ARCHIVED'}
-                </button>
-                <button
-                  onClick={fetchLiveProjects}
-                  className="px-4 py-2 border border-white text-sm hover:bg-white hover:text-black transition-all"
-                >
-                  REFRESH
-                </button>
-              </div>
-            </div>
-            {liveProjectsLoading ? (
-              <div className="text-center py-8 border border-white">
-                <div className="text-gray-500">Loading live projects...</div>
-              </div>
-            ) : liveProjects.length === 0 ? (
-              <div className="text-center py-8 border border-white">
-                <div className="text-gray-500">NO LIVE PROJECTS</div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {[...liveProjects].sort((a, b) => a.name.localeCompare(b.name)).map((project) => (
-                  <div key={project.id} className="border border-white p-4">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-xl font-black">{project.name}</h3>
-                          <span className={`text-[10px] tracking-[0.2em] px-2 py-1 border ${
-                            project.status === 'featured'
-                              ? 'border-yellow-500 text-yellow-500 bg-yellow-500/10'
-                              : 'border-white text-white'
-                          }`}>
-                            {project.status?.toUpperCase() || 'QUEUED'}
-                          </span>
-                          <span className="text-[10px] tracking-[0.2em] px-2 py-1 bg-white text-black">
-                            {project.category === 'main' ? 'FEATURED' : (project.category?.toUpperCase() || 'FEATURED')}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-400 mb-1">{project.tagline}</p>
-                        <p className="text-xs text-gray-500 mb-2">{project.description?.substring(0, 100)}...</p>
-                        <div className="text-xs text-gray-600">
-                          <span>Builder: {project.builder}</span>
-                          <span className="ml-4">
-                            Views: {(project.windowStats?.views ?? project.stats?.views ?? 0)} | Clicks: {(project.windowStats?.clicks ?? project.stats?.clicks ?? 0)} | Tips: {project.stats?.tips || 0}
-                          </span>
-                        </div>
-                        {project.status === 'featured' && project.featuredAt && (
-                          <FeaturedTimer project={project} onUpdate={fetchLiveProjects} userFid={userFid} />
-                        )}
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleEdit(project)}
-                          className="px-4 py-2 bg-blue-500 text-white font-bold hover:bg-blue-400 transition-all"
-                        >
-                          EDIT
-                        </button>
-                        <button
-                          onClick={() => {
-                            const currentClicks = project.windowStats?.clicks ?? project.stats?.clicks ?? 0;
-                            const newClicks = prompt(`Update clicks for ${project.name}:\nCurrent (window): ${currentClicks}\nEnter new value:`, currentClicks);
-                            if (newClicks !== null && !isNaN(newClicks)) {
-                              handleQuickStatsUpdate(project.id, 'clicks', parseInt(newClicks));
-                            }
-                          }}
-                          className="px-4 py-2 bg-green-600 text-white font-bold hover:bg-green-500 transition-all text-xs"
-                          title="Quick update clicks"
-                        >
-                          SET CLICKS
-                        </button>
-                        {project.status === 'featured' && (
-                          <button
-                            onClick={() => handleResetStatsWindow(project.id, project.name)}
-                            className="px-4 py-2 bg-red-600 text-white font-bold hover:bg-red-500 transition-all text-xs"
-                            title="Reset stats window (sets new featuredAt timestamp)"
-                          >
-                            RESET STATS
-                          </button>
-                        )}
-                        {project.status !== 'featured' && (
-                          <button
-                            onClick={() => handleQuickSetFeatured(project.id)}
-                            className="px-4 py-2 bg-yellow-600 text-white font-bold hover:bg-yellow-500 transition-all text-xs"
-                            title="Set as featured project (resets claims automatically)"
-                          >
-                            SET FEATURED
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleArchive(project.id, true)}
-                          className="px-4 py-2 bg-gray-600 text-white font-bold hover:bg-gray-500 transition-all"
-                        >
-                          ARCHIVE
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* ═══════════════════════════════════════════════════════════ */}
-          {/* SECTION 2: ARCHIVED PROJECTS - Hidden from public */}
-          {/* ═══════════════════════════════════════════════════════════ */}
-          {showArchived && (
-            <div className="mb-8 border-t-2 border-white pt-8">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-2xl font-black">2. ARCHIVED PROJECTS</h2>
-                  <p className="text-xs text-gray-500 mt-1">Hidden from public - Can be restored anytime</p>
-                </div>
-                <button
-                  onClick={fetchArchivedProjects}
-                  className="px-4 py-2 border border-white text-sm hover:bg-white hover:text-black transition-all"
-                >
-                  REFRESH
-                </button>
-              </div>
-              {archivedProjectsLoading ? (
-                <div className="text-center py-8 border border-white">
-                  <div className="text-gray-500">Loading archived projects...</div>
-                </div>
-              ) : archivedProjects.length === 0 ? (
-                <div className="text-center py-8 border border-white">
-                  <div className="text-gray-500">NO ARCHIVED PROJECTS</div>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {[...archivedProjects].sort((a, b) => a.name.localeCompare(b.name)).map((project) => (
-                    <div key={project.id} className="border border-gray-600 p-4 opacity-75">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="text-xl font-black">{project.name}</h3>
-                            <span className="text-[10px] tracking-[0.2em] px-2 py-1 border border-gray-500 text-gray-500">
-                              ARCHIVED
-                            </span>
-                            <span className="text-[10px] tracking-[0.2em] px-2 py-1 bg-gray-600 text-white">
-                              {project.category === 'main' ? 'FEATURED' : (project.category?.toUpperCase() || 'FEATURED')}
-                            </span>
-                          </div>
-                          <p className="text-sm text-gray-400 mb-1">{project.tagline}</p>
-                          <p className="text-xs text-gray-500 mb-2">{project.description?.substring(0, 100)}...</p>
-                          <div className="text-xs text-gray-600">
-                            <span>Builder: {project.builder}</span>
-                            <span className="ml-4">
-                              Views: {(project.windowStats?.views ?? project.stats?.views ?? 0)} | Clicks: {(project.windowStats?.clicks ?? project.stats?.clicks ?? 0)} | Tips: {project.stats?.tips || 0}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleEdit(project)}
-                            className="px-4 py-2 bg-blue-500 text-white font-bold hover:bg-blue-400 transition-all"
-                          >
-                            EDIT
-                          </button>
-                          <button
-                            onClick={() => {
-                              const newClicks = prompt(`Update clicks for ${project.name}:\nCurrent: ${project.stats?.clicks || 0}\nEnter new value:`, project.stats?.clicks || 0);
-                              if (newClicks !== null && !isNaN(newClicks)) {
-                                handleQuickStatsUpdate(project.id, 'clicks', parseInt(newClicks));
-                              }
-                            }}
-                            className="px-4 py-2 bg-green-600 text-white font-bold hover:bg-green-500 transition-all text-xs"
-                            title="Quick update clicks"
-                          >
-                            SET CLICKS
-                          </button>
-                          <button
-                            onClick={() => handleArchive(project.id, false)}
-                            className="px-4 py-2 bg-green-600 text-white font-bold hover:bg-green-500 transition-all"
-                          >
-                            RESTORE
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ═══════════════════════════════════════════════════════════ */}
-          {/* SECTION 3: PENDING SUBMISSIONS - User submitted, awaiting review */}
-          {/* ═══════════════════════════════════════════════════════════ */}
-          <div className="mb-8 border-t-2 border-white pt-8">
-            <div className="mb-4">
-              <h2 className="text-2xl font-black">3. PENDING SUBMISSIONS</h2>
-              <p className="text-xs text-gray-500 mt-1">User submissions awaiting your approval - Approve to make live</p>
-            </div>
-          </div>
-
-          {showCreateForm && (
-            <div className="mb-8 border border-white p-6">
-              <h2 className="text-2xl font-black mb-4">CREATE PROJECT</h2>
-              <form onSubmit={handleCreateProject} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      PROJECT NAME *
-                    </label>
-                    <input
-                      type="text"
-                      name="name"
-                      value={createFormData.name}
-                      onChange={handleCreateFormChange}
-                      required
-                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                      placeholder="PROJECT NAME"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      TAGLINE *
-                    </label>
-                    <input
-                      type="text"
-                      name="tagline"
-                      value={createFormData.tagline}
-                      onChange={handleCreateFormChange}
-                      required
-                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                      placeholder="SHORT TAGLINE"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      TOKEN NAME (OPTIONAL)
-                    </label>
-                    <input
-                      type="text"
-                      name="tokenName"
-                      value={createFormData.tokenName}
-                      onChange={handleCreateFormChange}
-                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                      placeholder="$TOKEN"
-                    />
-                  </div>
-                </div>
-
-                {createFormData.category === 'tokens' && (
-                  <div>
-                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      TOKEN CONTRACT ADDRESS (OPTIONAL)
-                    </label>
-                    <input
-                      type="text"
-                      name="tokenContractAddress"
-                      value={createFormData.tokenContractAddress}
-                      onChange={handleCreateFormChange}
-                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black font-mono"
-                      placeholder="0x..."
-                      pattern="^0x[a-fA-F0-9]{40}$"
-                    />
-                    <p className="text-[10px] text-gray-600 mt-1">Contract address on Base network</p>
-                  </div>
-                )}
-
-                {/* Token Contract Address for Featured/Other Categories (optional) */}
-                {createFormData.category !== 'tokens' && (
-                  <div>
-                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      TOKEN CONTRACT ADDRESS (OPTIONAL)
-                    </label>
-                    <input
-                      type="text"
-                      name="tokenContractAddress"
-                      value={createFormData.tokenContractAddress}
-                      onChange={handleCreateFormChange}
-                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black font-mono"
-                      placeholder="0x..."
-                      pattern="^0x[a-fA-F0-9]{40}$"
-                    />
-                    <p className="text-[10px] text-gray-600 mt-1">Optional: Add a token contract address to enable swap button. Must be a valid Ethereum address on Base network.</p>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                    DESCRIPTION *
-                  </label>
-                  <textarea
-                    name="description"
-                    value={createFormData.description}
-                    onChange={handleCreateFormChange}
-                    required
-                    rows="4"
-                    className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                    placeholder="DESCRIBE THE PROJECT"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      BUILDER NAME *
-                    </label>
-                    <input
-                      type="text"
-                      name="builder"
-                      value={createFormData.builder}
-                      onChange={handleCreateFormChange}
-                      required
-                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                      placeholder="BUILDER.ETH"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      BUILDER FID (OPTIONAL)
-                    </label>
-                    <input
-                      type="number"
-                      name="builderFid"
-                      value={createFormData.builderFid}
-                      onChange={handleCreateFormChange}
-                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                      placeholder="12345"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      CATEGORY *
-                    </label>
-                    <select
-                      name="category"
-                      value={createFormData.category}
-                      onChange={handleCreateFormChange}
-                      required
-                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                    >
-                      <option value="main">FEATURED</option>
-                      <option value="defi">DEFI</option>
-                      <option value="social">SOCIAL</option>
-                      <option value="games">GAMES</option>
-                      <option value="tools">TOOLS</option>
-                      <option value="nft">NFT</option>
-                      <option value="tokens">TOKENS</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      MINI APP URL
-                    </label>
-                    <input
-                      type="url"
-                      name="miniapp"
-                      value={createFormData.miniapp}
-                      onChange={handleCreateFormChange}
-                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                      placeholder="https://warpcast.com/~/mini-app/..."
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      WEBSITE
-                    </label>
-                    <input
-                      type="url"
-                      name="website"
-                      value={createFormData.website}
-                      onChange={handleCreateFormChange}
-                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                      placeholder="https://..."
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      GITHUB
-                    </label>
-                    <input
-                      type="url"
-                      name="github"
-                      value={createFormData.github}
-                      onChange={handleCreateFormChange}
-                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                      placeholder="https://github.com/..."
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      TWITTER / X
-                    </label>
-                    <input
-                      type="text"
-                      name="twitter"
-                      value={createFormData.twitter}
-                      onChange={handleCreateFormChange}
-                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                      placeholder="@username"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      VIEWS (INITIAL)
-                    </label>
-                    <input
-                      type="number"
-                      name="stats.views"
-                      value={createFormData.stats.views}
-                      onChange={handleCreateFormChange}
-                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                      placeholder="0"
-                    />
-                    <p className="text-[10px] text-gray-600 mt-1">Will be tracked automatically</p>
-                  </div>
-                  <div>
-                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      CLICKS (INITIAL)
-                    </label>
-                    <input
-                      type="number"
-                      name="stats.clicks"
-                      value={createFormData.stats.clicks}
-                      onChange={handleCreateFormChange}
-                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                      placeholder="0"
-                    />
-                    <p className="text-[10px] text-gray-600 mt-1">Will be tracked automatically</p>
-                  </div>
-                  <div>
-                    <label className="block text-xs tracking-[0.2em] text-gray-500 mb-2">
-                      TIPS ($)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      name="stats.tips"
-                      value={tipsUsdDisplay.create !== '' ? tipsUsdDisplay.create : (ethPrice && createFormData.stats.tips ? (createFormData.stats.tips * ethPrice).toFixed(2) : '0')}
-                      onChange={handleCreateFormChange}
-                      className="w-full bg-black border border-white px-4 py-2 text-sm focus:outline-none focus:bg-white focus:text-black"
-                      placeholder="0"
-                    />
-                    {ethPrice && tipsUsdDisplay.create && parseFloat(tipsUsdDisplay.create) > 0 && (
-                      <p className="text-[10px] text-gray-600 mt-1">
-                        ≈ {(parseFloat(tipsUsdDisplay.create) / ethPrice).toFixed(6)} ETH
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="flex items-center gap-3 p-3 border border-white cursor-pointer hover:bg-white/10">
-                    <input
-                      type="checkbox"
-                      name="setAsFeatured"
-                      checked={createFormData.setAsFeatured}
-                      onChange={handleCreateFormChange}
-                      className="accent-white"
-                    />
-                    <div>
-                      <div className="text-sm font-bold">SET AS FEATURED IMMEDIATELY</div>
-                      <div className="text-[10px] text-gray-500">Will replace current featured project</div>
-                    </div>
-                  </label>
-                </div>
-
-                <div className="flex gap-4 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setShowCreateForm(false)}
-                    className="px-6 py-2 border border-white font-bold hover:bg-white hover:text-black transition-all"
-                  >
-                    CANCEL
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={creating}
-                    className="px-6 py-2 bg-white text-black font-bold hover:bg-gray-200 transition-all disabled:opacity-50"
-                  >
-                    {creating ? 'CREATING...' : 'CREATE PROJECT'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-
-          {loading ? (
-            <div className="text-center py-12">
-              <div className="text-gray-500">Loading submissions...</div>
-            </div>
-          ) : submissions.length === 0 ? (
-            <div className="text-center py-12 border border-white">
-              <div className="text-gray-500 text-lg">NO PENDING SUBMISSIONS</div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {[...submissions].sort((a, b) => a.name.localeCompare(b.name)).map((submission) => (
-                <div
-                  key={submission.id}
-                  className="border border-white p-6"
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h2 className="text-2xl font-black">{submission.name}</h2>
-                        <span className="text-[10px] tracking-[0.2em] px-2 py-1 bg-white text-black">
-                          {submission.category === 'main' ? 'FEATURED' : (submission.category?.toUpperCase() || 'FEATURED')}
-                        </span>
-                        <span className={`text-[10px] tracking-[0.2em] px-2 py-1 border ${
-                          submission.status === 'pending_payment'
-                            ? 'border-yellow-500 text-yellow-500'
-                            : 'border-white text-white'
-                        }`}>
-                          {submission.status?.toUpperCase() || 'PENDING'}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-400 mb-2">{submission.tagline}</p>
-                      <p className="text-sm mb-4">{submission.description}</p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
-                    <div>
-                      <span className="text-gray-500">Builder:</span>{' '}
-                      <span className="font-bold">{submission.builder}</span>
-                      {submission.builderFid && (
-                        <span className="text-gray-500 ml-2">(FID: {submission.builderFid})</span>
-                      )}
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Type:</span>{' '}
-                      <span className="font-bold">{submission.submissionType?.toUpperCase() || 'QUEUE'}</span>
-                      {submission.paymentAmount > 0 && (
-                        <span className="text-yellow-500 ml-2">
-                          ({submission.paymentAmount} ETH)
-                          {submission.paymentTxHash && (
-                            <span className="text-[9px] ml-1">• Paid</span>
-                          )}
-                          {submission.refunded && (
-                            <span className="text-red-400 ml-1">• Refunded</span>
-                          )}
-                        </span>
-                      )}
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Submitted:</span>{' '}
-                      {formatDate(submission.submittedAt)}
-                    </div>
-                    <div>
-                      <span className="text-gray-500">ID:</span>{' '}
-                      <span className="font-mono text-xs">{submission.id}</span>
-                    </div>
-                  </div>
-
-                  {/* Token Info Section */}
-                  {(submission.tokenName || submission.tokenContractAddress) && (
-                    <div className="mb-4 p-3 border border-cyan-500/50 bg-cyan-500/5">
-                      <div className="text-[10px] tracking-[0.2em] text-cyan-400 mb-2 font-bold">TOKEN INFO</div>
-                      <div className="space-y-2 text-sm">
-                        {submission.tokenName && (
-                          <div>
-                            <span className="text-gray-500">Token:</span>{' '}
-                            <span className="font-bold text-cyan-400">{submission.tokenName}</span>
-                          </div>
-                        )}
-                        {submission.tokenContractAddress && (
-                          <div>
-                            <span className="text-gray-500">CA:</span>{' '}
-                            <span className="font-mono text-xs text-cyan-300 break-all">{submission.tokenContractAddress}</span>
-                            <a
-                              href={`https://basescan.org/token/${submission.tokenContractAddress}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="ml-2 text-[9px] text-blue-400 hover:underline"
-                            >
-                              [Basescan]
-                            </a>
-                            <a
-                              href={`https://dexscreener.com/base/${submission.tokenContractAddress}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="ml-2 text-[9px] text-green-400 hover:underline"
-                            >
-                              [DexScreener]
-                            </a>
-                            <button
-                              onClick={() => {
-                                navigator.clipboard.writeText(submission.tokenContractAddress);
-                                setMessage('CA copied to clipboard!');
-                              }}
-                              className="ml-2 text-[9px] text-gray-400 hover:text-white"
-                            >
-                              [Copy]
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {submission.links && (
-                    <div className="mb-4 space-y-1 text-sm">
-                      {submission.links.miniapp && (
-                        <div>
-                          <span className="text-gray-500">Mini App:</span>{' '}
-                          <a
-                            href={submission.links.miniapp}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-400 hover:underline"
-                          >
-                            {submission.links.miniapp}
-                          </a>
-                        </div>
-                      )}
-                      {submission.links.website && (
-                        <div>
-                          <span className="text-gray-500">Website:</span>{' '}
-                          <a
-                            href={submission.links.website}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-400 hover:underline"
-                          >
-                            {submission.links.website}
-                          </a>
-                        </div>
-                      )}
-                      {submission.links.github && (
-                        <div>
-                          <span className="text-gray-500">GitHub:</span>{' '}
-                          <a
-                            href={submission.links.github}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-400 hover:underline"
-                          >
-                            {submission.links.github}
-                          </a>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {submission.paymentAmount > 0 && submission.submitterWalletAddress && (
-                    <div className="mb-4 p-3 border border-green-500/30 bg-green-500/5">
-                      <div className="text-[10px] tracking-[0.2em] text-green-400 mb-2">PAYMENT INFO</div>
-                      <div className="text-xs space-y-1">
-                        <div>Amount: {submission.paymentAmount} ETH</div>
-                        {submission.paymentTimestamp && (
-                          <div className="text-[10px] text-gray-400">
-                            Paid: {new Date(submission.paymentTimestamp).toLocaleString()}
-                          </div>
-                        )}
-                        {submission.paymentTxHash && (
-                          <div className="text-[10px] font-mono text-gray-400 mt-1 break-all">
-                            TX Hash: <a href={`https://basescan.org/tx/${submission.paymentTxHash}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">{submission.paymentTxHash}</a>
-                          </div>
-                        )}
-                        {submission.submitterWalletAddress && (
-                          <div className="text-[10px] font-mono text-gray-400 mt-1 break-all">
-                            From: <a href={`https://basescan.org/address/${submission.submitterWalletAddress}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">{submission.submitterWalletAddress}</a>
-                          </div>
-                        )}
-                        {submission.refunded && submission.refundTxHash && (
-                          <div className="text-[10px] text-red-400 mt-1">
-                            Refunded TX: <a href={`https://basescan.org/tx/${submission.refundTxHash}`} target="_blank" rel="noopener noreferrer" className="text-red-400 hover:underline">{submission.refundTxHash}</a>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  {submission.plannedGoLiveDate && (
-                    <div className="mb-4 p-3 border border-blue-500/30 bg-blue-500/5">
-                      <div className="text-[10px] tracking-[0.2em] text-blue-400 mb-1">PLANNED GO LIVE</div>
-                      <div className="text-xs text-gray-300">
-                        {new Date(submission.plannedGoLiveDate).toLocaleDateString()}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex gap-4 pt-4 border-t border-white">
-                    <button
-                      type="button"
-                      onClick={async (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        console.log('APPROVE button clicked, submission:', submission);
-                        if (submission?.id) {
-                          console.log('Calling handleApprove with ID:', submission.id);
-                          await handleApprove(submission.id);
-                        } else {
-                          console.error('Missing submission ID:', submission);
-                          setMessage('ERROR: Missing submission ID');
-                        }
-                      }}
-                      className="px-6 py-2 bg-white text-black font-bold hover:bg-gray-200 transition-all cursor-pointer"
-                    >
-                      APPROVE
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (submission?.id) {
-                          handleFeature(submission.id);
-                        } else {
-                          setMessage('ERROR: Missing submission ID');
-                        }
-                      }}
-                      className="px-6 py-2 bg-yellow-500 text-black font-bold hover:bg-yellow-400 transition-all cursor-pointer"
-                    >
-                      FEATURE NOW
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (submission?.id) {
-                          handleSchedule(submission.id);
-                        } else {
-                          setMessage('ERROR: Missing submission ID');
-                        }
-                      }}
-                      className="px-6 py-2 bg-blue-500 text-white font-bold hover:bg-blue-400 transition-all cursor-pointer"
-                    >
-                      SCHEDULE
-                    </button>
-                    {submission.paymentAmount > 0 && !submission.refunded && submission.submitterWalletAddress && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          if (submission?.id) {
-                            handleRefund(submission.id);
-                          } else {
-                            setMessage('ERROR: Missing submission ID');
-                          }
-                        }}
-                        className="px-6 py-2 bg-red-600 text-white font-bold hover:bg-red-500 transition-all cursor-pointer"
-                      >
-                        REFUND
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (submission?.id) {
-                          handleReject(submission.id);
-                        } else {
-                          setMessage('ERROR: Missing submission ID');
-                        }
-                      }}
-                      className="px-6 py-2 border border-white font-bold hover:bg-white hover:text-black transition-all cursor-pointer"
-                    >
-                      REJECT
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
+          ))}
         </div>
       </div>
-    </>
-  );
-}
+    </div>
+  </div>
+);
+
+const ToolsSection = ({ traceWalletAddress, traceResult, tracingWallet, setTraceWalletAddress, onTraceWallet }) => (
+  <div className="space-y-6">
+    <div className="border border-white p-6">
+      <h2 className="text-2xl font-black mb-4">WALLET TRACER</h2>
+      <p className="text-sm text-gray-500 mb-4">Find FID(s) associated with a wallet address</p>
+
+      <div className="flex gap-2 mb-4">
+        <input
+          type="text"
+          placeholder="0x..."
+          value={traceWalletAddress}
+          onChange={(e) => setTraceWalletAddress(e.target.value)}
+          className="flex-1 p-3 bg-black border border-white text-white font-mono"
+        />
+        <button
+          onClick={onTraceWallet}
+          disabled={tracingWallet}
+          className="px-6 py-3 bg-blue-600 text-white font-black hover:bg-blue-500 disabled:opacity-50"
+        >
+          {tracingWallet ? 'TRACING...' : 'TRACE'}
+        </button>
+      </div>
+
+      {traceResult && (
+        <div className="border border-white/30 p-4">
+          {traceResult.error ? (
+            <div className="text-red-400">{traceResult.error}</div>
+          ) : (
+            <div>
+              <div className="text-sm text-gray-500 mb-2">Results:</div>
+              {traceResult.fids && traceResult.fids.length > 0 ? (
+                <div className="space-y-1">
+                  {traceResult.fids.map((fid, i) => (
+                    <div key={i} className="text-white">FID: {fid}</div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-gray-500">No FIDs found</div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  </div>
+);
