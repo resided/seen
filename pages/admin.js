@@ -288,6 +288,78 @@ export default function Admin() {
     }
   };
 
+  const handleStartEdit = (project) => {
+    setEditingProject(project.id);
+    setEditFormData({
+      name: project.name || '',
+      tagline: project.tagline || '',
+      description: project.description || '',
+      builder: project.builder || '',
+      builderFid: project.builderFid || '',
+      tokenName: project.tokenName || '',
+      tokenContractAddress: project.tokenContractAddress || '',
+      category: project.category || 'main',
+      links: project.links || { twitter: '', website: '', farcaster: '' },
+    });
+    // Scroll to edit form
+    setTimeout(() => {
+      editFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingProject(null);
+    setEditFormData({});
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingProject) return;
+
+    try {
+      setMessage('Saving changes...');
+      const response = await fetch('/api/admin/update-project', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          id: editingProject,
+          ...editFormData,
+        }),
+      });
+
+      if (response.ok) {
+        setMessage('✅ Project updated successfully!');
+        setEditingProject(null);
+        setEditFormData({});
+        fetchLiveProjects();
+        fetchSubmissions();
+      } else {
+        const data = await response.json();
+        setMessage(`Error: ${data.error}`);
+      }
+    } catch (error) {
+      setMessage('Error saving project');
+      console.error('Error saving project:', error);
+    }
+  };
+
+  const handleEditFormChange = (field, value) => {
+    setEditFormData(prev => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleEditLinksChange = (platform, value) => {
+    setEditFormData(prev => ({
+      ...prev,
+      links: {
+        ...prev.links,
+        [platform]: value,
+      },
+    }));
+  };
+
   // ============================================
   // AUTOMATION
   // ============================================
@@ -570,6 +642,14 @@ export default function Admin() {
             loading={loading}
             onApprove={handleApprove}
             onFeature={handleFeature}
+            onEdit={handleStartEdit}
+            editingProject={editingProject}
+            editFormData={editFormData}
+            onEditFormChange={handleEditFormChange}
+            onEditLinksChange={handleEditLinksChange}
+            onSaveEdit={handleSaveEdit}
+            onCancelEdit={handleCancelEdit}
+            editFormRef={editFormRef}
           />
         )}
 
@@ -660,7 +740,21 @@ const BattleSection = ({ currentBattle, onCreateBattle, onResolveBattle }) => (
   </div>
 );
 
-const ProjectSection = ({ submissions, liveProjects, loading, onApprove, onFeature }) => (
+const ProjectSection = ({
+  submissions,
+  liveProjects,
+  loading,
+  onApprove,
+  onFeature,
+  onEdit,
+  editingProject,
+  editFormData,
+  onEditFormChange,
+  onEditLinksChange,
+  onSaveEdit,
+  onCancelEdit,
+  editFormRef
+}) => (
   <div className="space-y-6">
     {/* Pending Submissions */}
     <div className="border border-white p-6">
@@ -700,32 +794,180 @@ const ProjectSection = ({ submissions, liveProjects, loading, onApprove, onFeatu
       <div className="space-y-4">
         {liveProjects.map((project) => (
           <div key={project.id} className="border border-white/30 p-4">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <h3 className="text-xl font-black">{project.name}</h3>
-                  <span className={`text-xs px-2 py-1 border ${
-                    project.status === 'featured'
-                      ? 'border-yellow-500 text-yellow-500'
-                      : 'border-gray-500 text-gray-500'
-                  }`}>
-                    {project.status.toUpperCase()}
-                  </span>
+            {editingProject === project.id ? (
+              /* Edit Form */
+              <div ref={editFormRef} className="bg-neutral-900 p-5 space-y-4">
+                <h3 className="text-lg font-black mb-4">EDITING: {project.name}</h3>
+
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Name</label>
+                  <input
+                    type="text"
+                    value={editFormData.name || ''}
+                    onChange={(e) => onEditFormChange('name', e.target.value)}
+                    className="w-full bg-black border border-white/30 px-3 py-2 text-white"
+                  />
                 </div>
-                <p className="text-sm text-gray-400">{project.tagline}</p>
-                <div className="text-xs text-gray-600 mt-1">
-                  Votes: {project.votes || 0}
+
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Tagline</label>
+                  <input
+                    type="text"
+                    value={editFormData.tagline || ''}
+                    onChange={(e) => onEditFormChange('tagline', e.target.value)}
+                    className="w-full bg-black border border-white/30 px-3 py-2 text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Description</label>
+                  <textarea
+                    value={editFormData.description || ''}
+                    onChange={(e) => onEditFormChange('description', e.target.value)}
+                    rows={3}
+                    className="w-full bg-black border border-white/30 px-3 py-2 text-white"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Builder</label>
+                    <input
+                      type="text"
+                      value={editFormData.builder || ''}
+                      onChange={(e) => onEditFormChange('builder', e.target.value)}
+                      className="w-full bg-black border border-white/30 px-3 py-2 text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Builder FID</label>
+                    <input
+                      type="text"
+                      value={editFormData.builderFid || ''}
+                      onChange={(e) => onEditFormChange('builderFid', e.target.value)}
+                      className="w-full bg-black border border-white/30 px-3 py-2 text-white"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Category</label>
+                  <select
+                    value={editFormData.category || 'main'}
+                    onChange={(e) => onEditFormChange('category', e.target.value)}
+                    className="w-full bg-black border border-white/30 px-3 py-2 text-white"
+                  >
+                    <option value="main">Featured</option>
+                    <option value="voting">Vote</option>
+                    <option value="defi">DeFi</option>
+                    <option value="tokens">Tokens</option>
+                    <option value="social">Social</option>
+                    <option value="games">Games</option>
+                    <option value="tools">Tools</option>
+                    <option value="nft">NFT</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Token Name</label>
+                    <input
+                      type="text"
+                      value={editFormData.tokenName || ''}
+                      onChange={(e) => onEditFormChange('tokenName', e.target.value)}
+                      className="w-full bg-black border border-white/30 px-3 py-2 text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Token Contract</label>
+                    <input
+                      type="text"
+                      value={editFormData.tokenContractAddress || ''}
+                      onChange={(e) => onEditFormChange('tokenContractAddress', e.target.value)}
+                      className="w-full bg-black border border-white/30 px-3 py-2 text-white"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-gray-500 mb-2">Links</label>
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      placeholder="Twitter URL"
+                      value={editFormData.links?.twitter || ''}
+                      onChange={(e) => onEditLinksChange('twitter', e.target.value)}
+                      className="w-full bg-black border border-white/30 px-3 py-2 text-white"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Website URL"
+                      value={editFormData.links?.website || ''}
+                      onChange={(e) => onEditLinksChange('website', e.target.value)}
+                      className="w-full bg-black border border-white/30 px-3 py-2 text-white"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Farcaster URL"
+                      value={editFormData.links?.farcaster || ''}
+                      onChange={(e) => onEditLinksChange('farcaster', e.target.value)}
+                      className="w-full bg-black border border-white/30 px-3 py-2 text-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={onSaveEdit}
+                    className="flex-1 px-4 py-3 bg-green-600 text-white font-black hover:bg-green-500"
+                  >
+                    SAVE CHANGES
+                  </button>
+                  <button
+                    onClick={onCancelEdit}
+                    className="px-4 py-3 border border-white/30 text-white font-black hover:bg-white/10"
+                  >
+                    CANCEL
+                  </button>
                 </div>
               </div>
-              {project.status !== 'featured' && (
-                <button
-                  onClick={() => onFeature(project.id)}
-                  className="px-4 py-2 border border-yellow-500 text-yellow-500 font-black hover:bg-yellow-500 hover:text-black"
-                >
-                  FEATURE
-                </button>
-              )}
-            </div>
+            ) : (
+              /* Normal View */
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <h3 className="text-xl font-black">{project.name}</h3>
+                    <span className={`text-xs px-2 py-1 border ${
+                      project.status === 'featured'
+                        ? 'border-yellow-500 text-yellow-500'
+                        : 'border-gray-500 text-gray-500'
+                    }`}>
+                      {project.status.toUpperCase()}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-400">{project.tagline}</p>
+                  <div className="text-xs text-gray-600 mt-1">
+                    Votes: {project.votes || 0}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => onEdit(project)}
+                    className="px-4 py-2 border border-blue-500 text-blue-500 font-black hover:bg-blue-500 hover:text-black"
+                  >
+                    EDIT
+                  </button>
+                  {project.status !== 'featured' && (
+                    <button
+                      onClick={() => onFeature(project.id)}
+                      className="px-4 py-2 border border-yellow-500 text-yellow-500 font-black hover:bg-yellow-500 hover:text-black"
+                    >
+                      FEATURE
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>
