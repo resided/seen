@@ -18,6 +18,14 @@
     {
       "path": "/api/auto-feature-winner",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/game/update-battle-scores",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/game/resolve-battle",
+      "schedule": "0 * * * *"
     }
   ]
 }
