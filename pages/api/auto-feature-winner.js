@@ -14,7 +14,8 @@ export default async function handler(req, res) {
   }
 
   // Allow cron or admin to trigger this
-  const isCron = req.headers['authorization'] === `Bearer ${process.env.CRON_SECRET}`;
+  // Vercel crons send x-vercel-cron header
+  const isCron = req.headers['x-vercel-cron'] === '1';
   const isAdmin = await isAuthenticated(req);
 
   if (!isCron && !isAdmin) {
