@@ -15,12 +15,19 @@ import { erc20Abi } from 'viem';
 // Token configuration
 const TOKEN_CONTRACT = process.env.CLAIM_TOKEN_CONTRACT;
 const TOKEN_DECIMALS = parseInt(process.env.CLAIM_TOKEN_DECIMALS || '18');
-const TOKEN_AMOUNT = '40000'; // 40,000 SEEN per claim
+const DEFAULT_TOKEN_AMOUNT = '40000'; // Default: 40,000 SEEN per claim
 const TREASURY_PRIVATE_KEY = process.env.TREASURY_PRIVATE_KEY;
+const CLAIM_AMOUNT_KEY = 'config:claim:amount';
 
 // Security configuration
 const MIN_NEYNAR_SCORE = 0.33; // Minimum Neynar user score
 const MIN_ACCOUNT_AGE_DAYS = 2; // Minimum account age in days
+
+// Helper function to get current claim amount from Redis
+async function getClaimAmount(redis) {
+  const amount = await redis.get(CLAIM_AMOUNT_KEY);
+  return amount || DEFAULT_TOKEN_AMOUNT;
+}
 
 export default async function handler(req, res) {
   // GET = check status, POST = claim
@@ -28,6 +35,9 @@ export default async function handler(req, res) {
   if (!redis) {
     return res.status(500).json({ error: 'Redis unavailable' });
   }
+
+  // Get current claim amount
+  const TOKEN_AMOUNT = await getClaimAmount(redis);
 
   // Get featured project
   const featured = await getFeaturedProject();

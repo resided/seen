@@ -60,6 +60,7 @@ export default function Admin() {
   const [claimsDisabled, setClaimsDisabled] = useState(null);
   const [claimStats, setClaimStats] = useState(null);
   const [blockedFids, setBlockedFids] = useState([]);
+  const [claimAmount, setClaimAmount] = useState('40000');
   const [blockFidInput, setBlockFidInput] = useState('');
 
   // Tools state
@@ -144,6 +145,7 @@ export default function Admin() {
     } else if (activeSection === 'claims') {
       fetchClaimStats();
       fetchBlockedFids();
+      fetchClaimAmount();
     }
   }, [isAuthenticated, activeSection]);
 
@@ -420,6 +422,21 @@ export default function Admin() {
     }
   };
 
+  const fetchClaimAmount = async () => {
+    try {
+      const response = await fetch('/api/admin/claim-amount', {
+        method: 'GET',
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setClaimAmount(data.claimAmount);
+      }
+    } catch (error) {
+      console.error('Error fetching claim amount:', error);
+    }
+  };
+
   const fetchBlockedFids = async () => {
     try {
       const response = await fetch('/api/admin/block-fid', {
@@ -489,6 +506,34 @@ export default function Admin() {
       }
     } catch (error) {
       setMessage('Error unblocking FID');
+    }
+  };
+
+  const handleSaveClaimAmount = async () => {
+    if (!claimAmount || isNaN(claimAmount) || parseFloat(claimAmount) <= 0) {
+      setMessage('Error: Invalid claim amount');
+      return;
+    }
+
+    try {
+      setMessage('Saving claim amount...');
+      const response = await fetch('/api/admin/claim-amount', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ amount: claimAmount }),
+      });
+
+      if (response.ok) {
+        setMessage('✅ Claim amount updated successfully!');
+        fetchClaimAmount();
+      } else {
+        const data = await response.json();
+        setMessage(`Error: ${data.error}`);
+      }
+    } catch (error) {
+      setMessage('Error saving claim amount');
+      console.error('Error saving claim amount:', error);
     }
   };
 
@@ -666,10 +711,13 @@ export default function Admin() {
             claimStats={claimStats}
             blockedFids={blockedFids}
             blockFidInput={blockFidInput}
+            claimAmount={claimAmount}
             onToggleClaims={handleToggleClaims}
             onBlockFid={handleBlockFid}
             onUnblockFid={handleUnblockFid}
             setBlockFidInput={setBlockFidInput}
+            setClaimAmount={setClaimAmount}
+            onSaveClaimAmount={handleSaveClaimAmount}
           />
         )}
 
@@ -1006,7 +1054,7 @@ const AutomationSection = ({ currentFeatured, onTriggerAutoFeature }) => (
   </div>
 );
 
-const ClaimsSection = ({ claimsDisabled, claimStats, blockedFids, blockFidInput, onToggleClaims, onBlockFid, onUnblockFid, setBlockFidInput }) => (
+const ClaimsSection = ({ claimsDisabled, claimStats, blockedFids, blockFidInput, claimAmount, onToggleClaims, onBlockFid, onUnblockFid, setBlockFidInput, setClaimAmount, onSaveClaimAmount }) => (
   <div className="space-y-6">
     <div className="border border-white p-6">
       <h2 className="text-2xl font-black mb-4">CLAIM SYSTEM</h2>
@@ -1046,6 +1094,27 @@ const ClaimsSection = ({ claimsDisabled, claimStats, blockedFids, blockFidInput,
           </div>
         </div>
       )}
+
+      {/* Claim Amount Configuration */}
+      <div className="border-t border-white/30 pt-6 pb-6">
+        <h3 className="text-lg font-black mb-3">CLAIM AMOUNT</h3>
+        <div className="flex gap-2">
+          <input
+            type="number"
+            placeholder="40000"
+            value={claimAmount}
+            onChange={(e) => setClaimAmount(e.target.value)}
+            className="flex-1 p-2 bg-black border border-white text-white"
+          />
+          <button
+            onClick={onSaveClaimAmount}
+            className="px-4 py-2 bg-blue-600 text-white font-black hover:bg-blue-500"
+          >
+            SAVE AMOUNT
+          </button>
+        </div>
+        <p className="text-xs text-gray-500 mt-2">Current amount users will receive per claim</p>
+      </div>
 
       {/* Block FIDs */}
       <div className="border-t border-white/30 pt-6">
