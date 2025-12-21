@@ -9,7 +9,7 @@ import FeedbackBox from './components/FeedbackBox';
 import StatsBanner from './components/StatsBanner';
 import VoteButton from './components/VoteButton';
 import ModeLanding from './components/ModeLanding';
-import FeatureWarsGame from './components/FeatureWarsGame';
+import MoodGame from './components/MoodGame';
 
 // ============================================
 // SEEN. - MINI APP DISCOVERY
@@ -3762,7 +3762,7 @@ export default function Seen() {
 
   if (appMode === 'game') {
     return (
-      <FeatureWarsGame
+      <MoodGame
         onBack={handleBackToLanding}
         userFid={userInfo?.fid}
         isConnected={isConnected}
