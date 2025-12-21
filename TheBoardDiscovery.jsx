@@ -287,7 +287,9 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
     try {
       const formatted = formatUnits(balance, SEEN_TOKEN_DECIMALS);
       const num = parseFloat(formatted);
-      if (num >= 1000000) {
+      if (num >= 1000000000) {
+        return `${(num / 1000000000).toFixed(1)}B`;
+      } else if (num >= 1000000) {
         return `${(num / 1000000).toFixed(2)}M`;
       } else if (num >= 1000) {
         return `${(num / 1000).toFixed(2)}K`;
