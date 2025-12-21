@@ -4,6 +4,18 @@
 import { getCurrentBattle } from '../../../../lib/battles';
 import { getBattleLeaderboard } from '../../../../lib/battle-analytics';
 
+// Format large numbers: 1000 -> 1K, 1000000 -> 1M, 1000000000 -> 1B
+const formatAmount = (amount) => {
+  if (amount >= 1000000000) {
+    return `${(amount / 1000000000).toFixed(1)}B`;
+  } else if (amount >= 1000000) {
+    return `${(amount / 1000000).toFixed(1)}M`;
+  } else if (amount >= 1000) {
+    return `${(amount / 1000).toFixed(0)}K`;
+  }
+  return amount.toString();
+};
+
 export default async function handler(req, res) {
   const { battleId, state, team } = req.query;
 
@@ -52,7 +64,7 @@ function renderNoBattleImage(res) {
 function renderBattleImage(res, battle, leaderboard) {
   const scoreA = leaderboard.teamA.score;
   const scoreB = leaderboard.teamB.score;
-  const poolTotal = ((battle.poolA + battle.poolB) / 1000).toFixed(0);
+  const poolTotal = formatAmount(battle.poolA + battle.poolB);
 
   const isAWinning = scoreA > scoreB;
   const isBWinning = scoreB > scoreA;
@@ -74,7 +86,7 @@ function renderBattleImage(res, battle, leaderboard) {
 
   <!-- Title -->
   <text x="600" y="80" class="title" text-anchor="middle">FEATURE WARS</text>
-  <text x="600" y="120" class="subtitle" text-anchor="middle">${poolTotal}K $SEEN POOL</text>
+  <text x="600" y="120" class="subtitle" text-anchor="middle">${poolTotal} $SEEN POOL</text>
 
   <!-- Divider -->
   <line x1="600" y1="150" x2="600" y2="580" stroke="#333333" stroke-width="2"/>
@@ -130,7 +142,7 @@ function renderTeamImage(res, battle, leaderboard, team) {
   <text x="600" y="280" class="project" text-anchor="middle">${truncateText(project.name, 15)}</text>
 
   <text x="600" y="360" class="info" text-anchor="middle">Current Score: ${score}</text>
-  <text x="600" y="410" class="info" text-anchor="middle">Pool: ${(pool / 1000).toFixed(0)}K $SEEN</text>
+  <text x="600" y="410" class="info" text-anchor="middle">Pool: ${formatAmount(pool)} $SEEN</text>
 
   <rect x="350" y="460" width="500" height="80" fill="#ffffff"/>
   <text x="600" y="515" class="cta" text-anchor="middle">100K $SEEN TO BET</text>

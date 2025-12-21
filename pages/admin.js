@@ -4,6 +4,18 @@ import { sdk } from '@farcaster/miniapp-sdk';
 
 const ADMIN_FID = 342433; // Admin FID
 
+// Format large numbers: 1000 -> 1K, 1000000 -> 1M, 1000000000 -> 1B
+const formatAmount = (amount) => {
+  if (amount >= 1000000000) {
+    return `${(amount / 1000000000).toFixed(1)}B`;
+  } else if (amount >= 1000000) {
+    return `${(amount / 1000000).toFixed(1)}M`;
+  } else if (amount >= 1000) {
+    return `${(amount / 1000).toFixed(0)}K`;
+  }
+  return amount.toString();
+};
+
 export default function Admin() {
   // Auth state
   const [userFid, setUserFid] = useState(null);
@@ -626,13 +638,13 @@ const BattleSection = ({ currentBattle, onCreateBattle, onResolveBattle }) => (
               <div className="text-xs text-gray-500 mb-1">PROJECT A</div>
               <div className="text-xl font-black">{currentBattle.projectA.name}</div>
               <div className="text-sm text-gray-400">Score: {currentBattle.scoreA}</div>
-              <div className="text-sm text-gray-400">Pool: {(currentBattle.poolA / 1000).toFixed(0)}K $SEEN</div>
+              <div className="text-sm text-gray-400">Pool: {formatAmount(currentBattle.poolA)} $SEEN</div>
             </div>
             <div>
               <div className="text-xs text-gray-500 mb-1">PROJECT B</div>
               <div className="text-xl font-black">{currentBattle.projectB.name}</div>
               <div className="text-sm text-gray-400">Score: {currentBattle.scoreB}</div>
-              <div className="text-sm text-gray-400">Pool: {(currentBattle.poolB / 1000).toFixed(0)}K $SEEN</div>
+              <div className="text-sm text-gray-400">Pool: {formatAmount(currentBattle.poolB)} $SEEN</div>
             </div>
           </div>
           <div className="mt-4 text-sm text-gray-500">
