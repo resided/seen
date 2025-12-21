@@ -79,15 +79,9 @@ export default function StatsBanner() {
             <div className="flex items-center gap-4">
               <div className="text-sm font-black tracking-[0.3em]">GET SEEN</div>
               <div className="w-px h-4 bg-white"></div>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1 whitespace-nowrap">
-                  <span className="text-[10px] text-gray-500">VIEWS:</span>
-                  <span className="text-sm font-black">{formatNumber(stats.totalViews)}</span>
-                </div>
-                <div className="flex items-center gap-1 whitespace-nowrap">
-                  <span className="text-[10px] text-gray-500">CLICKS:</span>
-                  <span className="text-sm font-black">{formatNumber(stats.totalClicks)}</span>
-                </div>
+              <div className="flex items-center gap-1 whitespace-nowrap">
+                <span className="text-[10px] text-gray-500">INTERACTIONS:</span>
+                <span className="text-sm font-black">{formatNumber(stats.totalViews + stats.totalClicks)}</span>
               </div>
             </div>
           )}

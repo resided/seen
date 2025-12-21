@@ -4,7 +4,6 @@ import { parseEther, parseUnits, erc20Abi, encodeFunctionData, toHex, stringToHe
 import { sdk } from '@farcaster/miniapp-sdk';
 import SubmitForm from './components/SubmitForm';
 import SimpleClaim from './components/SimpleClaim';
-import MiniappPrediction from './components/MiniappPrediction';
 import FeedbackBox from './components/FeedbackBox';
 import StatsBanner from './components/StatsBanner';
 import VoteButton from './components/VoteButton';
@@ -60,12 +59,6 @@ const TokenIcon = () => (
   </svg>
 );
 
-const PredictionIcon = () => (
-  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-    <path d="M10 2a8 8 0 100 16 8 8 0 000-16zM8 10a1 1 0 112 0v4a1 1 0 11-2 0v-4zm2-4a1 1 0 100 2 1 1 0 000-2z" />
-  </svg>
-);
-
 const TrophyIcon = () => (
   <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
     <path d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" />
@@ -75,7 +68,6 @@ const TrophyIcon = () => (
 const CATEGORIES = [
   { id: 'main', label: 'FEATURED', icon: StarIcon },
   { id: 'voting', label: 'VOTE', icon: TrophyIcon },
-  { id: 'predictions', label: 'MOOD. (DEMO)', icon: PredictionIcon },
   { id: 'defi', label: 'DEFI', icon: ChartIcon },
   { id: 'tokens', label: 'TOKENS', icon: TokenIcon },
   { id: 'social', label: 'SOCIAL', icon: UsersIcon },
@@ -4003,13 +3995,6 @@ export default function Seen() {
             isInFarcaster={isInFarcaster}
             isConnected={isConnected}
           />
-        ) : category === 'predictions' ? (
-          <div className="space-y-4">
-            <MiniappPrediction
-              userFid={userInfo?.fid || null}
-              isInFarcaster={isInFarcaster}
-            />
-          </div>
         ) : (
           <CategoryRankings category={category} ethPrice={ethPrice} isInFarcaster={isInFarcaster} isConnected={isConnected} userFid={userInfo?.fid || null} />
         )}

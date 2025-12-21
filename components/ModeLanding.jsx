@@ -50,7 +50,7 @@ const ModeLanding = ({ onSelectMode }) => {
                   PREDICT • BET • WIN
                 </p>
                 <p className="text-[10px] tracking-[0.2em] text-gray-600 group-hover:text-gray-700">
-                  THIS IS IN EARLY BETA AND MAY BREAK
+                  DEMO MODE
                 </p>
               </div>
               <ChevronRightIcon className="w-8 h-8 md:w-12 md:h-12" />
