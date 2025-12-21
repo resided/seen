@@ -26,7 +26,7 @@ const ModeLanding = ({ onSelectMode }) => {
             <div className="flex items-center justify-between">
               <div className="text-left">
                 <h2 className="text-2xl md:text-4xl font-black tracking-tight mb-2">
-                  SEEN
+                  SEEN.
                 </h2>
                 <p className="text-xs md:text-sm tracking-[0.2em] text-gray-400 group-hover:text-gray-800">
                   DISCOVER + VOTE ON MINIAPPS
@@ -39,13 +39,8 @@ const ModeLanding = ({ onSelectMode }) => {
           {/* Game Mode */}
           <button
             onClick={() => onSelectMode('game')}
-            className="w-full border-2 border-white p-8 hover:bg-white hover:text-black transition-all group relative overflow-hidden"
+            className="w-full border-2 border-white p-8 hover:bg-white hover:text-black transition-all group"
           >
-            {/* "LIVE" indicator */}
-            <div className="absolute top-4 right-4 border border-white px-2 py-1 text-[8px] tracking-[0.3em] group-hover:border-black group-hover:text-black">
-              LIVE BATTLE
-            </div>
-
             <div className="flex items-center justify-between">
               <div className="text-left">
                 <h2 className="text-2xl md:text-4xl font-black tracking-tight mb-2">
