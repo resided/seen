@@ -4,6 +4,7 @@
 
 import { getFeaturedProject, getActiveProjects, setFeaturedProject, resetAllVotes } from '../../lib/projects';
 import { isAuthenticated } from '../../lib/admin-auth';
+import { saveFeaturedHistory } from '../../lib/featured-history';
 
 // How long a project stays featured before auto-rotation (24 hours)
 const FEATURED_DURATION_MS = 24 * 60 * 60 * 1000;
@@ -99,6 +100,9 @@ export default async function handler(req, res) {
       });
     }
 
+    // Save current featured project's stats to history before replacing
+    await saveFeaturedHistory(currentFeatured, currentFeatured.stats);
+
     // Feature the winner!
     const result = await setFeaturedProject(winner.id);
 
@@ -116,6 +120,7 @@ export default async function handler(req, res) {
         id: currentFeatured.id,
         name: currentFeatured.name,
         duration: `${(timeElapsed / (60 * 60 * 1000)).toFixed(1)} hours`,
+        statsSaved: true,
       },
     });
 
