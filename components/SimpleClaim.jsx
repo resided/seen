@@ -19,6 +19,9 @@ export default function SimpleClaim({ userFid, isInFarcaster = false, hasClicked
   const [tokenAmount, setTokenAmount] = useState('40000');
   const [featuredName, setFeaturedName] = useState('');
   const [treasuryAddress, setTreasuryAddress] = useState(null);
+  const [neynarScore, setNeynarScore] = useState(null);
+  const [neynarScoreTooLow, setNeynarScoreTooLow] = useState(false);
+  const MIN_NEYNAR_SCORE = 0.6;
 
   // Fetch treasury address
   useEffect(() => {
@@ -44,6 +47,18 @@ export default function SimpleClaim({ userFid, isInFarcaster = false, hasClicked
       setClaimed(data.claimed);
       setTokenAmount(data.tokenAmount || '40000');
       setFeaturedName(data.featuredProjectName || '');
+
+      // Check for Neynar score
+      if (data.neynarScore !== undefined) {
+        setNeynarScore(data.neynarScore);
+        setNeynarScoreTooLow(data.neynarScore < MIN_NEYNAR_SCORE);
+      }
+
+      // Set specific message for low Neynar score
+      if (data.error && data.error.includes('Neynar')) {
+        setNeynarScoreTooLow(true);
+      }
+
       setLoading(false);
 
       // Clear message if user can now claim
@@ -157,11 +172,40 @@ export default function SimpleClaim({ userFid, isInFarcaster = false, hasClicked
         )}
       </div>
 
+      {/* Neynar Score Too Low Message */}
+      {neynarScoreTooLow && !claimed && (
+        <div className="mb-4 p-4 border-2 border-red-400 bg-black">
+          <div className="text-center">
+            <div className="mb-3 flex items-center justify-center">
+              <div className="w-12 h-12 border-2 border-red-400 flex items-center justify-center relative">
+                <div className="absolute inset-0 border-2 border-red-400" style={{ transform: 'rotate(45deg)' }}></div>
+                <div className="text-xl font-black relative z-10 text-red-400">✗</div>
+              </div>
+            </div>
+            <div className="text-xs font-bold mb-2 text-red-400 tracking-wider">NEYNAR SCORE TOO LOW</div>
+            {neynarScore !== null && (
+              <div className="text-[10px] tracking-[0.15em] text-gray-300 mb-2">
+                YOUR SCORE: <span className="text-red-400 font-bold">{neynarScore.toFixed(2)}</span>
+              </div>
+            )}
+            <div className="text-[10px] tracking-[0.15em] text-gray-300 mb-2">
+              REQUIRED: <span className="text-white font-bold">{MIN_NEYNAR_SCORE}</span> OR HIGHER
+            </div>
+            <div className="text-[9px] tracking-[0.2em] text-gray-500 mb-2">
+              ONLY USERS WITH A SCORE OF {MIN_NEYNAR_SCORE}+ CAN CLAIM
+            </div>
+            <div className="text-[8px] tracking-[0.15em] text-gray-600 italic border-t border-gray-700 pt-2 mt-2">
+              *SUBJECT TO CHANGE
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Status Message */}
-      {message && (
+      {message && !neynarScoreTooLow && (
         <div className={`text-center p-2 mb-4 border ${
-          message.includes('SUCCESS') ? 'border-green-500 text-green-400' : 
-          message.includes('ERROR') || message.includes('FAILED') ? 'border-red-500 text-red-400' : 
+          message.includes('SUCCESS') ? 'border-green-500 text-green-400' :
+          message.includes('ERROR') || message.includes('FAILED') ? 'border-red-500 text-red-400' :
           'border-white text-white'
         }`}>
           {message}

@@ -21,7 +21,7 @@ const CLAIM_AMOUNT_KEY = 'config:claim:amount';
 const CLAIMS_DISABLED_KEY = 'config:claims:disabled';
 
 // Security configuration
-const MIN_NEYNAR_SCORE = 0.62; // Minimum Neynar user score
+const MIN_NEYNAR_SCORE = 0.6; // Minimum Neynar user score
 const MIN_ACCOUNT_AGE_DAYS = 2; // Minimum account age in days
 
 // Helper function to get current claim amount from Redis
@@ -64,14 +64,36 @@ export default async function handler(req, res) {
     const claimKey = getClaimKey(fid);
     const hasClaimed = await redis.get(claimKey);
 
+    // Check Neynar score for display purposes
+    let neynarScore = null;
+    let neynarScoreTooLow = false;
+    const apiKey = process.env.NEYNAR_API_KEY;
+    if (apiKey) {
+      try {
+        const fidNum = parseInt(fid);
+        const user = await fetchUserByFid(fidNum, apiKey);
+        if (user) {
+          neynarScore = user.experimental?.neynar_user_score;
+          if (neynarScore !== null && neynarScore !== undefined) {
+            neynarScoreTooLow = neynarScore < MIN_NEYNAR_SCORE;
+          }
+        }
+      } catch (error) {
+        console.error('[SIMPLE CLAIM] Neynar check failed in GET:', error);
+        // Don't fail the request, just don't return score
+      }
+    }
+
     return res.status(200).json({
-      canClaim: !hasClaimed && !claimsDisabled,
+      canClaim: !hasClaimed && !claimsDisabled && !neynarScoreTooLow,
       claimed: !!hasClaimed,
       claimedAt: hasClaimed || null,
       featuredProjectId: featured.id,
       featuredProjectName: featured.name,
       tokenAmount: TOKEN_AMOUNT,
       disabled: claimsDisabled,
+      neynarScore: neynarScore,
+      neynarScoreTooLow: neynarScoreTooLow,
     });
   }
 

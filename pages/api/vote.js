@@ -12,7 +12,7 @@ import { base } from 'viem/chains';
 const VOTE_COST = '100000'; // 100K $SEEN tokens per vote
 // NEW TOKEN ADDRESS (relaunched after exploit on Clanker)
 const SEEN_TOKEN_ADDRESS = '0x76fc4610f6aFdF15C3a798303cc40012B053Ab07';
-const MIN_NEYNAR_SCORE = 0.62;
+const MIN_NEYNAR_SCORE = 0.6;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

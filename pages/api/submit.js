@@ -3,12 +3,25 @@ import { submitProject, checkFeaturedPaymentCooldown } from '../../lib/projects'
 import { fetchUserByFid } from '../../lib/neynar'
 import { getMiniAppCreator } from '../../lib/miniapp-utils'
 import { trackMetric, METRIC_TYPES } from '../../lib/analytics'
+import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
+import { isValidEthereumAddress, isValidUrl } from '../../lib/payment-verification'
 
-const MIN_NEYNAR_SCORE = 0.33; // Minimum Neynar user score required to submit
+const MIN_NEYNAR_SCORE = 0.6; // Minimum Neynar user score required to submit
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
+  }
+
+  // SECURITY: Rate limit submissions (5 per hour per IP)
+  const clientIP = getClientIP(req);
+  const rateLimit = await checkRateLimit(`submit:${clientIP}`, 5, 60 * 60 * 1000);
+
+  if (!rateLimit.allowed) {
+    return res.status(429).json({
+      error: 'Too many submission attempts. Please try again later.',
+      resetAt: rateLimit.resetAt,
+    });
   }
 
   // EMERGENCY KILL SWITCH - set SUBMISSIONS_DISABLED=true in Vercel env to stop all submissions instantly
@@ -39,6 +52,35 @@ export default async function handler(req, res) {
     // Validate required fields
     if (!name || !tagline || !description || !builder || !category) {
       return res.status(400).json({ error: 'Missing required fields' })
+    }
+
+    // SECURITY: Validate Ethereum addresses if provided
+    if (tokenContractAddress && tokenContractAddress.trim() !== '') {
+      if (!isValidEthereumAddress(tokenContractAddress)) {
+        return res.status(400).json({ error: 'Invalid token contract address format' })
+      }
+    }
+
+    if (submitterWalletAddress && submitterWalletAddress.trim() !== '') {
+      if (!isValidEthereumAddress(submitterWalletAddress)) {
+        return res.status(400).json({ error: 'Invalid wallet address format' })
+      }
+    }
+
+    // SECURITY: Validate URLs if provided
+    if (links) {
+      if (links.miniapp && !isValidUrl(links.miniapp)) {
+        return res.status(400).json({ error: 'Invalid miniapp URL format' })
+      }
+      if (links.website && !isValidUrl(links.website)) {
+        return res.status(400).json({ error: 'Invalid website URL format' })
+      }
+      if (links.github && !isValidUrl(links.github)) {
+        return res.status(400).json({ error: 'Invalid GitHub URL format' })
+      }
+      if (links.twitter && !isValidUrl(links.twitter)) {
+        return res.status(400).json({ error: 'Invalid Twitter URL format' })
+      }
     }
 
     // Check Neynar user score if submitterFid is provided
@@ -186,7 +228,7 @@ export default async function handler(req, res) {
 
     // Track analytics
     await trackMetric(METRIC_TYPES.LISTING_SUBMIT, {
-      fid: fidNum,
+      fid: submitterFid || builderFid || 0,
       projectId: project.id,
       submissionType: project.submissionType,
     });

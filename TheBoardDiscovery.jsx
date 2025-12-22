@@ -2395,7 +2395,7 @@ const TokenBenefits = () => {
 // DAILY CLAIM
 // ============================================
 const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false, featuredApp = null, hasClickedMiniapp = false, neynarUserScore = null }) => {
-  const MIN_NEYNAR_SCORE = 0.33; // Minimum Neynar user score required to claim
+  const MIN_NEYNAR_SCORE = 0.6; // Minimum Neynar user score required to claim
   const [claimed, setClaimed] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const claimInProgress = useRef(false); // Synchronous lock to prevent double-clicks
@@ -3043,17 +3043,26 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
         {neynarUserScore !== null && neynarUserScore < MIN_NEYNAR_SCORE ? (
           <>
             <div className="mb-4 flex items-center justify-center">
-              <div className="w-16 h-16 border-2 border-white flex items-center justify-center relative">
-                <div className="absolute inset-0 border-2 border-white" style={{ transform: 'rotate(45deg)' }}></div>
-                <div className="text-2xl font-black relative z-10">✗</div>
+              <div className="w-16 h-16 border-2 border-red-400 flex items-center justify-center relative">
+                <div className="absolute inset-0 border-2 border-red-400" style={{ transform: 'rotate(45deg)' }}></div>
+                <div className="text-2xl font-black relative z-10 text-red-400">✗</div>
               </div>
             </div>
-            <div className="text-sm font-bold mb-2 text-red-400">NEYNAR SCORE TOO LOW</div>
-            <div className="text-[10px] tracking-[0.2em] text-gray-500 mb-4">
-              Your Neynar user score ({neynarUserScore.toFixed(2)}) is below the required threshold of {MIN_NEYNAR_SCORE}.
+            <div className="text-sm font-bold mb-2 text-red-400 tracking-wider">NEYNAR SCORE TOO LOW</div>
+            <div className="text-[11px] tracking-[0.15em] text-gray-300 mb-3 leading-relaxed">
+              YOUR SCORE: <span className="text-red-400 font-bold">{neynarUserScore.toFixed(2)}</span>
             </div>
-            <div className="text-[10px] tracking-[0.2em] text-gray-400">
-              Only users with a score of {MIN_NEYNAR_SCORE} or higher can claim tokens.
+            <div className="text-[11px] tracking-[0.15em] text-gray-300 mb-3 leading-relaxed">
+              REQUIRED: <span className="text-white font-bold">{MIN_NEYNAR_SCORE}</span> OR HIGHER
+            </div>
+            <div className="text-[10px] tracking-[0.2em] text-gray-500 mb-2">
+              ONLY USERS WITH A NEYNAR SCORE
+            </div>
+            <div className="text-[10px] tracking-[0.2em] text-gray-500 mb-3">
+              OF {MIN_NEYNAR_SCORE}+ CAN CLAIM TOKENS
+            </div>
+            <div className="text-[9px] tracking-[0.15em] text-gray-600 italic border-t border-gray-700 pt-3 mt-2">
+              *SUBJECT TO CHANGE
             </div>
           </>
         ) : expired ? (

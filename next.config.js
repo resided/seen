@@ -4,6 +4,49 @@ const nextConfig = {
   // CRITICAL: Prevent server secrets from leaking to client
   // Only NEXT_PUBLIC_* vars should be available in browser
   env: {},
+  // Security headers
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY', // Prevent clickjacking
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff', // Prevent MIME sniffing
+          },
+          {
+            key: 'X-XSS-Protection',
+            value: '1; mode=block', // Enable XSS filter
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=()', // Disable unnecessary permissions
+          },
+        ],
+      },
+      {
+        source: '/api/:path*',
+        headers: [
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+        ],
+      },
+    ];
+  },
   // Optimize build performance
   swcMinify: true, // Use SWC for faster minification
   compiler: {
@@ -12,12 +55,13 @@ const nextConfig = {
     } : false,
   },
   // REMOVED: output: 'standalone' - this actually slows down builds significantly
-  // Faster builds - skip type checking during build (run separately if needed)
+  // Type checking and linting - RE-ENABLED for security
+  // Run these checks to catch errors before they reach production
   typescript: {
-    ignoreBuildErrors: true, // Skip TypeScript checking during builds for speed (emergency fixes)
+    ignoreBuildErrors: false, // Enable TypeScript checking (security fix)
   },
   eslint: {
-    ignoreDuringBuilds: true, // Skip ESLint during builds for speed (run lint separately)
+    ignoreDuringBuilds: false, // Enable ESLint checking (security fix)
   },
   // Experimental optimizations for faster builds
   experimental: {
