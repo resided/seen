@@ -52,21 +52,26 @@ export default async function handler(req, res) {
   // ========== GET = CHECK STATUS ==========
   if (req.method === 'GET') {
     const { fid, wallet } = req.query;
-    
+
     if (!fid) {
       return res.status(200).json({ canClaim: false, error: 'No FID' });
     }
+
+    // Check if claims are globally disabled
+    const disabledValue = await redis.get(CLAIMS_DISABLED_KEY);
+    const claimsDisabled = disabledValue === 'true';
 
     const claimKey = getClaimKey(fid);
     const hasClaimed = await redis.get(claimKey);
 
     return res.status(200).json({
-      canClaim: !hasClaimed,
+      canClaim: !hasClaimed && !claimsDisabled,
       claimed: !!hasClaimed,
       claimedAt: hasClaimed || null,
       featuredProjectId: featured.id,
       featuredProjectName: featured.name,
       tokenAmount: TOKEN_AMOUNT,
+      disabled: claimsDisabled,
     });
   }
 
