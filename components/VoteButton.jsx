@@ -1,11 +1,11 @@
 // Community Voting Button Component
-// Allows users to vote for queue projects by burning 100K $SEEN tokens
+// Allows users to vote for queue projects by burning 100K $GS tokens
 
 import React, { useState, useEffect } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseUnits } from 'viem';
 
-const VOTE_COST = '100000'; // 100K $SEEN per vote
+const VOTE_COST = '100000'; // 100K $GS per vote
 // NEW TOKEN ADDRESS (relaunched after exploit on Clanker)
 const SEEN_TOKEN_ADDRESS = '0x76fc4610f6aFdF15C3a798303cc40012B053Ab07';
 const ERC20_ABI = [
@@ -123,7 +123,7 @@ const VoteButton = ({ project, userFid, onVoteSuccess }) => {
       }
 
       console.log('[VOTE] Vote recorded successfully:', data);
-      setMessage(`Vote recorded! ${VOTE_COST} $SEEN sent to treasury`);
+      setMessage(`Vote recorded! ${VOTE_COST} $GS sent to treasury`);
       setVoting(false);
 
       // Close modal after 2 seconds
@@ -167,7 +167,7 @@ const VoteButton = ({ project, userFid, onVoteSuccess }) => {
               <div>
                 <h3 className="text-xl font-black tracking-tight">VOTE FOR FEATURED</h3>
                 <p className="text-[9px] tracking-[0.2em] text-gray-500 mt-1">
-                  SEND 100K $SEEN TO TREASURY
+                  SEND 100K $GS TO TREASURY
                 </p>
               </div>
               {!voting && (
@@ -194,7 +194,7 @@ const VoteButton = ({ project, userFid, onVoteSuccess }) => {
               <div className="border border-yellow-500/50 bg-yellow-500/10 p-4 mb-4">
                 <div className="text-sm font-bold text-yellow-400 mb-2">⚠️ IMPORTANT</div>
                 <ul className="text-xs text-yellow-300 space-y-1 list-disc list-inside">
-                  <li>100,000 $SEEN will be sent to treasury</li>
+                  <li>100,000 $GS will be sent to treasury</li>
                   <li>This action cannot be undone</li>
                   <li>Vote helps this project get featured</li>
                 </ul>

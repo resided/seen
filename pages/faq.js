@@ -35,7 +35,7 @@ export default function FAQ() {
                 <li>Browse featured Mini Apps and category rankings</li>
                 <li>Click "OPEN" to interact with Mini Apps</li>
                 <li>Tip builders directly (tips go to their verified Farcaster wallet)</li>
-                <li>Claim $SEEN tokens for checking out featured apps</li>
+                <li>Claim $GS tokens for checking out featured apps</li>
                 <li>Submit your own project for free or pay for a featured slot</li>
               </ul>
             </div>

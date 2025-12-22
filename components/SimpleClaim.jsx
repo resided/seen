@@ -108,7 +108,7 @@ export default function SimpleClaim({ userFid, isInFarcaster = false, hasClicked
         if (data.success) {
           setClaimed(true);
           setCanClaim(false);
-          setMessage(`SUCCESS! ${tokenAmount} SEEN claimed!`);
+          setMessage(`SUCCESS! ${tokenAmount} GS claimed!`);
         } else {
           setMessage(data.error || 'TOKEN TRANSFER FAILED');
           await checkStatus();
@@ -140,7 +140,7 @@ export default function SimpleClaim({ userFid, isInFarcaster = false, hasClicked
     if (!isInFarcaster) return 'OPEN IN FARCASTER';
     if (!isConnected) return 'CONNECT WALLET';
     if (!hasClickedMiniapp) return 'CLICK MINI APP FIRST';
-    if (canClaim) return `CLAIM ${tokenAmount} SEEN`;
+    if (canClaim) return `CLAIM ${tokenAmount} GS`;
     return 'CANNOT CLAIM';
   };
 
@@ -171,7 +171,7 @@ export default function SimpleClaim({ userFid, isInFarcaster = false, hasClicked
       {/* Claim Info */}
       <div className="text-center mb-4 p-3 bg-black border-2 border-gray-600 animate-pulse-subtle">
         <div className="text-[10px] tracking-[0.2em] text-gray-500">YOU GET</div>
-        <div className="text-2xl font-black text-white">{tokenAmount} $SEEN</div>
+        <div className="text-2xl font-black text-white">{tokenAmount} $GS</div>
         <div className="text-xs text-gray-500 mt-1">One claim per person per featured project</div>
       </div>
 

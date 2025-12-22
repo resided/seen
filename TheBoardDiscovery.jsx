@@ -253,7 +253,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
     };
   }, [app?.featuredAt]);
 
-  // Read treasury $SEEN token balance (updates live)
+  // Read treasury $GS token balance (updates live)
   const { data: treasuryBalance, refetch: refetchBalance } = useReadContract({
     address: SEEN_TOKEN_ADDRESS,
     abi: erc20Abi,
@@ -2067,7 +2067,7 @@ const VotingLeaderboard = ({ featuredApp, userFid, isInFarcaster = false, isConn
         <div className="text-xs font-bold mb-2">HOW VOTING WORKS:</div>
         <ul className="text-[11px] text-gray-400 space-y-1">
           <li>• Vote button appears on all active projects</li>
-          <li>• 100,000 $SEEN per vote (sent to treasury)</li>
+          <li>• 100,000 $GS per vote (sent to treasury)</li>
           <li>• Vote as many times as you like</li>
           <li>• Highest voted project wins when timer expires</li>
           <li>• Winner gets 24h featured slot + reset</li>
@@ -2078,7 +2078,7 @@ const VotingLeaderboard = ({ featuredApp, userFid, isInFarcaster = false, isConn
       {totalVotes > 0 && (
         <div className="border border-white p-3 bg-yellow-400/10">
           <div className="text-[10px] tracking-[0.2em] text-yellow-400">
-            {(totalVotes * 100000).toLocaleString()} $SEEN SENT TO TREASURY
+            {(totalVotes * 100000).toLocaleString()} $GS SENT TO TREASURY
           </div>
         </div>
       )}
@@ -2131,7 +2131,7 @@ const VotingLeaderboard = ({ featuredApp, userFid, isInFarcaster = false, isConn
                     </div>
                     <div className="text-[9px] text-gray-500">VOTES</div>
                     <div className="text-[8px] text-gray-600 mt-1">
-                      {((project.votes || 0) * 100000).toLocaleString()} $SEEN
+                      {((project.votes || 0) * 100000).toLocaleString()} $GS
                     </div>
                   </div>
                 </div>
@@ -2310,14 +2310,14 @@ const CategoryRankings = ({ category, ethPrice, isInFarcaster = false, isConnect
 
 // ============================================
 // ============================================
-// SWAP BUTTON - In-app swap to $SEEN using Farcaster wallet swapToken
+// SWAP BUTTON - In-app swap to $GS using Farcaster wallet swapToken
 // ============================================
 // Token swap constants (moved to top for global access)
 // NEW TOKEN ADDRESS (relaunched after exploit on Clanker)
 const SEEN_TOKEN_ADDRESS = '0x76fc4610f6aFdF15C3a798303cc40012B053Ab07';
 const BASE_ETH_CAIP19 = 'eip155:8453/native';
 const SEEN_CAIP19 = `eip155:8453/erc20:${SEEN_TOKEN_ADDRESS.toLowerCase()}`;
-const SEEN_TOKEN_DECIMALS = 18; // $SEEN token decimals
+const SEEN_TOKEN_DECIMALS = 18; // $GS token decimals
 
 const SwapButton = ({ isInFarcaster = false }) => {
   const handleSwap = async () => {
@@ -2349,15 +2349,15 @@ const SwapButton = ({ isInFarcaster = false }) => {
   return (
     <div className="border border-white p-4">
       <div className="text-center">
-        <div className="text-[10px] tracking-[0.3em] text-gray-500 mb-2">GET MORE $SEEN</div>
+        <div className="text-[10px] tracking-[0.3em] text-gray-500 mb-2">GET MORE $GS</div>
         <button
           onClick={handleSwap}
           className="w-full py-3 bg-white text-black font-black text-sm tracking-[0.2em] hover:bg-gray-200 transition-all"
         >
-          SWAP TO $SEEN
+          SWAP TO $GS
         </button>
         <div className="text-[9px] text-gray-600 mt-2">
-          SWAP ETH FOR $SEEN USING FARCASTER WALLET
+          SWAP ETH FOR $GS USING FARCASTER WALLET
         </div>
       </div>
     </div>
@@ -2381,7 +2381,7 @@ const TokenBenefits = () => {
         disabled={true}
       >
         <div className="flex items-center gap-2">
-          <span className="text-sm font-black tracking-[0.2em]">$SEEN TOKEN BENEFITS</span>
+          <span className="text-sm font-black tracking-[0.2em]">$GS TOKEN BENEFITS</span>
           <span className="text-[8px] px-1.5 py-0.5 bg-gray-700 text-gray-400 rounded">
             SOON
           </span>
@@ -3076,7 +3076,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
             <button
               onClick={async () => {
                 const miniappUrl = 'https://farcaster.xyz/miniapps/EvK2rV9tUv3h/seen';
-                const castText = `I just claimed $SEEN for checking out today's featured miniapp\n\n${miniappUrl}`;
+                const castText = `I just claimed $GS for checking out today's featured miniapp\n\n${miniappUrl}`;
                 
                 // Use Farcaster SDK composeCast for proper embedding
                 try {
@@ -3129,7 +3129,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
                 </div>
                 {bonusTokenAvailable && !userHasBonusToken && (
                   <div className="text-[9px] tracking-[0.15em] text-yellow-400/80 mt-1">
-                    YOU QUALIFY: {bonusTokenAmount} {bonusTokenName.toUpperCase()} + {seenAmountPerClaim} $SEEN
+                    YOU QUALIFY: {bonusTokenAmount} {bonusTokenName.toUpperCase()} + {seenAmountPerClaim} $GS
                   </div>
                 )}
                 {userHasBonusToken && (
@@ -3153,7 +3153,7 @@ const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false
                   &gt;&gt; OPEN MINI APP &lt;&lt;
                 </div>
                 <div className="text-[10px] text-gray-400 text-center">
-                  Then scroll back here to claim $SEEN and any bonus tokens
+                  Then scroll back here to claim $GS and any bonus tokens
                 </div>
               </div>
             )}
@@ -3804,7 +3804,7 @@ export default function Seen() {
                 }}
                 className="text-[10px] tracking-[0.2em] px-4 py-2 border border-white transition-all hover:bg-white hover:text-black"
               >
-                SWAP $SEEN
+                SWAP $GS
               </button>
             ) : (
               <button 
@@ -3974,7 +3974,7 @@ export default function Seen() {
               {/* Token Benefits Section */}
               <TokenBenefits />
               
-              {/* Swap to $SEEN */}
+              {/* Swap to $GS */}
               <SwapButton isInFarcaster={isInFarcaster} isConnected={isConnected} />
               
               {/* FAQ Link */}
