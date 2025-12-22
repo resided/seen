@@ -10,10 +10,7 @@ const nextConfig = {
       {
         source: '/:path*',
         headers: [
-          {
-            key: 'X-Frame-Options',
-            value: 'DENY', // Prevent clickjacking
-          },
+          // REMOVED X-Frame-Options for main app - Farcaster mini apps need to be embedded in iframes
           {
             key: 'X-Content-Type-Options',
             value: 'nosniff', // Prevent MIME sniffing
@@ -41,7 +38,7 @@ const nextConfig = {
           },
           {
             key: 'X-Frame-Options',
-            value: 'DENY',
+            value: 'DENY', // API routes should never be framed
           },
         ],
       },
