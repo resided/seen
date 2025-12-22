@@ -59,8 +59,8 @@ export default function Admin() {
   // Featured History state
   const [featuredHistory, setFeaturedHistory] = useState([]);
 
-  // Claims state
-  const [claimsDisabled, setClaimsDisabled] = useState(null);
+  // Claims state (default to false = claims enabled)
+  const [claimsDisabled, setClaimsDisabled] = useState(false);
   const [claimStats, setClaimStats] = useState(null);
   const [blockedFids, setBlockedFids] = useState([]);
   const [claimAmount, setClaimAmount] = useState('40000');
@@ -446,11 +446,15 @@ export default function Admin() {
       });
       if (response.ok) {
         const data = await response.json();
+        console.log('[ADMIN] Claim stats fetched:', data);
         setClaimStats(data);
-        setClaimsDisabled(data.disabled);
+        // Explicitly handle disabled state (default to false if undefined)
+        setClaimsDisabled(data.disabled === true);
+      } else {
+        console.error('[ADMIN] Failed to fetch claim stats:', response.status);
       }
     } catch (error) {
-      console.error('Error fetching claim stats:', error);
+      console.error('[ADMIN] Error fetching claim stats:', error);
     }
   };
 
