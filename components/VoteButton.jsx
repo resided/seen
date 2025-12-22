@@ -6,7 +6,8 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagm
 import { parseUnits } from 'viem';
 
 const VOTE_COST = '100000'; // 100K $SEEN per vote
-const SEEN_TOKEN_ADDRESS = '0x82a56d595ccdfa3a1dc6eef28d5f0a870f162b07';
+// NEW TOKEN ADDRESS (relaunched after exploit on Clanker)
+const SEEN_TOKEN_ADDRESS = '0x76fc4610f6aFdF15C3a798303cc40012B053Ab07';
 const ERC20_ABI = [
   {
     name: 'transfer',

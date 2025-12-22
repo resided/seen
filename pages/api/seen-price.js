@@ -1,8 +1,10 @@
 // API route to get $SEEN token price in USD
 // Uses GeckoTerminal API for accurate Base network pricing
 
+// TODO: Update pool address for new token launch
 const SEEN_POOL_ADDRESS = '0x9ba2ccc022f9b3e07f5685e23bcd472cfbb5fdbf002461d8c503298dc23310ed';
-const SEEN_TOKEN_ADDRESS = '0x82a56d595cCDFa3A1dc6eEf28d5F0A870f162B07';
+// NEW TOKEN ADDRESS (relaunched after exploit on Clanker)
+const SEEN_TOKEN_ADDRESS = '0x76fc4610f6aFdF15C3a798303cc40012B053Ab07';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
