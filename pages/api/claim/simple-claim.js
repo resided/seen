@@ -15,7 +15,7 @@ import { erc20Abi } from 'viem';
 // Token configuration
 const TOKEN_CONTRACT = process.env.CLAIM_TOKEN_CONTRACT;
 const TOKEN_DECIMALS = parseInt(process.env.CLAIM_TOKEN_DECIMALS || '18');
-const DEFAULT_TOKEN_AMOUNT = '40000'; // Default: 40,000 SEEN per claim
+const DEFAULT_TOKEN_AMOUNT = '60000'; // Default: 60,000 GS per claim
 const TREASURY_PRIVATE_KEY = process.env.TREASURY_PRIVATE_KEY;
 const CLAIM_AMOUNT_KEY = 'config:claim:amount';
 const CLAIMS_DISABLED_KEY = 'config:claims:disabled';

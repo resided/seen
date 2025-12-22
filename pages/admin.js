@@ -441,7 +441,7 @@ export default function Admin() {
   const fetchClaimStats = async () => {
     try {
       const response = await fetch('/api/admin/simple-stats', {
-        method: 'POST',
+        method: 'GET',
         credentials: 'include',
       });
       if (response.ok) {
