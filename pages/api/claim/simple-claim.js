@@ -138,6 +138,31 @@ export default async function handler(req, res) {
       });
     }
 
+    // SECURITY: Wallet-based rate limiting to prevent multi-FID abuse
+    // Check if this wallet has claimed recently (24 hour cooldown per wallet)
+    const walletClaimKey = `claim:wallet:${walletAddress.toLowerCase()}:${featured.id}`;
+    const walletLastClaim = await redis.get(walletClaimKey);
+
+    if (walletLastClaim) {
+      const lastClaimData = JSON.parse(walletLastClaim);
+      const hoursSinceLastClaim = (Date.now() - lastClaimData.timestamp) / (1000 * 60 * 60);
+
+      console.warn('[SIMPLE CLAIM] Wallet rate limit hit:', {
+        wallet: walletAddress,
+        fid: fidNum,
+        previousFid: lastClaimData.fid,
+        hoursSinceLastClaim: hoursSinceLastClaim.toFixed(2)
+      });
+
+      return res.status(429).json({
+        error: `Wallet already claimed recently. Each wallet can only claim once per featured period.`,
+        success: false,
+        wallet: walletAddress,
+        previousFid: lastClaimData.fid,
+        claimedAt: lastClaimData.timestamp
+      });
+    }
+
     // SECURITY: Neynar validation
     const apiKey = process.env.NEYNAR_API_KEY;
     if (apiKey) {
@@ -285,6 +310,20 @@ export default async function handler(req, res) {
       });
 
       console.log('[SIMPLE CLAIM] Transaction marked as used:', { txHash, fid: fidNum });
+
+      // SECURITY: Mark wallet as having claimed to prevent multi-FID abuse
+      // Store wallet claim with featured project ID to reset each rotation
+      const walletClaimData = {
+        fid: fidNum,
+        timestamp: Date.now(),
+        projectId: featured.id,
+        amount: TOKEN_AMOUNT,
+      };
+      await redis.set(walletClaimKey, JSON.stringify(walletClaimData), {
+        EX: 30 * 24 * 60 * 60 // 30 days (longer than featured period)
+      });
+
+      console.log('[SIMPLE CLAIM] Wallet marked as claimed:', { wallet: walletAddress, fid: fidNum });
 
       return res.status(200).json({
         success: true,
