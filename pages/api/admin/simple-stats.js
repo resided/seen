@@ -2,6 +2,8 @@
 import { getRedisClient } from '../../../lib/redis';
 import { getFeaturedProject } from '../../../lib/projects';
 
+const CLAIMS_DISABLED_KEY = 'config:claims:disabled';
+
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -13,12 +15,17 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Redis not available' });
     }
 
+    // Check if claims are disabled
+    const disabledValue = await redis.get(CLAIMS_DISABLED_KEY);
+    const disabled = disabledValue === 'true';
+
     const featuredProject = await getFeaturedProject();
     if (!featuredProject || !featuredProject.id) {
       return res.status(200).json({
         totalClaims: 0,
         uniqueWallets: 0,
         featuredProject: null,
+        disabled,
       });
     }
 
@@ -47,6 +54,7 @@ export default async function handler(req, res) {
         id: featuredProjectId,
         name: featuredProject.name || 'Unknown',
       },
+      disabled,
     });
 
   } catch (error) {

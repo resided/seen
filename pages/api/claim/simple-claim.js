@@ -18,6 +18,7 @@ const TOKEN_DECIMALS = parseInt(process.env.CLAIM_TOKEN_DECIMALS || '18');
 const DEFAULT_TOKEN_AMOUNT = '40000'; // Default: 40,000 SEEN per claim
 const TREASURY_PRIVATE_KEY = process.env.TREASURY_PRIVATE_KEY;
 const CLAIM_AMOUNT_KEY = 'config:claim:amount';
+const CLAIMS_DISABLED_KEY = 'config:claims:disabled';
 
 // Security configuration
 const MIN_NEYNAR_SCORE = 0.33; // Minimum Neynar user score
@@ -72,6 +73,16 @@ export default async function handler(req, res) {
   // ========== POST = CLAIM ==========
   if (req.method === 'POST') {
     const { fid, walletAddress, txHash } = req.body;
+
+    // Check if claims are globally disabled
+    const disabledValue = await redis.get(CLAIMS_DISABLED_KEY);
+    if (disabledValue === 'true') {
+      return res.status(403).json({
+        error: 'Claims are currently disabled. Please try again later.',
+        success: false,
+        disabled: true,
+      });
+    }
 
     // Validate inputs
     if (!fid) {

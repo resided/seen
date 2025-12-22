@@ -1,11 +1,13 @@
 // SIMPLE RESET - Clears all simple claims for the current featured project
 // No complex logic, just delete the keys
+// Also handles enabling/disabling claims globally
 
 import { getRedisClient } from '../../../lib/redis';
 import { getFeaturedProject } from '../../../lib/projects';
 import { isAuthenticated } from '../../../lib/admin-auth';
 
 const ADMIN_FID = 342433;
+const CLAIMS_DISABLED_KEY = 'config:claims:disabled';
 
 
 export default async function handler(req, res) {
@@ -20,6 +22,28 @@ export default async function handler(req, res) {
   const redis = await getRedisClient();
   if (!redis) {
     return res.status(500).json({ error: 'Redis unavailable' });
+  }
+
+  // Handle enable/disable toggle
+  const { disable } = req.body;
+  if (disable !== undefined && disable !== null) {
+    if (disable) {
+      await redis.set(CLAIMS_DISABLED_KEY, 'true');
+      console.log('[CLAIMS] Claims DISABLED by admin');
+      return res.status(200).json({
+        success: true,
+        message: 'Claims DISABLED',
+        disabled: true,
+      });
+    } else {
+      await redis.del(CLAIMS_DISABLED_KEY);
+      console.log('[CLAIMS] Claims ENABLED by admin');
+      return res.status(200).json({
+        success: true,
+        message: 'Claims ENABLED',
+        disabled: false,
+      });
+    }
   }
 
   const featured = await getFeaturedProject();
