@@ -5,7 +5,7 @@ import { createPublicClient, http } from 'viem';
 import { base } from 'viem/chains';
 
 // Security configuration
-const MIN_NEYNAR_SCORE = 0.33;
+const MIN_NEYNAR_SCORE = 0.62;
 const MIN_ACCOUNT_AGE_DAYS = 2;
 
 export default async function handler(req, res) {

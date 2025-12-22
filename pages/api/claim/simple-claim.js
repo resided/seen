@@ -21,7 +21,7 @@ const CLAIM_AMOUNT_KEY = 'config:claim:amount';
 const CLAIMS_DISABLED_KEY = 'config:claims:disabled';
 
 // Security configuration
-const MIN_NEYNAR_SCORE = 0.33; // Minimum Neynar user score
+const MIN_NEYNAR_SCORE = 0.62; // Minimum Neynar user score
 const MIN_ACCOUNT_AGE_DAYS = 2; // Minimum account age in days
 
 // Helper function to get current claim amount from Redis
