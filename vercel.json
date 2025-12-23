@@ -17,7 +17,7 @@
   "crons": [
     {
       "path": "/api/auto-feature-winner",
-      "schedule": "0 * * * *"
+      "schedule": "*/30 * * * *"
     },
     {
       "path": "/api/game/update-battle-scores",

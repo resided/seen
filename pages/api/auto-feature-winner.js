@@ -87,16 +87,50 @@ export default async function handler(req, res) {
 
     const winner = sortedByVotes[0];
 
-    // Check if winner has any votes
+    // If no one voted, randomly select from active projects instead of keeping expired project
     if (winner.votes === 0) {
-      return res.status(200).json({
-        message: 'No projects have votes - keeping current featured',
-        action: 'none',
-        expiredFeatured: {
+      console.log('[AUTO-FEATURE] No votes - selecting random project');
+      const randomIndex = Math.floor(Math.random() * activeProjects.length);
+      const randomWinner = activeProjects[randomIndex];
+
+      // Save current featured project's stats
+      await saveFeaturedHistory(currentFeatured, currentFeatured.stats);
+
+      // Feature random winner
+      const result = await setFeaturedProject(randomWinner.id);
+
+      if (!result) {
+        throw new Error('Failed to set featured project');
+      }
+
+      console.log('[AUTO-FEATURE] Random winner featured (no votes):', {
+        winner: {
+          id: randomWinner.id,
+          name: randomWinner.name,
+        },
+        previous: {
           id: currentFeatured.id,
           name: currentFeatured.name,
         },
-        note: 'Auto-feature requires at least 1 vote',
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Auto-featured random project (no votes)',
+        action: 'featured',
+        winner: {
+          id: randomWinner.id,
+          name: randomWinner.name,
+          votes: 0,
+          builder: randomWinner.builder,
+          category: randomWinner.category,
+        },
+        previous: {
+          id: currentFeatured.id,
+          name: currentFeatured.name,
+          timeElapsed: `${(timeElapsed / (60 * 60 * 1000)).toFixed(1)} hours`,
+        },
+        note: 'No votes - random selection',
       });
     }
 
