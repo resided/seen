@@ -1089,6 +1089,247 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
 };
 
 // ============================================
+// LIVE CHAT
+// ============================================
+const MIN_CHAT_NEYNAR_SCORE = 0.3; // Minimum Neynar score to use chat
+
+const LiveChat = ({ messages, onSend, isInFarcaster = false, neynarUserScore = null }) => {
+  const { isConnected, address } = useAccount();
+  const handleUsernameClick = async (msg) => {
+    if (!msg.fid || msg.fid === 0) return; // Can't open profile without FID
+
+    // Use username for URL if available, otherwise fallback to FID
+    const profileUrl = msg.username
+      ? `https://warpcast.com/${encodeURIComponent(msg.username.replace(/^@/, ''))}`
+      : msg.fid
+      ? `https://warpcast.com/~/profiles/${msg.fid}`
+      : '#';
+
+    try {
+      if (isInFarcaster && sdk.actions?.openUrl) {
+        // Open in Farcaster app context
+        await sdk.actions.openUrl({ url: profileUrl });
+      } else {
+        // Open in new tab for web browsers
+        window.open(profileUrl, '_blank', 'noopener,noreferrer');
+      }
+    } catch (error) {
+      console.error('Error opening profile:', error);
+      // Fallback: open in new tab
+      window.open(profileUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
+  const [input, setInput] = useState('');
+  const [error, setError] = useState('');
+  const chatRef = useRef(null);
+  const messagesEndRef = useRef(null);
+
+  // Auto-scroll chat container to bottom when new messages arrive (without scrolling whole page)
+  useEffect(() => {
+    if (chatRef.current) {
+      chatRef.current.scrollTop = chatRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  // Simple client-side validation (basic check, server does full validation)
+  const validateInput = (text) => {
+    // Check for URLs (basic pattern)
+    const urlPattern = /(https?:\/\/|www\.|[a-zA-Z0-9-]+\.[a-zA-Z]{2,})/gi;
+    if (urlPattern.test(text)) {
+      return 'Links are not allowed in chat';
+    }
+    return null;
+  };
+
+  const handleSend = async () => {
+    const trimmed = input.trim();
+    if (!trimmed) return;
+
+    // Clear any previous errors
+    setError('');
+
+    // Check Neynar score - block low score users from chat
+    if (neynarUserScore !== null && neynarUserScore < MIN_CHAT_NEYNAR_SCORE) {
+      setError(`NEYNAR SCORE TOO LOW (${neynarUserScore.toFixed(2)}). MIN: ${MIN_CHAT_NEYNAR_SCORE}`);
+      return;
+    }
+
+    // Basic client-side validation
+    const validationError = validateInput(trimmed);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    if (!isInFarcaster) {
+      setError('OPEN IN FARCASTER TO SEND ONCHAIN CHAT');
+      return;
+    }
+
+    if (!isConnected || !address) {
+      setError('CONNECT WALLET TO SEND ONCHAIN CHAT');
+      return;
+    }
+
+    // Call onSend which will handle API call and (optionally) onchain tx + server-side errors
+    try {
+      await onSend(trimmed.toUpperCase());
+      setInput('');
+      setError('');
+    } catch (err) {
+      // Show error message from API (e.g., blocked content)
+      setError(err.message || 'Failed to send message. Please try again.');
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const value = e.target.value.toUpperCase();
+    setInput(value);
+    // Clear error when user starts typing
+    if (error) {
+      setError('');
+    }
+  };
+
+  return (
+    <div className="border border-white flex flex-col h-[400px]">
+      {/* Header */}
+      <div className="border-b border-white p-3 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 bg-white animate-pulse" />
+          <span className="text-[10px] tracking-[0.3em]">LIVE CHAT</span>
+        </div>
+        <div className="text-right">
+          <span className="block text-[10px] tracking-[0.2em] text-gray-500">
+            {messages.length} MESSAGES
+          </span>
+          <span className="block text-[9px] tracking-[0.2em] text-gray-600">
+            FREE ONCHAIN MESSAGE (0 ETH) • TOP SUPPORTERS MAY RECEIVE TOKENS
+          </span>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div ref={chatRef} className="flex-1 overflow-y-auto p-3 space-y-3">
+        {messages.length === 0 ? (
+          <div className="text-center text-gray-500 text-sm py-8">
+            NO MESSAGES YET. BE THE FIRST TO SAY SOMETHING!
+          </div>
+        ) : (
+          <>
+            {messages.map(msg => {
+              const isDev = msg.fid === 342433;
+              return (
+                <div key={msg.id} className="group">
+                  <div className="flex items-baseline gap-2">
+                    {msg.fid && msg.fid > 0 ? (
+                      <button
+                        onClick={() => handleUsernameClick(msg)}
+                        className={`text-[10px] tracking-wider shrink-0 transition-all cursor-pointer ${
+                          isDev
+                            ? 'text-yellow-400 font-black hover:text-yellow-300'
+                            : 'text-gray-500 hover:text-white hover:underline'
+                        }`}
+                      >
+                        {isDev && <span className="text-yellow-500 mr-0.5">★</span>}
+                        {msg.user}
+                        {isDev && <span className="ml-1 text-[8px] bg-yellow-500 text-black px-1 py-0.5 font-black">DEV</span>}
+                        {!isDev && msg.verified && <span className="ml-1">✓</span>}
+                      </button>
+                    ) : (
+                      <span className="text-[10px] tracking-wider text-gray-500 shrink-0">
+                        {msg.user}
+                        {msg.verified && <span className="ml-1">✓</span>}
+                      </span>
+                    )}
+                    <span className="text-[10px] text-gray-600">{msg.time}</span>
+                  </div>
+                  <p className={`text-sm mt-0.5 leading-snug ${isDev ? 'text-yellow-100' : ''}`}>{msg.msg}</p>
+                </div>
+              );
+            })}
+            <div ref={messagesEndRef} />
+          </>
+        )}
+      </div>
+
+      {/* Input */}
+      <div className="border-t border-white p-2 shrink-0">
+        {error && (
+          <div className="mb-1 text-[9px] text-red-400 tracking-wider">
+            {error}
+          </div>
+        )}
+        <div className="flex items-center border border-white/50 bg-black">
+          <input
+            type="text"
+            value={input}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            placeholder={isInFarcaster ? "SAY SOMETHING..." : "READ-ONLY MODE"}
+            disabled={!isInFarcaster}
+            className={`flex-1 bg-transparent text-xs tracking-wider outline-none placeholder:text-gray-600 uppercase px-2 py-2 ${
+              !isInFarcaster ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+            maxLength={100}
+          />
+          <button
+            onClick={handleSend}
+            disabled={!isInFarcaster}
+            className={`text-[9px] tracking-[0.15em] px-3 py-2 font-bold transition-all shrink-0 ${
+              isInFarcaster
+                ? 'bg-white text-black hover:bg-gray-200'
+                : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+            }`}
+          >
+            SEND
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============================================
+// CHAT LEADERBOARD (Horizontal/Compact)
+// ============================================
+const ChatLeaderboard = ({ leaderboard = [] }) => {
+  if (leaderboard.length === 0) {
+    return null; // Don't show anything if no messages yet
+  }
+
+  return (
+    <div className="border border-white/50 p-2">
+      <div className="flex items-center gap-3 overflow-x-auto">
+        <span className="text-[9px] tracking-[0.2em] text-gray-500 shrink-0">🏆 TOP</span>
+        {leaderboard.slice(0, 5).map((entry, index) => (
+          <div
+            key={entry.fid}
+            className="flex items-center gap-1 shrink-0"
+          >
+            <span className={`text-[9px] font-bold ${index === 0 ? 'text-yellow-400' : index === 1 ? 'text-gray-300' : index === 2 ? 'text-amber-600' : 'text-gray-500'}`}>
+              {index + 1}.
+            </span>
+            <span className="text-[9px] tracking-wider truncate max-w-[60px]">
+              {entry.user}
+              {entry.verified && <span className="ml-0.5 text-gray-500">✓</span>}
+            </span>
+            <span className="text-[9px] text-gray-500 font-mono">({entry.messageCount})</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ============================================
 // SUBMIT CTA
 // ============================================
 const SubmitSection = ({ onSubmit, isInFarcaster = false, isMiniappInstalled = false }) => (
@@ -3025,7 +3266,11 @@ export default function Seen() {
   const [ethPrice, setEthPrice] = useState(null);
   const [ethPriceLoading, setEthPriceLoading] = useState(true);
   const [treasuryAddress, setTreasuryAddress] = useState(null);
-  
+  const [messages, setMessages] = useState([]);
+  const [chatLeaderboard, setChatLeaderboard] = useState([]);
+  const [lastMessageTimestamp, setLastMessageTimestamp] = useState(null);
+  const [chatLoading, setChatLoading] = useState(true);
+
   // Ensure page starts at top on initial load
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -3088,7 +3333,8 @@ export default function Seen() {
   // Wagmi wallet connection
   const { isConnected, address } = useAccount()
   const { connect, connectors } = useConnect()
-  
+  const { sendTransactionAsync: sendChatTransaction } = useSendTransaction();
+
   // Check if user has clicked miniapp (persist in localStorage with featured project validation)
   useEffect(() => {
     if (!featuredApp?.id) return;
@@ -3281,6 +3527,98 @@ export default function Seen() {
 
     fetchProjects();
   }, []);
+
+  // Fetch chat messages from API
+  useEffect(() => {
+    const fetchMessages = async () => {
+      try {
+        const response = await fetch('/api/chat');
+        if (response.ok) {
+          const data = await response.json();
+          setMessages(data.messages || []);
+          // Store timestamp of most recent message (last in array) for polling
+          if (data.messages && data.messages.length > 0) {
+            const lastMessage = data.messages[data.messages.length - 1];
+            setLastMessageTimestamp(lastMessage.timestamp || new Date().toISOString());
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching chat messages:', error);
+      } finally {
+        setChatLoading(false);
+      }
+    };
+
+    fetchMessages();
+  }, []);
+
+  // Fetch chat leaderboard
+  const fetchLeaderboard = async () => {
+    try {
+      const response = await fetch('/api/chat/leaderboard?limit=10');
+      if (response.ok) {
+        const data = await response.json();
+        setChatLeaderboard(data.leaderboard || []);
+      }
+    } catch (error) {
+      console.error('Error fetching chat leaderboard:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchLeaderboard();
+    // Refresh leaderboard every 30 seconds
+    const interval = setInterval(fetchLeaderboard, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Poll for new messages every 3 seconds (only when tab is visible)
+  useEffect(() => {
+    if (!lastMessageTimestamp) return;
+
+    const pollMessages = async () => {
+      try {
+        const response = await fetch(`/api/chat?since=${encodeURIComponent(lastMessageTimestamp)}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.messages && data.messages.length > 0) {
+            // Add new messages to the end of the array (newest at bottom)
+            setMessages(prev => {
+              const existingIds = new Set(prev.map(m => m.id));
+              const newMessages = data.messages.filter(m => !existingIds.has(m.id));
+              if (newMessages.length > 0) {
+                // Update timestamp to the newest message (last in array)
+                const newestMessage = newMessages[newMessages.length - 1];
+                setLastMessageTimestamp(newestMessage.timestamp || lastMessageTimestamp);
+                return [...prev, ...newMessages];
+              }
+              return prev;
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error polling for new messages:', error);
+      }
+    };
+
+    let pollInterval;
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        if (pollInterval) clearInterval(pollInterval);
+      } else {
+        pollMessages(); // Poll immediately when tab becomes visible
+        pollInterval = setInterval(pollMessages, 3000);
+      }
+    };
+
+    pollInterval = setInterval(pollMessages, 3000);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(pollInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [lastMessageTimestamp]);
   
   // Refresh cumulative volume every 5 minutes
   useEffect(() => {
@@ -3309,6 +3647,66 @@ export default function Seen() {
   const handleTip = () => {
     // Would trigger wallet transaction
     console.log('Tip builder');
+  };
+
+  // Handle sending a chat message (onchain + API)
+  const handleSendMessage = async (msg) => {
+    try {
+      const messageUser = userInfo?.displayName || userInfo?.username || (address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'ANON');
+      const messageUsername = userInfo?.username || null; // Store username separately for profile URLs
+      const messageFid = userInfo?.fid || 0;
+      const messageVerified = userInfo?.verified || false;
+
+      // Send onchain 0-ETH transaction for chat (to treasury)
+      if (!treasuryAddress) {
+        throw new Error('TREASURY ADDRESS NOT CONFIGURED FOR CHAT');
+      }
+
+      let chatTxHash = null;
+      try {
+        chatTxHash = await sendChatTransaction({
+          to: treasuryAddress,
+          value: parseEther('0'),
+          data: stringToHex('chat'),
+        });
+      } catch (txError) {
+        console.error('Error sending onchain chat tx:', txError);
+        throw new Error('ONCHAIN MESSAGE TRANSACTION FAILED');
+      }
+
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          msg,
+          user: messageUser,
+          username: messageUsername,
+          fid: messageFid,
+          verified: messageVerified,
+          txHash: chatTxHash,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Add the new message to the end of the array (newest at bottom)
+        setMessages(prev => [...prev, data.message]);
+        // Update last message timestamp for polling
+        if (data.message.timestamp) {
+          setLastMessageTimestamp(data.message.timestamp);
+        }
+        // Refresh leaderboard after sending a message
+        fetchLeaderboard();
+      } else {
+        // Handle API errors (like blocked content)
+        const errorData = await response.json().catch(() => ({ error: 'Failed to send message' }));
+        throw new Error(errorData.error || 'Failed to send message');
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      // Re-throw error so LiveChat component can display it
+      throw error;
+    }
   };
 
   const handleSubmitSuccess = () => {
@@ -3532,6 +3930,22 @@ export default function Seen() {
                   </div>
                 </div>
               )}
+
+              {/* Chat + Leaderboard */}
+              <div className="space-y-4 mt-4">
+                {/* Chat */}
+                <div className="space-y-2">
+                  {chatLoading ? (
+                    <div className="border border-white p-6 text-center">
+                      <div className="text-sm text-gray-500">LOADING CHAT...</div>
+                    </div>
+                  ) : (
+                    <LiveChat messages={messages} onSend={handleSendMessage} isInFarcaster={isInFarcaster} neynarUserScore={userInfo?.neynarUserScore} />
+                  )}
+                  <ChatLeaderboard leaderboard={chatLeaderboard} />
+                </div>
+              </div>
+
               <SubmitSection 
                 onSubmit={() => setShowSubmitForm(true)} 
                 isInFarcaster={isInFarcaster}
