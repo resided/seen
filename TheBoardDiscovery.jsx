@@ -3088,7 +3088,6 @@ export default function Seen() {
   // Wagmi wallet connection
   const { isConnected, address } = useAccount()
   const { connect, connectors } = useConnect()
-  const { sendTransactionAsync: sendChatTransaction } = useSendTransaction();
   
   // Check if user has clicked miniapp (persist in localStorage with featured project validation)
   useEffect(() => {
@@ -3235,32 +3234,13 @@ export default function Seen() {
     
     fetchUserInfo();
   }, [address]);
-  
 
-  // Fetch chat leaderboard
-  const fetchLeaderboard = async () => {
-    try {
-      const response = await fetch('/api/chat/leaderboard?limit=10');
-      if (response.ok) {
+  // Fetch projects from API
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const response = await fetch('/api/projects');
         const data = await response.json();
-        setChatLeaderboard(data.leaderboard || []);
-      }
-    } catch (error) {
-      console.error('Error fetching chat leaderboard:', error);
-    }
-  };
-
-  useEffect(() => {
-    fetchLeaderboard();
-    // Refresh leaderboard every 30 seconds
-    const interval = setInterval(fetchLeaderboard, 30000);
-    return () => clearInterval(interval);
-  }, []);
-  
-  // Poll for new messages every 3 seconds (only when tab is visible)
-  useEffect(() => {
-    if (!lastMessageTimestamp) return;
-    
         setFeaturedApp(data.featured);
         setQueue(data.queue);
         setTotalListings(data.totalListings || 0);
@@ -3298,7 +3278,7 @@ export default function Seen() {
         setLoading(false);
       }
     };
-    
+
     fetchProjects();
   }, []);
   
