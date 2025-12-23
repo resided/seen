@@ -56,6 +56,19 @@ export default async function handler(req, res) {
           return res.status(400).json({ error: 'Invalid FID' });
         }
 
+        // Check if FID is banned from chat
+        const { getRedisClient } = await import('../../lib/redis');
+        const redis = await getRedisClient();
+        if (redis) {
+          const isBanned = await redis.sIsMember('chat:banned:fids', fidNum.toString());
+          if (isBanned) {
+            console.log(`[CHAT] Blocked banned FID ${fidNum} from sending message`);
+            return res.status(403).json({
+              error: 'You have been banned from chat'
+            });
+          }
+        }
+
         // Check Neynar score - block low score users from chat
         const apiKey = process.env.NEYNAR_API_KEY;
         if (apiKey) {

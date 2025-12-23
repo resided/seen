@@ -75,6 +75,12 @@ export default function Admin() {
   const [deleteMessageId, setDeleteMessageId] = useState('');
   const [deletingMessage, setDeletingMessage] = useState(false);
   const [deleteResult, setDeleteResult] = useState(null);
+  const [banFidInput, setBanFidInput] = useState('');
+  const [banReason, setBanReason] = useState('');
+  const [banningFid, setBanningFid] = useState(false);
+  const [banResult, setBanResult] = useState(null);
+  const [bannedFids, setBannedFids] = useState([]);
+  const [loadingBannedFids, setLoadingBannedFids] = useState(false);
 
   // Check authentication
   useEffect(() => {
@@ -632,6 +638,80 @@ export default function Admin() {
     }
   };
 
+  const fetchBannedFids = async () => {
+    setLoadingBannedFids(true);
+    try {
+      const response = await fetch('/api/admin/ban-fid', {
+        method: 'GET',
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setBannedFids(data.bannedFids || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch banned FIDs:', error);
+    } finally {
+      setLoadingBannedFids(false);
+    }
+  };
+
+  const handleBanFid = async () => {
+    if (!banFidInput) return;
+
+    setBanningFid(true);
+    setBanResult(null);
+    try {
+      const response = await fetch('/api/admin/ban-fid', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          fid: banFidInput,
+          reason: banReason || 'No reason provided',
+        }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setBanResult({ success: true, message: 'FID banned from chat' });
+        setBanFidInput('');
+        setBanReason('');
+        // Refresh banned list
+        fetchBannedFids();
+      } else {
+        setBanResult({ success: false, error: data.error });
+      }
+    } catch (error) {
+      setBanResult({ success: false, error: 'Failed to ban FID' });
+    } finally {
+      setBanningFid(false);
+    }
+  };
+
+  const handleUnbanFid = async (fid) => {
+    try {
+      const response = await fetch('/api/admin/ban-fid', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ fid }),
+      });
+      if (response.ok) {
+        // Refresh banned list
+        fetchBannedFids();
+      }
+    } catch (error) {
+      console.error('Failed to unban FID:', error);
+    }
+  };
+
+  // Load banned FIDs when switching to tools section
+  useEffect(() => {
+    if (activeSection === 'tools' && isAuthenticated) {
+      fetchBannedFids();
+    }
+  }, [activeSection, isAuthenticated]);
+
   // ============================================
   // RENDER
   // ============================================
@@ -808,6 +888,16 @@ export default function Admin() {
             deleteResult={deleteResult}
             setDeleteMessageId={setDeleteMessageId}
             onDeleteMessage={handleDeleteMessage}
+            banFidInput={banFidInput}
+            banReason={banReason}
+            banningFid={banningFid}
+            banResult={banResult}
+            bannedFids={bannedFids}
+            loadingBannedFids={loadingBannedFids}
+            setBanFidInput={setBanFidInput}
+            setBanReason={setBanReason}
+            onBanFid={handleBanFid}
+            onUnbanFid={handleUnbanFid}
           />
         )}
       </div>
@@ -1327,36 +1417,115 @@ const ToolsSection = ({
   deletingMessage,
   deleteResult,
   setDeleteMessageId,
-  onDeleteMessage
+  onDeleteMessage,
+  banFidInput,
+  banReason,
+  banningFid,
+  banResult,
+  bannedFids,
+  loadingBannedFids,
+  setBanFidInput,
+  setBanReason,
+  onBanFid,
+  onUnbanFid
 }) => (
   <div className="space-y-6">
     {/* Chat Moderation */}
     <div className="border border-white p-6">
       <h2 className="text-2xl font-black mb-4">CHAT MODERATION</h2>
-      <p className="text-sm text-gray-500 mb-4">Delete chat messages by ID (visible next to each message in chat)</p>
 
-      <div className="flex gap-2 mb-4">
-        <input
-          type="text"
-          placeholder="Message ID (e.g., 1735123456789)"
-          value={deleteMessageId}
-          onChange={(e) => setDeleteMessageId(e.target.value)}
-          className="flex-1 p-3 bg-black border border-white text-white font-mono"
-        />
-        <button
-          onClick={onDeleteMessage}
-          disabled={deletingMessage || !deleteMessageId}
-          className="px-6 py-3 bg-red-600 text-white font-black hover:bg-red-500 disabled:opacity-50"
-        >
-          {deletingMessage ? 'DELETING...' : 'DELETE'}
-        </button>
+      {/* Delete Message */}
+      <div className="mb-6">
+        <h3 className="text-lg font-bold mb-2">DELETE MESSAGE</h3>
+        <p className="text-sm text-gray-500 mb-4">Delete chat messages by ID (visible next to each message in chat)</p>
+
+        <div className="flex gap-2 mb-4">
+          <input
+            type="text"
+            placeholder="Message ID (e.g., 1735123456789)"
+            value={deleteMessageId}
+            onChange={(e) => setDeleteMessageId(e.target.value)}
+            className="flex-1 p-3 bg-black border border-white text-white font-mono"
+          />
+          <button
+            onClick={onDeleteMessage}
+            disabled={deletingMessage || !deleteMessageId}
+            className="px-6 py-3 bg-red-600 text-white font-black hover:bg-red-500 disabled:opacity-50"
+          >
+            {deletingMessage ? 'DELETING...' : 'DELETE'}
+          </button>
+        </div>
+
+        {deleteResult && (
+          <div className={`border p-4 ${deleteResult.success ? 'border-green-500 text-green-400' : 'border-red-500 text-red-400'}`}>
+            {deleteResult.success ? deleteResult.message : deleteResult.error}
+          </div>
+        )}
       </div>
 
-      {deleteResult && (
-        <div className={`border p-4 ${deleteResult.success ? 'border-green-500 text-green-400' : 'border-red-500 text-red-400'}`}>
-          {deleteResult.success ? deleteResult.message : deleteResult.error}
+      {/* Ban FID */}
+      <div className="border-t border-white/30 pt-6">
+        <h3 className="text-lg font-bold mb-2">BAN FID FROM CHAT</h3>
+        <p className="text-sm text-gray-500 mb-4">Permanently ban a user from sending chat messages</p>
+
+        <div className="space-y-2 mb-4">
+          <input
+            type="text"
+            placeholder="FID (e.g., 12345)"
+            value={banFidInput}
+            onChange={(e) => setBanFidInput(e.target.value)}
+            className="w-full p-3 bg-black border border-white text-white font-mono"
+          />
+          <input
+            type="text"
+            placeholder="Reason (optional)"
+            value={banReason}
+            onChange={(e) => setBanReason(e.target.value)}
+            className="w-full p-3 bg-black border border-white text-white"
+          />
+          <button
+            onClick={onBanFid}
+            disabled={banningFid || !banFidInput}
+            className="w-full px-6 py-3 bg-orange-600 text-white font-black hover:bg-orange-500 disabled:opacity-50"
+          >
+            {banningFid ? 'BANNING...' : 'BAN FID'}
+          </button>
         </div>
-      )}
+
+        {banResult && (
+          <div className={`border p-4 mb-4 ${banResult.success ? 'border-green-500 text-green-400' : 'border-red-500 text-red-400'}`}>
+            {banResult.success ? banResult.message : banResult.error}
+          </div>
+        )}
+
+        {/* Banned FIDs List */}
+        <div className="border border-white/30 p-4">
+          <div className="text-sm font-bold mb-2">CURRENTLY BANNED ({bannedFids.length})</div>
+          {loadingBannedFids ? (
+            <div className="text-gray-500 text-sm">Loading...</div>
+          ) : bannedFids.length === 0 ? (
+            <div className="text-gray-500 text-sm">No banned FIDs</div>
+          ) : (
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {bannedFids.map((ban) => (
+                <div key={ban.fid} className="flex items-center justify-between border border-white/20 p-3">
+                  <div className="flex-1">
+                    <div className="text-white font-mono">FID: {ban.fid}</div>
+                    <div className="text-xs text-gray-500">{ban.reason}</div>
+                    <div className="text-xs text-gray-600">{new Date(ban.bannedAt).toLocaleString()}</div>
+                  </div>
+                  <button
+                    onClick={() => onUnbanFid(ban.fid)}
+                    className="px-4 py-2 bg-green-600 text-white text-xs font-black hover:bg-green-500"
+                  >
+                    UNBAN
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
 
     {/* Wallet Tracer */}
