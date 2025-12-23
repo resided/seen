@@ -1250,6 +1250,7 @@ const LiveChat = ({ messages, onSend, isInFarcaster = false, neynarUserScore = n
                       </span>
                     )}
                     <span className="text-[10px] text-gray-600">{msg.time}</span>
+                    <span className="text-[8px] text-gray-700 font-mono">#{msg.id}</span>
                   </div>
                   <p className={`text-sm mt-0.5 leading-snug ${isDev ? 'text-yellow-100' : ''}`}>{msg.msg}</p>
                 </div>
