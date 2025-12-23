@@ -61,6 +61,13 @@ export default async function handler(req, res) {
     const disabledValue = await redis.get(CLAIMS_DISABLED_KEY);
     const claimsDisabled = disabledValue === 'true';
 
+    // Check if FID is blocked from claims
+    const BLOCKED_FIDS_KEY = 'admin:blocked:fids';
+    const blockedFidsJson = await redis.get(BLOCKED_FIDS_KEY);
+    const blockedFids = blockedFidsJson ? JSON.parse(blockedFidsJson) : [];
+    const fidNum = parseInt(fid);
+    const isBlocked = blockedFids.includes(fidNum);
+
     const claimKey = getClaimKey(fid);
     const hasClaimed = await redis.get(claimKey);
 
@@ -85,13 +92,14 @@ export default async function handler(req, res) {
     }
 
     return res.status(200).json({
-      canClaim: !hasClaimed && !claimsDisabled && !neynarScoreTooLow,
+      canClaim: !hasClaimed && !claimsDisabled && !neynarScoreTooLow && !isBlocked,
       claimed: !!hasClaimed,
       claimedAt: hasClaimed || null,
       featuredProjectId: featured.id,
       featuredProjectName: featured.name,
       tokenAmount: TOKEN_AMOUNT,
       disabled: claimsDisabled,
+      blocked: isBlocked,
       neynarScore: neynarScore,
       neynarScoreTooLow: neynarScoreTooLow,
     });
@@ -120,6 +128,22 @@ export default async function handler(req, res) {
     }
     if (!txHash || !txHash.match(/^0x[a-fA-F0-9]{64}$/)) {
       return res.status(400).json({ error: 'Transaction hash required - sign transaction first', success: false });
+    }
+
+    const fidNum = parseInt(fid);
+
+    // Check if FID is blocked from claims
+    const BLOCKED_FIDS_KEY = 'admin:blocked:fids';
+    const blockedFidsJson = await redis.get(BLOCKED_FIDS_KEY);
+    const blockedFids = blockedFidsJson ? JSON.parse(blockedFidsJson) : [];
+
+    if (blockedFids.includes(fidNum)) {
+      console.log(`[CLAIM] Blocked FID ${fidNum} attempted to claim`);
+      return res.status(403).json({
+        error: 'You are not eligible to claim tokens',
+        success: false,
+        blocked: true,
+      });
     }
 
     // VERIFY TRANSACTION IS REAL
@@ -152,8 +176,6 @@ export default async function handler(req, res) {
         success: false
       });
     }
-
-    const fidNum = parseInt(fid);
 
     // SECURITY: Check if this transaction has already been used for a claim
     // This prevents replay attacks where someone reuses a valid tx hash
