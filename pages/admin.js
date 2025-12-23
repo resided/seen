@@ -71,6 +71,11 @@ export default function Admin() {
   const [traceResult, setTraceResult] = useState(null);
   const [tracingWallet, setTracingWallet] = useState(false);
 
+  // Chat moderation state
+  const [deleteMessageId, setDeleteMessageId] = useState('');
+  const [deletingMessage, setDeletingMessage] = useState(false);
+  const [deleteResult, setDeleteResult] = useState(null);
+
   // Check authentication
   useEffect(() => {
     const checkAuth = async () => {
@@ -601,6 +606,32 @@ export default function Admin() {
     }
   };
 
+  const handleDeleteMessage = async () => {
+    if (!deleteMessageId) return;
+
+    setDeletingMessage(true);
+    setDeleteResult(null);
+    try {
+      const response = await fetch('/api/admin/delete-message', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ messageId: deleteMessageId }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setDeleteResult({ success: true, message: 'Message deleted successfully' });
+        setDeleteMessageId('');
+      } else {
+        setDeleteResult({ success: false, error: data.error });
+      }
+    } catch (error) {
+      setDeleteResult({ success: false, error: 'Failed to delete message' });
+    } finally {
+      setDeletingMessage(false);
+    }
+  };
+
   // ============================================
   // RENDER
   // ============================================
@@ -772,6 +803,11 @@ export default function Admin() {
             tracingWallet={tracingWallet}
             setTraceWalletAddress={setTraceWalletAddress}
             onTraceWallet={handleTraceWallet}
+            deleteMessageId={deleteMessageId}
+            deletingMessage={deletingMessage}
+            deleteResult={deleteResult}
+            setDeleteMessageId={setDeleteMessageId}
+            onDeleteMessage={handleDeleteMessage}
           />
         )}
       </div>
@@ -1281,8 +1317,49 @@ const ClaimsSection = ({ claimsDisabled, claimStats, blockedFids, blockFidInput,
   </div>
 );
 
-const ToolsSection = ({ traceWalletAddress, traceResult, tracingWallet, setTraceWalletAddress, onTraceWallet }) => (
+const ToolsSection = ({
+  traceWalletAddress,
+  traceResult,
+  tracingWallet,
+  setTraceWalletAddress,
+  onTraceWallet,
+  deleteMessageId,
+  deletingMessage,
+  deleteResult,
+  setDeleteMessageId,
+  onDeleteMessage
+}) => (
   <div className="space-y-6">
+    {/* Chat Moderation */}
+    <div className="border border-white p-6">
+      <h2 className="text-2xl font-black mb-4">CHAT MODERATION</h2>
+      <p className="text-sm text-gray-500 mb-4">Delete chat messages by ID (visible next to each message in chat)</p>
+
+      <div className="flex gap-2 mb-4">
+        <input
+          type="text"
+          placeholder="Message ID (e.g., 1735123456789)"
+          value={deleteMessageId}
+          onChange={(e) => setDeleteMessageId(e.target.value)}
+          className="flex-1 p-3 bg-black border border-white text-white font-mono"
+        />
+        <button
+          onClick={onDeleteMessage}
+          disabled={deletingMessage || !deleteMessageId}
+          className="px-6 py-3 bg-red-600 text-white font-black hover:bg-red-500 disabled:opacity-50"
+        >
+          {deletingMessage ? 'DELETING...' : 'DELETE'}
+        </button>
+      </div>
+
+      {deleteResult && (
+        <div className={`border p-4 ${deleteResult.success ? 'border-green-500 text-green-400' : 'border-red-500 text-red-400'}`}>
+          {deleteResult.success ? deleteResult.message : deleteResult.error}
+        </div>
+      )}
+    </div>
+
+    {/* Wallet Tracer */}
     <div className="border border-white p-6">
       <h2 className="text-2xl font-black mb-4">WALLET TRACER</h2>
       <p className="text-sm text-gray-500 mb-4">Find FID(s) associated with a wallet address</p>
