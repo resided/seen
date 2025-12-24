@@ -294,7 +294,7 @@ export default function Admin() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ id: projectId, status: 'featured' }),
+        body: JSON.stringify({ projectId: projectId, status: 'featured' }),
       });
       if (response.ok) {
         setMessage('✅ Featured!');
@@ -303,6 +303,28 @@ export default function Admin() {
       }
     } catch (error) {
       setMessage('Error featuring project');
+    }
+  };
+
+  const handleReFeature = async (projectId) => {
+    if (!confirm('Re-feature this project? This will reset ALL claims and start fresh.')) {
+      return;
+    }
+    try {
+      setMessage('Re-featuring...');
+      const response = await fetch('/api/admin/update-project', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ projectId: projectId, status: 'featured' }),
+      });
+      if (response.ok) {
+        setMessage('✅ Re-Featured! All claims reset.');
+        fetchLiveProjects();
+        fetchCurrentFeatured();
+      }
+    } catch (error) {
+      setMessage('Error re-featuring project');
     }
   };
 
@@ -835,6 +857,7 @@ export default function Admin() {
             loading={loading}
             onApprove={handleApprove}
             onFeature={handleFeature}
+            onReFeature={handleReFeature}
             onEdit={handleStartEdit}
             editingProject={editingProject}
             editFormData={editFormData}
@@ -964,6 +987,7 @@ const ProjectSection = ({
   loading,
   onApprove,
   onFeature,
+  onReFeature,
   onEdit,
   editingProject,
   editFormData,
@@ -1199,7 +1223,14 @@ const ProjectSection = ({
                   >
                     EDIT
                   </button>
-                  {project.status !== 'featured' && (
+                  {project.status === 'featured' ? (
+                    <button
+                      onClick={() => onReFeature(project.id)}
+                      className="px-4 py-2 border border-green-500 text-green-500 font-black hover:bg-green-500 hover:text-black"
+                    >
+                      RE-FEATURE
+                    </button>
+                  ) : (
                     <button
                       onClick={() => onFeature(project.id)}
                       className="px-4 py-2 border border-yellow-500 text-yellow-500 font-black hover:bg-yellow-500 hover:text-black"
