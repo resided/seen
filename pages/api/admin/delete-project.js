@@ -47,22 +47,31 @@ export default async function handler(req, res) {
 
     // Delete associated stats (window counters)
     const statsPattern = `*:project:${projectIdNum}:*`;
-    let cursor = 0;
+    let cursor = '0'; // Start with string '0'
     const keysToDelete = [];
 
     do {
-      const [nextCursor, foundKeys] = await redis.scan(cursor, {
+      const result = await redis.scan(cursor, {
         MATCH: statsPattern,
         COUNT: 100,
       });
-      cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
+
+      // Handle both array [cursor, keys] and object {cursor, keys} responses
+      const nextCursor = Array.isArray(result) ? result[0] : result.cursor;
+      const foundKeys = Array.isArray(result) ? result[1] : result.keys;
+
+      cursor = typeof nextCursor === 'string' ? nextCursor : String(nextCursor);
+
       if (foundKeys && foundKeys.length > 0) {
         keysToDelete.push(...foundKeys);
       }
-    } while (cursor !== 0);
+    } while (cursor !== '0');
 
+    // Delete keys one by one to avoid type issues
     if (keysToDelete.length > 0) {
-      await redis.del(keysToDelete);
+      for (const key of keysToDelete) {
+        await redis.del(String(key));
+      }
     }
 
     console.log(`[ADMIN] Deleted project ${projectIdNum} (${projectData.name})`);
