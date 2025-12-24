@@ -193,7 +193,7 @@ export default function Admin() {
       });
       const data = await response.json();
       if (response.ok) {
-        setMessage(`✅ Battle created! ${data.battle.projectA.name} vs ${data.battle.projectB.name}`);
+        setMessage(`[✓] Battle created! ${data.battle.projectA.name} vs ${data.battle.projectB.name}`);
         fetchCurrentBattle();
       } else {
         setMessage(`Error: ${data.error}`);
@@ -216,7 +216,7 @@ export default function Admin() {
       const data = await response.json();
       if (response.ok) {
         if (data.action === 'resolved') {
-          setMessage(`✅ Battle resolved! Winner: Team ${data.result.winner}`);
+          setMessage(`[✓] Battle resolved! Winner: Team ${data.result.winner}`);
         } else {
           setMessage(`ℹ️ ${data.message}`);
         }
@@ -279,7 +279,7 @@ export default function Admin() {
       });
 
       if (response.ok) {
-        setMessage('✅ Approved!');
+        setMessage('[✓] Approved!');
         fetchSubmissions();
         fetchLiveProjects();
       } else {
@@ -303,7 +303,7 @@ export default function Admin() {
         body: JSON.stringify({ projectId: projectId, status: 'featured' }),
       });
       if (response.ok) {
-        setMessage('✅ Featured!');
+        setMessage('[✓] Featured!');
         fetchLiveProjects();
         fetchCurrentFeatured();
       }
@@ -325,7 +325,7 @@ export default function Admin() {
         body: JSON.stringify({ projectId: projectId, status: 'featured' }),
       });
       if (response.ok) {
-        setMessage('✅ Re-Featured! All claims reset.');
+        setMessage('[✓] Re-Featured! All claims reset.');
         fetchLiveProjects();
         fetchCurrentFeatured();
       }
@@ -376,9 +376,10 @@ export default function Admin() {
         body: JSON.stringify({
           projectId: editingProject,
           ...otherData,
-          twitter: links?.twitter,
+          miniapp: links?.miniapp,
           website: links?.website,
-          farcaster: links?.farcaster,
+          github: links?.github,
+          twitter: links?.twitter,
           stats: {
             views: views || 0,
             clicks: clicks || 0,
@@ -387,18 +388,19 @@ export default function Admin() {
       });
 
       if (response.ok) {
-        setMessage('✅ Project updated successfully!');
+        setMessage('[✓] Project updated successfully!');
         setEditingProject(null);
         setEditFormData({});
         fetchLiveProjects();
         fetchSubmissions();
       } else {
         const data = await response.json();
-        setMessage(`Error: ${data.error}`);
+        setMessage(`[X] Error: ${data.error}`);
+        console.error('[EDIT] Update failed:', data);
       }
     } catch (error) {
-      setMessage('Error saving project');
-      console.error('Error saving project:', error);
+      setMessage('[X] Error saving project');
+      console.error('[EDIT] Error:', error);
     }
   };
 
@@ -460,7 +462,7 @@ export default function Admin() {
       const data = await response.json();
       if (response.ok) {
         if (data.action === 'featured') {
-          setMessage(`✅ ${data.message} Winner: ${data.winner.name} (${data.winner.votes} votes)`);
+          setMessage(`[✓] ${data.message} Winner: ${data.winner.name} (${data.winner.votes} votes)`);
         } else {
           setMessage(`ℹ️ ${data.message}`);
         }
@@ -540,7 +542,7 @@ export default function Admin() {
       });
       if (response.ok) {
         setClaimsDisabled(newState);
-        setMessage(`✅ Claims ${newState ? 'DISABLED' : 'ENABLED'}`);
+        setMessage(`[✓] Claims ${newState ? 'DISABLED' : 'ENABLED'}`);
         fetchClaimStats();
       }
     } catch (error) {
@@ -558,7 +560,7 @@ export default function Admin() {
         body: JSON.stringify({ action: 'block', fid: parseInt(blockFidInput) }),
       });
       if (response.ok) {
-        setMessage('✅ FID blocked');
+        setMessage('[✓] FID blocked');
         setBlockFidInput('');
         fetchBlockedFids();
       }
@@ -576,7 +578,7 @@ export default function Admin() {
         body: JSON.stringify({ action: 'unblock', fid }),
       });
       if (response.ok) {
-        setMessage('✅ FID unblocked');
+        setMessage('[✓] FID unblocked');
         fetchBlockedFids();
       }
     } catch (error) {
@@ -600,7 +602,7 @@ export default function Admin() {
       });
 
       if (response.ok) {
-        setMessage('✅ Claim amount updated successfully!');
+        setMessage('[✓] Claim amount updated successfully!');
         fetchClaimAmount();
       } else {
         const data = await response.json();
@@ -1142,24 +1144,31 @@ const ProjectSection = ({
                   <div className="space-y-2">
                     <input
                       type="text"
-                      placeholder="Twitter URL"
-                      value={editFormData.links?.twitter || ''}
-                      onChange={(e) => onEditLinksChange('twitter', e.target.value)}
-                      className="w-full bg-black border border-white/30 px-3 py-2 text-white"
+                      placeholder="Mini App URL"
+                      value={editFormData.links?.miniapp || ''}
+                      onChange={(e) => onEditLinksChange('miniapp', e.target.value)}
+                      className="w-full bg-black border border-white/30 px-3 py-2 text-white text-sm"
                     />
                     <input
                       type="text"
                       placeholder="Website URL"
                       value={editFormData.links?.website || ''}
                       onChange={(e) => onEditLinksChange('website', e.target.value)}
-                      className="w-full bg-black border border-white/30 px-3 py-2 text-white"
+                      className="w-full bg-black border border-white/30 px-3 py-2 text-white text-sm"
                     />
                     <input
                       type="text"
-                      placeholder="Farcaster URL"
-                      value={editFormData.links?.farcaster || ''}
-                      onChange={(e) => onEditLinksChange('farcaster', e.target.value)}
-                      className="w-full bg-black border border-white/30 px-3 py-2 text-white"
+                      placeholder="GitHub URL"
+                      value={editFormData.links?.github || ''}
+                      onChange={(e) => onEditLinksChange('github', e.target.value)}
+                      className="w-full bg-black border border-white/30 px-3 py-2 text-white text-sm"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Twitter URL"
+                      value={editFormData.links?.twitter || ''}
+                      onChange={(e) => onEditLinksChange('twitter', e.target.value)}
+                      className="w-full bg-black border border-white/30 px-3 py-2 text-white text-sm"
                     />
                   </div>
                 </div>
