@@ -99,16 +99,21 @@ const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDispl
           const data = await response.json();
 
           if (response.ok) {
-            setMessage(`SUBMITTED! PAYMENT RECEIVED. YOUR FEATURED SUBMISSION IS PENDING ADMIN APPROVAL. TX: ${txHash.slice(0, 10)}...`);
+            setMessage(`✅ SUBMITTED! PAYMENT RECEIVED. YOUR FEATURED SUBMISSION IS PENDING ADMIN APPROVAL. TX: ${txHash.slice(0, 10)}...`);
+            console.log('[SUBMIT] Featured submission successful');
             setTimeout(() => {
               onSubmit?.();
               onClose();
-            }, 4000);
+            }, 5000);
           } else {
-            setMessage(data.error || 'SUBMISSION FAILED');
+            const errorMsg = data.error || 'SUBMISSION FAILED - PLEASE TRY AGAIN';
+            setMessage(`❌ ${errorMsg}`);
+            console.error('[SUBMIT] Featured submission failed:', data);
           }
         } catch (error) {
-          setMessage('ERROR SUBMITTING PROJECT');
+          const errorMsg = error.message || 'ERROR SUBMITTING PROJECT - PLEASE TRY AGAIN';
+          setMessage(`❌ ${errorMsg}`);
+          console.error('[SUBMIT] Featured submission error:', error);
         } finally {
           setSubmitting(false);
           setProcessingPayment(false);
@@ -292,16 +297,21 @@ const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDispl
         const data = await response.json();
 
         if (response.ok) {
-          setMessage('SUBMITTED! YOUR PROJECT IS PENDING ADMIN APPROVAL AND WILL BE ADDED TO THE QUEUE IF APPROVED.');
+          setMessage('✅ SUBMITTED! YOUR PROJECT IS PENDING ADMIN APPROVAL AND WILL BE ADDED TO THE QUEUE IF APPROVED.');
+          console.log('[SUBMIT] Queue submission successful');
           setTimeout(() => {
             onSubmit?.();
             onClose();
-          }, 4000);
+          }, 5000); // Give user more time to read the message
         } else {
-          setMessage(data.error || 'SUBMISSION FAILED');
+          const errorMsg = data.error || 'SUBMISSION FAILED - PLEASE TRY AGAIN';
+          setMessage(`❌ ${errorMsg}`);
+          console.error('[SUBMIT] Submission failed:', data);
         }
       } catch (error) {
-        setMessage('ERROR SUBMITTING PROJECT');
+        const errorMsg = error.message || 'ERROR SUBMITTING PROJECT - PLEASE TRY AGAIN';
+        setMessage(`❌ ${errorMsg}`);
+        console.error('[SUBMIT] Submission error:', error);
       } finally {
         setSubmitting(false);
         setProcessingPayment(false);
@@ -335,8 +345,11 @@ const SubmitForm = ({ onClose, onSubmit, userFid, userUsername = null, userDispl
           )}
 
           {message && (
-            <div className={`p-4 border border-white ${message.includes('SUBMITTED') ? 'bg-white text-black' : 'bg-red-900 text-white'}`}>
-              {message}
+            <div className={`p-4 border-2 ${message.includes('✅') ? 'border-green-500 bg-green-500/20 text-green-400' : 'border-red-500 bg-red-500/20 text-red-400'} font-bold text-sm animate-pulse`}>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">{message.includes('✅') ? '✅' : '❌'}</span>
+                <span>{message}</span>
+              </div>
             </div>
           )}
 
