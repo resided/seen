@@ -421,6 +421,42 @@ export default function Admin() {
     }));
   };
 
+  const handleDeleteProject = async (projectId, projectName) => {
+    if (!confirm(`[!] DELETE PROJECT?\n\nProject: ${projectName}\n\nThis will permanently delete the project and all associated data.\n\nType "DELETE" to confirm.`)) {
+      return;
+    }
+
+    const confirmation = prompt(`Type "DELETE" to confirm deletion of ${projectName}:`);
+    if (confirmation !== 'DELETE') {
+      setMessage('[X] Deletion cancelled - confirmation did not match');
+      return;
+    }
+
+    try {
+      setMessage('Deleting project...');
+      const response = await fetch('/api/admin/delete-project', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ projectId }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setMessage(`[✓] Deleted ${projectName} (${data.deletedKeys} associated keys removed)`);
+        fetchLiveProjects();
+        fetchSubmissions();
+      } else {
+        const data = await response.json();
+        setMessage(`[X] Error: ${data.error}`);
+        console.error('[DELETE] Failed:', data);
+      }
+    } catch (error) {
+      setMessage('[X] Error deleting project');
+      console.error('[DELETE] Error:', error);
+    }
+  };
+
   // ============================================
   // AUTOMATION
   // ============================================
@@ -867,6 +903,7 @@ export default function Admin() {
             onFeature={handleFeature}
             onReFeature={handleReFeature}
             onEdit={handleStartEdit}
+            onDelete={handleDeleteProject}
             editingProject={editingProject}
             editFormData={editFormData}
             onEditFormChange={handleEditFormChange}
@@ -997,6 +1034,7 @@ const ProjectSection = ({
   onFeature,
   onReFeature,
   onEdit,
+  onDelete,
   editingProject,
   editFormData,
   onEditFormChange,
@@ -1253,6 +1291,12 @@ const ProjectSection = ({
                       FEATURE
                     </button>
                   )}
+                  <button
+                    onClick={() => onDelete(project.id, project.name)}
+                    className="px-4 py-2 border border-red-500 text-red-500 font-black hover:bg-red-500 hover:text-black"
+                  >
+                    DELETE
+                  </button>
                 </div>
               </div>
             )}
