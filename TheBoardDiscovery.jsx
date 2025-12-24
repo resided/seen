@@ -2358,33 +2358,6 @@ const SwapButton = ({ isInFarcaster = false }) => {
 };
 
 // ============================================
-// TOKEN BENEFITS (Holder perks + Coming Soon)
-// ============================================
-const TokenBenefits = () => {
-  const [isOpen, setIsOpen] = useState(false);
-
-  return (
-    <div className="border border-white">
-      <button
-        onClick={(e) => {
-          e.preventDefault();
-          return; // Not clickable
-        }}
-        className="w-full p-4 flex items-center justify-between bg-gray-800 text-gray-500 cursor-not-allowed transition-colors"
-        disabled={true}
-      >
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-black tracking-[0.2em]">$GS TOKEN BENEFITS</span>
-          <span className="text-[8px] px-1.5 py-0.5 bg-gray-700 text-gray-400 rounded">
-            SOON
-          </span>
-        </div>
-      </button>
-    </div>
-  );
-};
-
-// ============================================
 // DAILY CLAIM
 // ============================================
 const DailyClaim = ({ isInFarcaster = false, userFid = null, isConnected = false, featuredApp = null, hasClickedMiniapp = false, neynarUserScore = null }) => {
@@ -3964,12 +3937,11 @@ export default function Seen() {
               )}
             </div>
 
-            {/* Feedback Box - centered below tabs */}
+            {/* Swap to $GS - moved below claim */}
             {category === 'main' && (
-              <FeedbackBox
-                userFid={userInfo?.fid || null}
-                isInFarcaster={isInFarcaster}
-              />
+              <div className="mt-4">
+                <SwapButton isInFarcaster={isInFarcaster} isConnected={isConnected} />
+              </div>
             )}
 
             {/* Chat + Leaderboard + More */}
@@ -3978,12 +3950,12 @@ export default function Seen() {
               <div className="space-y-2">
               </div>
 
-              {/* Token Benefits Section */}
-              <TokenBenefits />
-              
-              {/* Swap to $GS */}
-              <SwapButton isInFarcaster={isInFarcaster} isConnected={isConnected} />
-              
+              {/* Feedback Box - moved above FAQ */}
+              <FeedbackBox
+                userFid={userInfo?.fid || null}
+                isInFarcaster={isInFarcaster}
+              />
+
               {/* FAQ Link */}
               <div className="border border-white">
                 <a
