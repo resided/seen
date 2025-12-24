@@ -20,8 +20,9 @@ export default async function handler(req, res) {
 
     let totalViews = 0;
     let totalClicks = 0;
+    let totalVotes = 0;
 
-    // Sum up views and clicks from all projects
+    // Sum up views, clicks, and votes from all projects
     // For featured projects: use current window stats (Redis)
     // For non-featured projects: use persistent stats
     for (const project of allProjects) {
@@ -45,15 +46,17 @@ export default async function handler(req, res) {
 
       totalViews += projectViews;
       totalClicks += projectClicks;
+      totalVotes += project.votes || 0;
     }
 
-    console.log('[TOTAL-STATS] Final totals - views:', totalViews, 'clicks:', totalClicks, 'interactions:', totalViews + totalClicks);
+    console.log('[TOTAL-STATS] Final totals - views:', totalViews, 'clicks:', totalClicks, 'votes:', totalVotes, 'interactions:', totalViews + totalClicks);
 
     return res.status(200).json({
       success: true,
       stats: {
         totalViews,
         totalClicks,
+        totalVotes,
         totalListings: allProjects.length,
         totalUsers: 0, // Can add if needed
       },

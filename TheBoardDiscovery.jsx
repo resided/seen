@@ -1581,8 +1581,9 @@ const ProjectCard = ({ project, rankChange, ethPrice, isInFarcaster = false, isC
 
             {/* Community Votes */}
             {(project.votes || 0) > 0 && (
-              <div className="text-xs text-yellow-400 mb-2 flex items-center gap-2">
-                <span>🗳️ {(project.votes || 0).toLocaleString()} VOTES</span>
+              <div className="flex items-center gap-1 mb-2">
+                <span className="text-[10px] text-gray-500">VOTES:</span>
+                <span className="text-sm font-black text-white">{(project.votes || 0).toLocaleString()}</span>
               </div>
             )}
 

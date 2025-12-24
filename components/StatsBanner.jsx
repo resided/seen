@@ -20,6 +20,7 @@ export default function StatsBanner() {
     totalViews: 0,
     totalListings: 0,
     totalUsers: 0,
+    totalVotes: 0,
   });
   const [sloganIndex, setSloganIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -83,6 +84,15 @@ export default function StatsBanner() {
                 <span className="text-[10px] text-gray-500">INTERACTIONS:</span>
                 <span className="text-sm font-black">{formatNumber(stats.totalViews + stats.totalClicks)}</span>
               </div>
+              {stats.totalVotes > 0 && (
+                <>
+                  <div className="w-px h-4 bg-white"></div>
+                  <div className="flex items-center gap-1 whitespace-nowrap">
+                    <span className="text-[10px] text-gray-500">VOTES:</span>
+                    <span className="text-sm font-black">{formatNumber(stats.totalVotes)}</span>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
