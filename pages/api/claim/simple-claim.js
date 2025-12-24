@@ -46,8 +46,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'No featured project', canClaim: false });
   }
 
-  // Simple key: just FID + featured project ID
-  const getClaimKey = (fid) => `simple:claim:${featured.id}:${fid}`;
+  // Simple key: FID + rotation ID (changes when project is re-featured)
+  const getClaimKey = (fid) => `simple:claim:${featured.rotationId}:${fid}`;
 
   // ========== GET = CHECK STATUS ==========
   if (req.method === 'GET') {
