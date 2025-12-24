@@ -89,27 +89,34 @@ export default async function handler(req, res) {
       if (apiKey) {
         try {
           const user = await fetchUserByFid(submitterFid, apiKey);
-          if (user) {
-            const userScore = user.experimental?.neynar_user_score;
-            
-            // If score exists and is below threshold, reject submission
-            if (userScore !== null && userScore !== undefined) {
-              if (userScore < MIN_NEYNAR_SCORE) {
-                return res.status(403).json({ 
-                  error: `Your Neynar user score (${userScore.toFixed(2)}) is below the required threshold of ${MIN_NEYNAR_SCORE}. Only users with a score of ${MIN_NEYNAR_SCORE} or higher can submit projects.`,
-                  userScore: userScore,
-                  minScore: MIN_NEYNAR_SCORE
-                });
-              }
-            } else {
-              // If score is not available, allow submission but log it
-              console.warn(`User ${submitterFid} has no Neynar score available`);
-            }
+          if (!user) {
+            return res.status(403).json({
+              error: 'Unable to verify your Farcaster account. Please try again.',
+            });
+          }
+
+          const userScore = user.experimental?.neynar_user_score;
+
+          // SECURITY: Reject if score is unavailable
+          if (userScore === null || userScore === undefined) {
+            return res.status(403).json({
+              error: 'Neynar score unavailable. Please try again later.',
+            });
+          }
+
+          // SECURITY: Reject if score is below minimum
+          if (userScore < MIN_NEYNAR_SCORE) {
+            return res.status(403).json({
+              error: `Your Neynar user score (${userScore.toFixed(2)}) is below the required threshold of ${MIN_NEYNAR_SCORE}. Only users with a score of ${MIN_NEYNAR_SCORE} or higher can submit projects.`,
+              userScore: userScore,
+              minScore: MIN_NEYNAR_SCORE
+            });
           }
         } catch (error) {
-          console.error('Error checking Neynar user score:', error);
-          // If we can't check the score, we'll allow submission but log the error
-          // You might want to change this to reject if score checking is critical
+          console.error('[SUBMIT] Neynar validation failed:', error);
+          return res.status(403).json({
+            error: 'Unable to verify your account. Please try again.',
+          });
         }
       }
     }
