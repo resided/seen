@@ -86,38 +86,45 @@ export default async function handler(req, res) {
     // Check Neynar user score if submitterFid is provided
     if (submitterFid) {
       const apiKey = process.env.NEYNAR_API_KEY;
-      if (apiKey) {
-        try {
-          const user = await fetchUserByFid(submitterFid, apiKey);
-          if (!user) {
-            return res.status(403).json({
-              error: 'Unable to verify your Farcaster account. Please try again.',
-            });
-          }
 
-          const userScore = user.experimental?.neynar_user_score;
+      // SECURITY FIX: Always require API key - never skip validation
+      if (!apiKey) {
+        console.error('[SUBMIT] SECURITY: NEYNAR_API_KEY not configured - rejecting submission');
+        return res.status(500).json({
+          error: 'Score verification service unavailable. Please contact support.',
+        });
+      }
 
-          // SECURITY: Reject if score is unavailable
-          if (userScore === null || userScore === undefined) {
-            return res.status(403).json({
-              error: 'Neynar score unavailable. Please try again later.',
-            });
-          }
-
-          // SECURITY: Reject if score is below minimum
-          if (userScore < MIN_NEYNAR_SCORE) {
-            return res.status(403).json({
-              error: `Your Neynar user score (${userScore.toFixed(2)}) is below the required threshold of ${MIN_NEYNAR_SCORE}. Only users with a score of ${MIN_NEYNAR_SCORE} or higher can submit projects.`,
-              userScore: userScore,
-              minScore: MIN_NEYNAR_SCORE
-            });
-          }
-        } catch (error) {
-          console.error('[SUBMIT] Neynar validation failed:', error);
+      try {
+        const user = await fetchUserByFid(submitterFid, apiKey);
+        if (!user) {
           return res.status(403).json({
-            error: 'Unable to verify your account. Please try again.',
+            error: 'Unable to verify your Farcaster account. Please try again.',
           });
         }
+
+        const userScore = user.experimental?.neynar_user_score;
+
+        // SECURITY: Reject if score is unavailable
+        if (userScore === null || userScore === undefined) {
+          return res.status(403).json({
+            error: 'Neynar score unavailable. Please try again later.',
+          });
+        }
+
+        // SECURITY: Reject if score is below minimum
+        if (userScore < MIN_NEYNAR_SCORE) {
+          return res.status(403).json({
+            error: `Your Neynar user score (${userScore.toFixed(2)}) is below the required threshold of ${MIN_NEYNAR_SCORE}. Only users with a score of ${MIN_NEYNAR_SCORE} or higher can submit projects.`,
+            userScore: userScore,
+            minScore: MIN_NEYNAR_SCORE
+          });
+        }
+      } catch (error) {
+        console.error('[SUBMIT] Neynar validation failed:', error);
+        return res.status(403).json({
+          error: 'Unable to verify your account. Please try again.',
+        });
       }
     }
 

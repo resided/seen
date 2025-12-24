@@ -4,7 +4,7 @@
 
 import { getRedisClient } from '../../lib/redis';
 import { getProjectById, incrementProjectVotes } from '../../lib/projects';
-import { fetchUserByFid } from '../../lib/neynar';
+import { fetchUserByFid, verifyWalletOwnership } from '../../lib/neynar';
 import { createPublicClient, http } from 'viem';
 import { base } from 'viem/chains';
 
@@ -148,36 +148,55 @@ export default async function handler(req, res) {
 
   // SECURITY: Neynar validation
   const apiKey = process.env.NEYNAR_API_KEY;
-  if (apiKey) {
-    try {
-      const user = await fetchUserByFid(fidNum, apiKey);
-      if (!user) {
-        return res.status(403).json({
-          error: 'Unable to verify your Farcaster account',
-        });
-      }
 
-      // Check Neynar score
-      const userScore = user.experimental?.neynar_user_score;
-      if (userScore === null || userScore === undefined) {
-        return res.status(403).json({
-          error: 'Neynar score unavailable. Please try again later.',
-        });
-      }
+  // SECURITY FIX: Always require API key - never skip validation
+  if (!apiKey) {
+    console.error('[VOTE] SECURITY: NEYNAR_API_KEY not configured - rejecting vote');
+    return res.status(500).json({
+      error: 'Score verification service unavailable. Please contact support.',
+    });
+  }
 
-      if (userScore < MIN_NEYNAR_SCORE) {
-        return res.status(403).json({
-          error: `Neynar score too low (${userScore.toFixed(2)}). Minimum: ${MIN_NEYNAR_SCORE}`,
-          userScore,
-          minScore: MIN_NEYNAR_SCORE,
-        });
-      }
-    } catch (error) {
-      console.error('[VOTE] Neynar validation failed:', error);
+  try {
+    const user = await fetchUserByFid(fidNum, apiKey);
+    if (!user) {
       return res.status(403).json({
-        error: 'Unable to verify your account. Please try again.',
+        error: 'Unable to verify your Farcaster account',
       });
     }
+
+    // Check Neynar score
+    const userScore = user.experimental?.neynar_user_score;
+    if (userScore === null || userScore === undefined) {
+      return res.status(403).json({
+        error: 'Neynar score unavailable. Please try again later.',
+      });
+    }
+
+    if (userScore < MIN_NEYNAR_SCORE) {
+      return res.status(403).json({
+        error: `Neynar score too low (${userScore.toFixed(2)}). Minimum: ${MIN_NEYNAR_SCORE}`,
+        userScore,
+        minScore: MIN_NEYNAR_SCORE,
+      });
+    }
+  } catch (error) {
+    console.error('[VOTE] Neynar validation failed:', error);
+    return res.status(403).json({
+      error: 'Unable to verify your account. Please try again.',
+    });
+  }
+
+  // SECURITY FIX: Verify wallet ownership - prevent FID spoofing
+  const isWalletVerified = await verifyWalletOwnership(fidNum, walletAddress, apiKey);
+  if (!isWalletVerified) {
+    console.warn('[VOTE] FID spoofing attempt detected:', {
+      claimedFid: fidNum,
+      walletAddress,
+    });
+    return res.status(403).json({
+      error: 'Wallet address not verified for this Farcaster account. Connect your wallet to your Farcaster profile first.',
+    });
   }
 
   // Verify project exists
