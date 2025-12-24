@@ -441,19 +441,20 @@ export default function Admin() {
         body: JSON.stringify({ projectId }),
       });
 
+      const data = await response.json();
+      console.log('[DELETE] Response:', { status: response.status, ok: response.ok, data });
+
       if (response.ok) {
-        const data = await response.json();
-        setMessage(`[✓] Deleted ${projectName} (${data.deletedKeys} associated keys removed)`);
+        setMessage(`[✓] Deleted ${projectName} - ${data.deletedKeys || 0} keys removed`);
         fetchLiveProjects();
         fetchSubmissions();
       } else {
-        const data = await response.json();
-        setMessage(`[X] Error: ${data.error}`);
+        setMessage(`[X] Delete failed: ${data.error || 'Unknown error'}`);
         console.error('[DELETE] Failed:', data);
       }
     } catch (error) {
-      setMessage('[X] Error deleting project');
-      console.error('[DELETE] Error:', error);
+      setMessage(`[X] Delete error: ${error.message}`);
+      console.error('[DELETE] Exception:', error);
     }
   };
 
