@@ -16,6 +16,7 @@ export default async function handler(req, res) {
 
     // Get current rotation ID for featured projects
     const currentRotationId = redis ? await getRotationId() : null;
+    console.log('[TOTAL-STATS] Current rotation ID:', currentRotationId);
 
     let totalViews = 0;
     let totalClicks = 0;
@@ -32,15 +33,21 @@ export default async function handler(req, res) {
         const windowStats = await getProjectStatsToday(project.id, currentRotationId);
         projectViews = windowStats.views || 0;
         projectClicks = windowStats.clicks || 0;
+        console.log(`[TOTAL-STATS] Featured project ${project.id} (${project.name}): window stats - views: ${projectViews}, clicks: ${projectClicks}`);
       } else {
         // Non-featured: use persistent stats
         projectViews = project.stats?.views || 0;
         projectClicks = project.stats?.clicks || 0;
+        if (projectViews > 0 || projectClicks > 0) {
+          console.log(`[TOTAL-STATS] Non-featured project ${project.id} (${project.name}): persistent stats - views: ${projectViews}, clicks: ${projectClicks}`);
+        }
       }
 
       totalViews += projectViews;
       totalClicks += projectClicks;
     }
+
+    console.log('[TOTAL-STATS] Final totals - views:', totalViews, 'clicks:', totalClicks, 'interactions:', totalViews + totalClicks);
 
     return res.status(200).json({
       success: true,

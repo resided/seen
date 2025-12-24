@@ -275,15 +275,21 @@ export default function Admin() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ id: submissionId }),
+        body: JSON.stringify({ projectId: submissionId, action: 'approve' }),
       });
+
       if (response.ok) {
         setMessage('✅ Approved!');
         fetchSubmissions();
         fetchLiveProjects();
+      } else {
+        const data = await response.json();
+        setMessage(`❌ Error: ${data.error || 'Failed to approve'}`);
+        console.error('[APPROVE] Failed:', data);
       }
     } catch (error) {
-      setMessage('Error approving');
+      setMessage('❌ Error approving');
+      console.error('[APPROVE] Error:', error);
     }
   };
 
