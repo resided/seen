@@ -12,7 +12,10 @@ export default async function handler(req, res) {
   try {
     const redis = await getRedisClient();
     const allProjects = await getAllProjects();
-    const { getProjectStatsToday } = await import('../../lib/projects');
+    const { getProjectStatsToday, getRotationId } = await import('../../lib/projects');
+
+    // Get current rotation ID for featured projects
+    const currentRotationId = redis ? await getRotationId() : null;
 
     let totalViews = 0;
     let totalClicks = 0;
@@ -24,9 +27,9 @@ export default async function handler(req, res) {
       let projectViews = 0;
       let projectClicks = 0;
 
-      if (project.status === 'featured' && project.rotationId && redis) {
-        // Featured project: get current window stats
-        const windowStats = await getProjectStatsToday(project.id, project.rotationId);
+      if (project.status === 'featured' && currentRotationId && redis) {
+        // Featured project: get current window stats using rotation ID
+        const windowStats = await getProjectStatsToday(project.id, currentRotationId);
         projectViews = windowStats.views || 0;
         projectClicks = windowStats.clicks || 0;
       } else {
