@@ -3,18 +3,18 @@
 
 import { getCurrentBattle, updateBattleScores } from '../../../lib/battles';
 import { calculateBattleScores } from '../../../lib/battle-analytics';
+import { verifyCronRequest } from '../../../lib/cron-auth';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Allow cron to trigger this
-  // Vercel crons send x-vercel-cron header
-  const isCron = req.headers['x-vercel-cron'] === '1';
+  // SECURITY: Verify request is from verified cron (not just header check)
+  const isCron = verifyCronRequest(req);
 
   if (!isCron) {
-    return res.status(403).json({ error: 'Unauthorized - cron only' });
+    return res.status(403).json({ error: 'Unauthorized - Verified cron only' });
   }
 
   try {

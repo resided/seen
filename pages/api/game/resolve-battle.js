@@ -1,19 +1,18 @@
 // Resolve a battle and calculate winnings
 import { resolveBattle, getCurrentBattle, isBattleEnded } from '../../../lib/battles';
 import { isAuthenticated } from '../../../lib/admin-auth';
+import { verifyCronOrAdmin } from '../../../lib/cron-auth';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Allow cron or admin to trigger this
-  // Vercel crons send x-vercel-cron header
-  const isCron = req.headers['x-vercel-cron'] === '1';
-  const isAdmin = await isAuthenticated(req);
+  // SECURITY: Verify request is from admin or verified cron (not just header check)
+  const isAuthorized = await verifyCronOrAdmin(req, isAuthenticated);
 
-  if (!isCron && !isAdmin) {
-    return res.status(403).json({ error: 'Unauthorized' });
+  if (!isAuthorized) {
+    return res.status(403).json({ error: 'Unauthorized - Admin or verified cron required' });
   }
 
   const { battleId } = req.body;

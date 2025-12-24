@@ -1,6 +1,9 @@
 // API route to track tips sent to builders
+// SECURITY: Requires transaction verification to prevent fake tips
 import { getRedisClient } from '../../lib/redis';
 import { updateProjectStats } from '../../lib/projects';
+import { createPublicClient, http } from 'viem';
+import { base } from 'viem/chains';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -19,11 +22,24 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { projectId, amount, recipientFid } = req.body;
+    const { projectId, amount, recipientFid, txHash } = req.body;
+
+    // SECURITY FIX: Require transaction hash for verification
+    if (!txHash) {
+      return res.status(400).json({
+        error: 'Transaction hash required for tip verification',
+        required: ['projectId', 'amount', 'txHash']
+      });
+    }
 
     // Validate inputs
     if (!projectId || !amount) {
       return res.status(400).json({ error: 'Missing projectId or amount' });
+    }
+
+    // Validate transaction hash format
+    if (!txHash.match(/^0x[a-fA-F0-9]{64}$/)) {
+      return res.status(400).json({ error: 'Invalid transaction hash format' });
     }
 
     // Validate projectId is a positive integer
@@ -49,6 +65,67 @@ export default async function handler(req, res) {
     const redis = await getRedisClient();
     if (!redis) {
       return res.status(200).json({ success: true, tracked: false });
+    }
+
+    // SECURITY: Check if this transaction has already been used for a tip
+    const txUsedKey = `tip:tx:used:${txHash}`;
+    const txUsedData = await redis.get(txUsedKey);
+
+    if (txUsedData) {
+      const usedInfo = JSON.parse(txUsedData);
+      console.warn('[TRACK-TIP] Transaction replay attempt:', {
+        txHash,
+        attemptedProject: projectIdNum,
+        originallyUsedFor: usedInfo,
+      });
+
+      return res.status(400).json({
+        error: 'Transaction already used for a tip',
+        success: false,
+        tracked: false,
+      });
+    }
+
+    // SECURITY: Verify transaction exists on-chain
+    try {
+      const publicClient = createPublicClient({
+        chain: base,
+        transport: http(),
+      });
+
+      const tx = await publicClient.getTransaction({ hash: txHash });
+      if (!tx) {
+        return res.status(400).json({
+          error: 'Transaction not found on chain',
+          success: false,
+          tracked: false,
+        });
+      }
+
+      // Verify transaction is confirmed
+      const receipt = await publicClient.getTransactionReceipt({ hash: txHash });
+      if (!receipt || receipt.status !== 'success') {
+        return res.status(400).json({
+          error: 'Transaction not confirmed or failed',
+          success: false,
+          tracked: false,
+        });
+      }
+
+      console.log('[TRACK-TIP] Transaction verified:', {
+        txHash,
+        from: tx.from,
+        to: tx.to,
+        value: tx.value.toString(),
+      });
+
+    } catch (error) {
+      console.error('[TRACK-TIP] Transaction verification failed:', error.message);
+      return res.status(400).json({
+        error: 'Could not verify transaction. Wait for confirmation and try again.',
+        success: false,
+        tracked: false,
+      });
     }
 
     // Track tip in project stats
@@ -98,10 +175,22 @@ export default async function handler(req, res) {
         amount: amountNum.toString(),
         recipientFid: recipientFid !== undefined && recipientFid !== null ? parseInt(recipientFid).toString() : '',
         timestamp: Date.now().toString(),
+        txHash: txHash,
       });
 
       // Set expiration (keep tips for 30 days)
       await redis.expire(tipKey, 30 * 24 * 60 * 60);
+
+      // SECURITY: Mark transaction as used to prevent replay
+      await redis.set(txUsedKey, JSON.stringify({
+        projectId: projectIdNum,
+        amount: amountNum,
+        recipientFid,
+        timestamp: Date.now(),
+        txHash,
+      }), {
+        EX: 365 * 24 * 60 * 60 // 1 year
+      });
     } catch (error) {
       console.error('[TRACK-TIP] Error tracking tip:', error);
       return res.status(500).json({

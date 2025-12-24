@@ -5,6 +5,7 @@
 import { getFeaturedProject, getActiveProjects, setFeaturedProject, resetAllVotes } from '../../lib/projects';
 import { isAuthenticated } from '../../lib/admin-auth';
 import { saveFeaturedHistory } from '../../lib/featured-history';
+import { verifyCronOrAdmin } from '../../lib/cron-auth';
 
 // How long a project stays featured before auto-rotation (24 hours)
 const FEATURED_DURATION_MS = 24 * 60 * 60 * 1000;
@@ -14,13 +15,11 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Allow cron or admin to trigger this
-  // Vercel crons send x-vercel-cron header
-  const isCron = req.headers['x-vercel-cron'] === '1';
-  const isAdmin = await isAuthenticated(req);
+  // SECURITY: Verify request is from admin or verified cron (not just header check)
+  const isAuthorized = await verifyCronOrAdmin(req, isAuthenticated);
 
-  if (!isCron && !isAdmin) {
-    return res.status(403).json({ error: 'Unauthorized' });
+  if (!isAuthorized) {
+    return res.status(403).json({ error: 'Unauthorized - Admin or verified cron required' });
   }
 
   try {
