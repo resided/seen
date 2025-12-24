@@ -11,69 +11,32 @@ export default async function handler(req, res) {
 
   try {
     const redis = await getRedisClient();
-
-    // Get all projects from Redis to aggregate stats
     const allProjects = await getAllProjects();
+    const { getProjectStatsToday } = await import('../../lib/projects');
 
     let totalViews = 0;
     let totalClicks = 0;
 
     // Sum up views and clicks from all projects
+    // For featured projects: use current window stats (Redis)
+    // For non-featured projects: use persistent stats
     for (const project of allProjects) {
-      if (project.stats) {
-        totalViews += project.stats.views || 0;
-        totalClicks += project.stats.clicks || 0;
+      let projectViews = 0;
+      let projectClicks = 0;
+
+      if (project.status === 'featured' && project.rotationId && redis) {
+        // Featured project: get current window stats
+        const windowStats = await getProjectStatsToday(project.id, project.rotationId);
+        projectViews = windowStats.views || 0;
+        projectClicks = windowStats.clicks || 0;
+      } else {
+        // Non-featured: use persistent stats
+        projectViews = project.stats?.views || 0;
+        projectClicks = project.stats?.clicks || 0;
       }
-    }
 
-    // Also check for current featured project's stats from Redis
-    if (redis) {
-      try {
-        const CLICKS_KEY = 'clicks:project';
-        const VIEWS_KEY = 'views:project';
-
-        // Scan for all click/view keys
-        const clickKeys = [];
-        const viewKeys = [];
-        let cursor = 0;
-
-        do {
-          const [nextCursor, foundKeys] = await redis.scan(cursor, {
-            MATCH: `${CLICKS_KEY}:*`,
-            COUNT: 100,
-          });
-          cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
-          if (foundKeys && foundKeys.length > 0) {
-            clickKeys.push(...foundKeys);
-          }
-        } while (cursor !== 0);
-
-        cursor = 0;
-        do {
-          const [nextCursor, foundKeys] = await redis.scan(cursor, {
-            MATCH: `${VIEWS_KEY}:*`,
-            COUNT: 100,
-          });
-          cursor = typeof nextCursor === 'string' ? parseInt(nextCursor, 10) : nextCursor;
-          if (foundKeys && foundKeys.length > 0) {
-            viewKeys.push(...foundKeys);
-          }
-        } while (cursor !== 0);
-
-        // Sum all click values
-        for (const key of clickKeys) {
-          const count = await redis.get(key);
-          if (count) totalClicks += parseInt(count);
-        }
-
-        // Sum all view values
-        for (const key of viewKeys) {
-          const count = await redis.get(key);
-          if (count) totalViews += parseInt(count);
-        }
-      } catch (redisError) {
-        console.error('[STATS] Redis scan error:', redisError);
-      }
+      totalViews += projectViews;
+      totalClicks += projectClicks;
     }
 
     return res.status(200).json({
