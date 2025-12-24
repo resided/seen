@@ -5,6 +5,7 @@ import { getMiniAppCreator } from '../../lib/miniapp-utils'
 import { trackMetric, METRIC_TYPES } from '../../lib/analytics'
 import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
 import { isValidEthereumAddress, isValidUrl } from '../../lib/payment-verification'
+import { checkFidNotBlocked } from '../../lib/fid-blocking'
 
 const MIN_NEYNAR_SCORE = 0.6; // Minimum Neynar user score required to submit
 
@@ -80,6 +81,15 @@ export default async function handler(req, res) {
       }
       if (links.twitter && !isValidUrl(links.twitter)) {
         return res.status(400).json({ error: 'Invalid Twitter URL format' })
+      }
+    }
+
+    // SECURITY: Check if FID is blocked from platform
+    if (submitterFid) {
+      const submitterFidNum = parseInt(submitterFid);
+      const fidAllowed = await checkFidNotBlocked(res, submitterFidNum);
+      if (!fidAllowed) {
+        return; // Response already sent by checkFidNotBlocked
       }
     }
 

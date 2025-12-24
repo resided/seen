@@ -7,6 +7,7 @@ import { getRedisClient } from '../../../lib/redis';
 import { getFeaturedProject } from '../../../lib/projects';
 import { fetchUserByFid, verifyWalletOwnership } from '../../../lib/neynar';
 import { trackMetric, METRIC_TYPES } from '../../../lib/analytics';
+import { checkFidNotBlocked } from '../../../lib/fid-blocking';
 import { parseUnits, getAddress, createWalletClient, createPublicClient, http } from 'viem';
 import { base } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
@@ -132,18 +133,10 @@ export default async function handler(req, res) {
 
     const fidNum = parseInt(fid);
 
-    // Check if FID is blocked from claims
-    const BLOCKED_FIDS_KEY = 'admin:blocked:fids';
-    const blockedFidsJson = await redis.get(BLOCKED_FIDS_KEY);
-    const blockedFids = blockedFidsJson ? JSON.parse(blockedFidsJson) : [];
-
-    if (blockedFids.includes(fidNum)) {
-      console.log(`[CLAIM] Blocked FID ${fidNum} attempted to claim`);
-      return res.status(403).json({
-        error: 'You are not eligible to claim tokens',
-        success: false,
-        blocked: true,
-      });
+    // SECURITY: Check if FID is blocked from platform
+    const fidAllowed = await checkFidNotBlocked(res, fidNum);
+    if (!fidAllowed) {
+      return; // Response already sent by checkFidNotBlocked
     }
 
     // VERIFY TRANSACTION IS REAL

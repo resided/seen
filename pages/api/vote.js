@@ -5,6 +5,7 @@
 import { getRedisClient } from '../../lib/redis';
 import { getProjectById, incrementProjectVotes } from '../../lib/projects';
 import { fetchUserByFid, verifyWalletOwnership } from '../../lib/neynar';
+import { checkFidNotBlocked } from '../../lib/fid-blocking';
 import { createPublicClient, http } from 'viem';
 import { base } from 'viem/chains';
 
@@ -44,6 +45,12 @@ export default async function handler(req, res) {
 
   const fidNum = parseInt(fid);
   const projectIdNum = parseInt(projectId);
+
+  // SECURITY: Check if FID is blocked from platform
+  const fidAllowed = await checkFidNotBlocked(res, fidNum);
+  if (!fidAllowed) {
+    return; // Response already sent by checkFidNotBlocked
+  }
 
   // SECURITY: Check if this transaction has already been used for a vote
   const txUsedKey = `vote:tx:used:${txHash}`;
