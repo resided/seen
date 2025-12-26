@@ -29,6 +29,8 @@ const MAX_CLAIMS_PER_WALLET = 1; // SECURITY: Maximum claims per wallet address 
 const MIN_FOLLOWERS = 50; // Minimum follower count (increased to 50)
 const REQUIRE_CUSTODY_WALLET = false; // Disabled - too restrictive for most users
 const REQUIRE_POWER_BADGE = false; // Optional: Require Farcaster power badge
+const REQUIRE_RECENT_ACTIVITY = false; // Optional: Require user to have posted recently (blocks lurkers)
+const MIN_RECENT_CASTS = 1; // Minimum casts in last 30 days (if REQUIRE_RECENT_ACTIVITY enabled)
 
 // Helper function to get current claim amount from Redis
 async function getClaimAmount(redis) {
@@ -187,6 +189,21 @@ export default async function handler(req, res) {
   // ========== POST = CLAIM ==========
   if (req.method === 'POST') {
     const { fid, walletAddress, txHash } = req.body;
+    
+    // SECURITY: Rate limiting - max 5 claim attempts per FID per 10 minutes
+    const rateLimitKey = `ratelimit:claim:${fid}`;
+    const attempts = await redis.incr(rateLimitKey);
+    if (attempts === 1) {
+      await redis.expire(rateLimitKey, 600); // 10 minutes
+    }
+    if (attempts > 5) {
+      console.warn('[SIMPLE CLAIM] Rate limit exceeded:', { fid, attempts });
+      return res.status(429).json({
+        error: 'Too many claim attempts. Please wait 10 minutes.',
+        success: false,
+        retryAfter: 600,
+      });
+    }
 
     // Check if claims are globally disabled
     const disabledValue = await redis.get(CLAIMS_DISABLED_KEY);
@@ -217,7 +234,7 @@ export default async function handler(req, res) {
       return; // Response already sent by checkFidNotBlocked
     }
 
-    // VERIFY TRANSACTION IS REAL
+    // VERIFY TRANSACTION IS REAL AND RECENT
     let publicClient;
     try {
       publicClient = createPublicClient({
@@ -238,6 +255,27 @@ export default async function handler(req, res) {
           txFrom: tx.from,
           claimed: walletAddress,
         });
+      }
+      
+      // SECURITY: Verify transaction is recent (within last 2 hours)
+      // This prevents using old transactions to claim
+      if (tx.blockNumber) {
+        const currentBlock = await publicClient.getBlockNumber();
+        const blockAge = currentBlock - tx.blockNumber;
+        const maxBlockAge = 2400n; // ~2 hours at 3 sec/block on Base
+        
+        if (blockAge > maxBlockAge) {
+          console.warn('[SIMPLE CLAIM] Old transaction rejected:', {
+            txHash,
+            blockAge: blockAge.toString(),
+            maxAge: maxBlockAge.toString(),
+          });
+          return res.status(400).json({
+            error: 'Transaction too old. Please make a new transaction to claim.',
+            success: false,
+            blockAge: blockAge.toString(),
+          });
+        }
       }
 
       console.log('[SIMPLE CLAIM] Transaction verified:', { txHash, from: tx.from });
