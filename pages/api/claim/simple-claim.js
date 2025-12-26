@@ -23,10 +23,12 @@ const CLAIM_AMOUNT_KEY = 'config:claim:amount';
 const CLAIMS_DISABLED_KEY = 'config:claims:disabled';
 
 // Security configuration - INCREASED to combat exploits
-const MIN_NEYNAR_SCORE = 0.7; // Minimum Neynar user score (increased from 0.6)
-const MIN_ACCOUNT_AGE_DAYS = 7; // Minimum account age in days (increased from 2)
+const MIN_NEYNAR_SCORE = 0.6; // Minimum Neynar user score (keep at 0.6 - accounts have legit scores)
+const MIN_ACCOUNT_AGE_DAYS = 7; // Minimum Farcaster account age in days (increased from 2)
 const MAX_CLAIMS_PER_WALLET = 1; // SECURITY: Maximum claims per wallet address per rotation (prevents multi-FID exploit)
 const MIN_FOLLOWERS = 10; // Minimum follower count to prevent bot accounts
+const MIN_WALLET_AGE_DAYS = 14; // SECURITY: Minimum wallet age on-chain (prevents fresh wallet exploit)
+const MIN_WALLET_TX_COUNT = 5; // SECURITY: Minimum transactions on wallet (proves wallet is actually used)
 
 // Helper function to get current claim amount from Redis
 async function getClaimAmount(redis) {
@@ -81,12 +83,27 @@ export default async function handler(req, res) {
     // SECURITY: Check if wallet has already claimed (multi-FID exploit prevention)
     let walletAlreadyClaimed = false;
     let walletClaimInfo = null;
+    let walletTxCount = null;
+    let walletTooNew = false;
+    
     if (wallet) {
       const walletClaimKey = getWalletClaimKey(wallet);
       const walletData = await redis.get(walletClaimKey);
       if (walletData) {
         walletAlreadyClaimed = true;
         walletClaimInfo = JSON.parse(walletData);
+      }
+      
+      // Check wallet transaction count on-chain
+      try {
+        const publicClient = createPublicClient({
+          chain: base,
+          transport: http(),
+        });
+        walletTxCount = await publicClient.getTransactionCount({ address: wallet });
+        walletTooNew = walletTxCount < MIN_WALLET_TX_COUNT;
+      } catch (e) {
+        console.warn('[SIMPLE CLAIM] Could not check wallet tx count in GET:', e.message);
       }
     }
 
@@ -128,7 +145,7 @@ export default async function handler(req, res) {
     }
 
     return res.status(200).json({
-      canClaim: !hasClaimed && !claimsDisabled && !neynarScoreTooLow && !isBlocked && !walletAlreadyClaimed && !followersTooLow && !accountTooNew,
+      canClaim: !hasClaimed && !claimsDisabled && !neynarScoreTooLow && !isBlocked && !walletAlreadyClaimed && !followersTooLow && !accountTooNew && !walletTooNew,
       claimed: !!hasClaimed,
       claimedAt: hasClaimed || null,
       featuredProjectId: featured.id,
@@ -145,6 +162,9 @@ export default async function handler(req, res) {
       accountAgeDays: accountAgeDays ? parseFloat(accountAgeDays.toFixed(1)) : null,
       accountTooNew: accountTooNew,
       minAccountAgeDays: MIN_ACCOUNT_AGE_DAYS,
+      walletTxCount: walletTxCount,
+      walletTooNew: walletTooNew,
+      minWalletTxCount: MIN_WALLET_TX_COUNT,
       walletAlreadyClaimed: walletAlreadyClaimed,
       walletClaimInfo: walletClaimInfo ? { fid: walletClaimInfo.fid, timestamp: walletClaimInfo.timestamp } : null,
     });
@@ -184,8 +204,9 @@ export default async function handler(req, res) {
     }
 
     // VERIFY TRANSACTION IS REAL
+    let publicClient;
     try {
-      const publicClient = createPublicClient({
+      publicClient = createPublicClient({
         chain: base,
         transport: http(),
       });
@@ -212,6 +233,31 @@ export default async function handler(req, res) {
         error: 'Could not verify transaction. Wait for confirmation and try again.',
         success: false
       });
+    }
+    
+    // SECURITY: Check wallet age and activity on-chain (prevents fresh wallet exploit)
+    try {
+      const txCount = await publicClient.getTransactionCount({ address: walletAddress });
+      
+      console.log('[SIMPLE CLAIM] Wallet activity check:', { wallet: walletAddress, txCount });
+      
+      if (txCount < MIN_WALLET_TX_COUNT) {
+        console.warn('[SIMPLE CLAIM] Fresh wallet rejection:', {
+          wallet: walletAddress,
+          txCount,
+          required: MIN_WALLET_TX_COUNT,
+          fid: fidNum,
+        });
+        return res.status(403).json({
+          error: `Wallet too new. Need at least ${MIN_WALLET_TX_COUNT} transactions on Base (you have ${txCount}). Use an established wallet.`,
+          success: false,
+          walletTxCount: txCount,
+          minTxCount: MIN_WALLET_TX_COUNT,
+        });
+      }
+    } catch (error) {
+      console.error('[SIMPLE CLAIM] Wallet activity check failed:', error.message);
+      // Don't fail claim if we can't check - other security measures still apply
     }
 
     // SECURITY: Check if this transaction has already been used for a claim
