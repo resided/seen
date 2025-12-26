@@ -2,6 +2,7 @@
 // No complex rotation logic, no rate limits, just simple FID tracking
 // WITH Neynar validation for security
 // REQUIRES user to sign a transaction first (for miniapp rankings)
+// SECURITY: Also tracks claims per wallet to prevent multi-FID exploit
 
 import { getRedisClient } from '../../../lib/redis';
 import { getFeaturedProject } from '../../../lib/projects';
@@ -21,9 +22,11 @@ const TREASURY_PRIVATE_KEY = process.env.TREASURY_PRIVATE_KEY;
 const CLAIM_AMOUNT_KEY = 'config:claim:amount';
 const CLAIMS_DISABLED_KEY = 'config:claims:disabled';
 
-// Security configuration
-const MIN_NEYNAR_SCORE = 0.6; // Minimum Neynar user score
-const MIN_ACCOUNT_AGE_DAYS = 2; // Minimum account age in days
+// Security configuration - INCREASED to combat exploits
+const MIN_NEYNAR_SCORE = 0.7; // Minimum Neynar user score (increased from 0.6)
+const MIN_ACCOUNT_AGE_DAYS = 7; // Minimum account age in days (increased from 2)
+const MAX_CLAIMS_PER_WALLET = 1; // SECURITY: Maximum claims per wallet address per rotation (prevents multi-FID exploit)
+const MIN_FOLLOWERS = 10; // Minimum follower count to prevent bot accounts
 
 // Helper function to get current claim amount from Redis
 async function getClaimAmount(redis) {
@@ -49,6 +52,9 @@ export default async function handler(req, res) {
 
   // Simple key: FID + rotation ID (changes when project is re-featured)
   const getClaimKey = (fid) => `simple:claim:${featured.rotationId}:${fid}`;
+  
+  // SECURITY: Wallet claim key - prevents multi-FID exploit (same wallet, multiple FIDs)
+  const getWalletClaimKey = (wallet) => `simple:claim:wallet:${featured.rotationId}:${wallet.toLowerCase()}`;
 
   // ========== GET = CHECK STATUS ==========
   if (req.method === 'GET') {
@@ -71,10 +77,26 @@ export default async function handler(req, res) {
 
     const claimKey = getClaimKey(fid);
     const hasClaimed = await redis.get(claimKey);
+    
+    // SECURITY: Check if wallet has already claimed (multi-FID exploit prevention)
+    let walletAlreadyClaimed = false;
+    let walletClaimInfo = null;
+    if (wallet) {
+      const walletClaimKey = getWalletClaimKey(wallet);
+      const walletData = await redis.get(walletClaimKey);
+      if (walletData) {
+        walletAlreadyClaimed = true;
+        walletClaimInfo = JSON.parse(walletData);
+      }
+    }
 
-    // Check Neynar score for display purposes
+    // Check Neynar score and follower count for display purposes
     let neynarScore = null;
     let neynarScoreTooLow = false;
+    let followerCount = null;
+    let followersTooLow = false;
+    let accountAgeDays = null;
+    let accountTooNew = false;
     const apiKey = process.env.NEYNAR_API_KEY;
     if (apiKey) {
       try {
@@ -85,6 +107,19 @@ export default async function handler(req, res) {
           if (neynarScore !== null && neynarScore !== undefined) {
             neynarScoreTooLow = neynarScore < MIN_NEYNAR_SCORE;
           }
+          
+          // Check follower count
+          followerCount = user.follower_count || 0;
+          followersTooLow = followerCount < MIN_FOLLOWERS;
+          
+          // Check account age
+          const registeredAt = user.registered_at || user.timestamp || user.profile?.timestamp;
+          if (registeredAt) {
+            const accountCreated = new Date(registeredAt);
+            const accountAgeMs = Date.now() - accountCreated.getTime();
+            accountAgeDays = accountAgeMs / (1000 * 60 * 60 * 24);
+            accountTooNew = accountAgeDays < MIN_ACCOUNT_AGE_DAYS;
+          }
         }
       } catch (error) {
         console.error('[SIMPLE CLAIM] Neynar check failed in GET:', error);
@@ -93,7 +128,7 @@ export default async function handler(req, res) {
     }
 
     return res.status(200).json({
-      canClaim: !hasClaimed && !claimsDisabled && !neynarScoreTooLow && !isBlocked,
+      canClaim: !hasClaimed && !claimsDisabled && !neynarScoreTooLow && !isBlocked && !walletAlreadyClaimed && !followersTooLow && !accountTooNew,
       claimed: !!hasClaimed,
       claimedAt: hasClaimed || null,
       featuredProjectId: featured.id,
@@ -103,6 +138,15 @@ export default async function handler(req, res) {
       blocked: isBlocked,
       neynarScore: neynarScore,
       neynarScoreTooLow: neynarScoreTooLow,
+      minNeynarScore: MIN_NEYNAR_SCORE,
+      followerCount: followerCount,
+      followersTooLow: followersTooLow,
+      minFollowers: MIN_FOLLOWERS,
+      accountAgeDays: accountAgeDays ? parseFloat(accountAgeDays.toFixed(1)) : null,
+      accountTooNew: accountTooNew,
+      minAccountAgeDays: MIN_ACCOUNT_AGE_DAYS,
+      walletAlreadyClaimed: walletAlreadyClaimed,
+      walletClaimInfo: walletClaimInfo ? { fid: walletClaimInfo.fid, timestamp: walletClaimInfo.timestamp } : null,
     });
   }
 
@@ -247,6 +291,22 @@ export default async function handler(req, res) {
           minScore: MIN_NEYNAR_SCORE,
         });
       }
+      
+      // SECURITY: Check follower count to prevent bot accounts
+      const followerCount = user.follower_count || 0;
+      if (followerCount < MIN_FOLLOWERS) {
+        console.warn('[SIMPLE CLAIM] Low follower count rejection:', {
+          fid: fidNum,
+          followers: followerCount,
+          required: MIN_FOLLOWERS,
+        });
+        return res.status(403).json({
+          error: `Not enough followers (${followerCount}). Minimum: ${MIN_FOLLOWERS} followers required.`,
+          success: false,
+          followerCount,
+          minFollowers: MIN_FOLLOWERS,
+        });
+      }
     } catch (error) {
       console.error('[SIMPLE CLAIM] Neynar validation failed:', error);
       return res.status(403).json({
@@ -269,6 +329,24 @@ export default async function handler(req, res) {
     }
 
     const claimKey = getClaimKey(fidNum);
+    const walletClaimKey = getWalletClaimKey(walletAddress);
+
+    // SECURITY: Check if wallet has already received claims in this rotation (multi-FID exploit prevention)
+    const walletClaimData = await redis.get(walletClaimKey);
+    if (walletClaimData) {
+      const walletClaimInfo = JSON.parse(walletClaimData);
+      console.warn('[SIMPLE CLAIM] SECURITY: Multi-FID exploit attempt detected:', {
+        attemptingFid: fidNum,
+        walletAddress,
+        previousClaim: walletClaimInfo,
+      });
+      return res.status(403).json({
+        error: 'This wallet has already received a claim for this featured project. One claim per wallet allowed.',
+        success: false,
+        walletAlreadyClaimed: true,
+        previousFid: walletClaimInfo.fid,
+      });
+    }
 
     // Check if already claimed (atomic)
     const alreadyClaimed = await redis.get(claimKey);
@@ -360,6 +438,20 @@ export default async function handler(req, res) {
       });
 
       console.log('[SIMPLE CLAIM] Transaction marked as used:', { txHash, fid: fidNum });
+      
+      // SECURITY: Record wallet claim to prevent multi-FID exploit
+      // This prevents the same wallet from receiving claims via multiple FIDs
+      const walletClaimData = {
+        fid: fidNum,
+        timestamp: Date.now(),
+        rotationId: featured.rotationId,
+        amount: TOKEN_AMOUNT,
+      };
+      await redis.set(walletClaimKey, JSON.stringify(walletClaimData), {
+        EX: 30 * 24 * 60 * 60 // 30 days (longer than any rotation)
+      });
+      
+      console.log('[SIMPLE CLAIM] Wallet claim recorded:', { wallet: walletAddress, fid: fidNum });
 
       return res.status(200).json({
         success: true,
