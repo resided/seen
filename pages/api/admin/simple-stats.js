@@ -29,30 +29,58 @@ export default async function handler(req, res) {
       });
     }
 
-    const featuredProjectId = featuredProject.id;
-    const pattern = `simple:claim:${featuredProjectId}:*`;
+    // Use rotationId to match claim key format (simple:claim:${rotationId}:${fid})
+    const rotationId = featuredProject.rotationId;
+    if (!rotationId) {
+      return res.status(200).json({
+        totalClaims: 0,
+        uniqueWallets: 0,
+        featuredProject: { id: featuredProject.id, name: featuredProject.name },
+        disabled,
+        error: 'No rotation ID found',
+      });
+    }
+    const pattern = `simple:claim:${rotationId}:*`;
 
     // Count claims and unique wallets
     const wallets = new Set();
     let totalClaims = 0;
 
     for await (const key of redis.scanIterator({ MATCH: pattern, COUNT: 100 })) {
-      // Skip lock keys
-      if (key.includes(':lock:')) continue;
+      // Skip lock keys and wallet keys
+      if (key.includes(':lock:') || key.includes(':wallet:')) continue;
       
       totalClaims++;
-      const walletAddress = await redis.get(key);
-      if (walletAddress) {
-        wallets.add(walletAddress.toLowerCase());
+      const claimData = await redis.get(key);
+      // Old format stored timestamp as string, new format might store JSON
+      // The claim key value is just the timestamp string
+    }
+    
+    // Count wallet claims separately (these are the actual recipients)
+    const walletPattern = `simple:claim:wallet:${rotationId}:*`;
+    let walletClaimCount = 0;
+    
+    try {
+      for await (const key of redis.scanIterator({ MATCH: walletPattern, COUNT: 100 })) {
+        walletClaimCount++;
+        // Extract wallet from key: simple:claim:wallet:${rotationId}:${wallet}
+        const parts = key.split(':');
+        if (parts.length >= 5) {
+          wallets.add(parts[4].toLowerCase());
+        }
       }
+    } catch (e) {
+      console.warn('[SIMPLE STATS] Error counting wallet claims:', e.message);
     }
 
     return res.status(200).json({
       totalClaims,
       uniqueWallets: wallets.size,
+      walletClaimCount,
       featuredProject: {
-        id: featuredProjectId,
+        id: featuredProject.id,
         name: featuredProject.name || 'Unknown',
+        rotationId,
       },
       disabled,
     });

@@ -50,15 +50,26 @@ export default async function handler(req, res) {
   if (!featured?.id) {
     return res.status(400).json({ error: 'No featured project' });
   }
+  
+  if (!featured?.rotationId) {
+    return res.status(400).json({ error: 'No rotation ID for featured project' });
+  }
 
-  // Find all simple claim keys for this featured project
-  const pattern = `simple:claim:${featured.id}:*`;
+  // Find all simple claim keys for this rotation (matches claim key format)
+  const pattern = `simple:claim:${featured.rotationId}:*`;
   const keysToDelete = [];
+  
+  // Also find wallet claim keys to clear
+  const walletPattern = `simple:claim:wallet:${featured.rotationId}:*`;
+  const walletKeysToDelete = [];
 
-  // Scan for keys
+  // Scan for FID claim keys
   try {
     for await (const key of redis.scanIterator({ MATCH: pattern, COUNT: 100 })) {
-      keysToDelete.push(key);
+      // Skip wallet keys (handled separately)
+      if (!key.includes(':wallet:')) {
+        keysToDelete.push(key);
+      }
     }
   } catch (err) {
     // Fallback scan
@@ -67,12 +78,34 @@ export default async function handler(req, res) {
       const result = await redis.scan(cursor, { MATCH: pattern, COUNT: 100 });
       cursor = String(result.cursor ?? result[0] ?? '0');
       const keys = result.keys || result[1] || [];
-      keysToDelete.push(...keys);
+      for (const key of keys) {
+        if (!key.includes(':wallet:')) {
+          keysToDelete.push(key);
+        }
+      }
+    } while (cursor !== '0');
+  }
+  
+  // Scan for wallet claim keys
+  try {
+    for await (const key of redis.scanIterator({ MATCH: walletPattern, COUNT: 100 })) {
+      walletKeysToDelete.push(key);
+    }
+  } catch (err) {
+    // Fallback scan
+    let cursor = '0';
+    do {
+      const result = await redis.scan(cursor, { MATCH: walletPattern, COUNT: 100 });
+      cursor = String(result.cursor ?? result[0] ?? '0');
+      const keys = result.keys || result[1] || [];
+      walletKeysToDelete.push(...keys);
     } while (cursor !== '0');
   }
 
   // Delete all keys
   let deleted = 0;
+  let walletDeleted = 0;
+  
   if (keysToDelete.length > 0) {
     for (const key of keysToDelete) {
       try {
@@ -83,15 +116,28 @@ export default async function handler(req, res) {
       }
     }
   }
+  
+  if (walletKeysToDelete.length > 0) {
+    for (const key of walletKeysToDelete) {
+      try {
+        await redis.del(key);
+        walletDeleted++;
+      } catch (e) {
+        console.error('Failed to delete wallet key:', key, e.message);
+      }
+    }
+  }
 
-  console.log('[SIMPLE RESET] Cleared', deleted, 'claims for featured project', featured.id);
+  console.log('[SIMPLE RESET] Cleared', deleted, 'FID claims and', walletDeleted, 'wallet claims for rotation', featured.rotationId);
 
   return res.status(200).json({
     success: true,
-    message: `Reset ${deleted} claims for ${featured.name}`,
+    message: `Reset ${deleted} FID claims and ${walletDeleted} wallet claims for ${featured.name}`,
     deletedCount: deleted,
+    walletDeletedCount: walletDeleted,
     featuredProjectId: featured.id,
     featuredProjectName: featured.name,
+    rotationId: featured.rotationId,
   });
 }
 
