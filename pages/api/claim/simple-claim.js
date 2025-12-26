@@ -24,11 +24,11 @@ const CLAIMS_DISABLED_KEY = 'config:claims:disabled';
 
 // Security configuration - INCREASED to combat exploits
 const MIN_NEYNAR_SCORE = 0.6; // Minimum Neynar user score
-const MIN_ACCOUNT_AGE_DAYS = 7; // Minimum Farcaster account age in days (increased from 2)
-const MAX_CLAIMS_PER_WALLET = 1; // SECURITY: Maximum claims per wallet address per rotation (prevents multi-FID exploit)
-const MIN_FOLLOWERS = 10; // Minimum follower count to prevent bot accounts
-const REQUIRE_CUSTODY_WALLET = true; // SECURITY: Only custody wallet can claim (not any verified wallet)
-const REQUIRE_POWER_BADGE = false; // Optional: Require Farcaster power badge (very strict - enable if needed)
+const MIN_ACCOUNT_AGE_DAYS = 14; // Minimum Farcaster account age in days (increased to 14)
+const MAX_CLAIMS_PER_WALLET = 1; // SECURITY: Maximum claims per wallet address per rotation
+const MIN_FOLLOWERS = 50; // Minimum follower count (increased to 50)
+const REQUIRE_CUSTODY_WALLET = false; // Disabled - too restrictive for most users
+const REQUIRE_POWER_BADGE = false; // Optional: Require Farcaster power badge
 
 // Helper function to get current claim amount from Redis
 async function getClaimAmount(redis) {
@@ -55,8 +55,16 @@ export default async function handler(req, res) {
   // Simple key: FID + rotation ID (changes when project is re-featured)
   const getClaimKey = (fid) => `simple:claim:${featured.rotationId}:${fid}`;
   
-  // SECURITY: Wallet claim key - prevents multi-FID exploit (same wallet, multiple FIDs)
+  // SECURITY: Wallet claim key - prevents multi-FID exploit (same wallet, multiple FIDs) per rotation
   const getWalletClaimKey = (wallet) => `simple:claim:wallet:${featured.rotationId}:${wallet.toLowerCase()}`;
+  
+  // SECURITY: PERMANENT wallet-to-FID binding - a wallet can only ever be used by ONE FID
+  // This prevents creating new FIDs and using the same wallet
+  const getWalletOwnerKey = (wallet) => `wallet:owner:${wallet.toLowerCase()}`;
+  
+  // SECURITY: PERMANENT FID-to-wallet binding - an FID can only ever claim to ONE wallet
+  // This prevents adding new wallets to an existing FID
+  const getFidWalletKey = (fid) => `fid:wallet:${fid}`;
 
   // ========== GET = CHECK STATUS ==========
   if (req.method === 'GET') {
@@ -83,8 +91,9 @@ export default async function handler(req, res) {
     // SECURITY: Check if wallet has already claimed (multi-FID exploit prevention)
     let walletAlreadyClaimed = false;
     let walletClaimInfo = null;
-    let walletTxCount = null;
-    let walletTooNew = false;
+    let walletOwnedByAnotherFid = false;
+    let fidBoundToAnotherWallet = false;
+    let boundWallet = null;
     
     if (wallet) {
       const walletClaimKey = getWalletClaimKey(wallet);
@@ -94,16 +103,21 @@ export default async function handler(req, res) {
         walletClaimInfo = JSON.parse(walletData);
       }
       
-      // Check wallet transaction count on-chain
-      try {
-        const publicClient = createPublicClient({
-          chain: base,
-          transport: http(),
-        });
-        walletTxCount = await publicClient.getTransactionCount({ address: wallet });
-        walletTooNew = walletTxCount < MIN_WALLET_TX_COUNT;
-      } catch (e) {
-        console.warn('[SIMPLE CLAIM] Could not check wallet tx count in GET:', e.message);
+      // Check permanent wallet-to-FID binding
+      const walletOwnerKey = getWalletOwnerKey(wallet);
+      const existingOwner = await redis.get(walletOwnerKey);
+      if (existingOwner && parseInt(existingOwner) !== fidNum) {
+        walletOwnedByAnotherFid = true;
+      }
+    }
+    
+    // Check permanent FID-to-wallet binding
+    const fidWalletKey = getFidWalletKey(fid);
+    const existingFidWallet = await redis.get(fidWalletKey);
+    if (existingFidWallet) {
+      boundWallet = existingFidWallet;
+      if (wallet && existingFidWallet.toLowerCase() !== wallet.toLowerCase()) {
+        fidBoundToAnotherWallet = true;
       }
     }
 
@@ -145,7 +159,7 @@ export default async function handler(req, res) {
     }
 
     return res.status(200).json({
-      canClaim: !hasClaimed && !claimsDisabled && !neynarScoreTooLow && !isBlocked && !walletAlreadyClaimed && !followersTooLow && !accountTooNew && !walletTooNew,
+      canClaim: !hasClaimed && !claimsDisabled && !neynarScoreTooLow && !isBlocked && !walletAlreadyClaimed && !followersTooLow && !accountTooNew && !walletOwnedByAnotherFid && !fidBoundToAnotherWallet,
       claimed: !!hasClaimed,
       claimedAt: hasClaimed || null,
       featuredProjectId: featured.id,
@@ -162,11 +176,11 @@ export default async function handler(req, res) {
       accountAgeDays: accountAgeDays ? parseFloat(accountAgeDays.toFixed(1)) : null,
       accountTooNew: accountTooNew,
       minAccountAgeDays: MIN_ACCOUNT_AGE_DAYS,
-      walletTxCount: walletTxCount,
-      walletTooNew: walletTooNew,
-      minWalletTxCount: MIN_WALLET_TX_COUNT,
       walletAlreadyClaimed: walletAlreadyClaimed,
       walletClaimInfo: walletClaimInfo ? { fid: walletClaimInfo.fid, timestamp: walletClaimInfo.timestamp } : null,
+      walletOwnedByAnotherFid: walletOwnedByAnotherFid,
+      fidBoundToAnotherWallet: fidBoundToAnotherWallet,
+      boundWallet: boundWallet,
     });
   }
 
@@ -386,6 +400,47 @@ export default async function handler(req, res) {
 
     const claimKey = getClaimKey(fidNum);
     const walletClaimKey = getWalletClaimKey(walletAddress);
+    const walletOwnerKey = getWalletOwnerKey(walletAddress);
+    const fidWalletKey = getFidWalletKey(fidNum);
+
+    // SECURITY: Check PERMANENT wallet-to-FID binding
+    // A wallet can only EVER be used by ONE FID across ALL rotations
+    const existingWalletOwner = await redis.get(walletOwnerKey);
+    if (existingWalletOwner) {
+      const ownerFid = parseInt(existingWalletOwner);
+      if (ownerFid !== fidNum) {
+        console.warn('[SIMPLE CLAIM] SECURITY: Wallet belongs to different FID:', {
+          attemptingFid: fidNum,
+          walletAddress,
+          ownerFid,
+        });
+        return res.status(403).json({
+          error: 'This wallet is permanently linked to a different Farcaster account. Each wallet can only be used by one account.',
+          success: false,
+          walletOwnedByAnotherFid: true,
+        });
+      }
+    }
+    
+    // SECURITY: Check PERMANENT FID-to-wallet binding  
+    // An FID can only EVER claim to ONE wallet across ALL rotations
+    const existingFidWallet = await redis.get(fidWalletKey);
+    if (existingFidWallet) {
+      const boundWallet = existingFidWallet.toLowerCase();
+      if (boundWallet !== walletAddress.toLowerCase()) {
+        console.warn('[SIMPLE CLAIM] SECURITY: FID bound to different wallet:', {
+          fid: fidNum,
+          attemptingWallet: walletAddress,
+          boundWallet: existingFidWallet,
+        });
+        return res.status(403).json({
+          error: 'Your Farcaster account is permanently linked to a different wallet. You must use the same wallet you used before.',
+          success: false,
+          fidBoundToAnotherWallet: true,
+          boundWallet: existingFidWallet,
+        });
+      }
+    }
 
     // SECURITY: Check if wallet has already received claims in this rotation (multi-FID exploit prevention)
     const walletClaimData = await redis.get(walletClaimKey);
@@ -495,8 +550,7 @@ export default async function handler(req, res) {
 
       console.log('[SIMPLE CLAIM] Transaction marked as used:', { txHash, fid: fidNum });
       
-      // SECURITY: Record wallet claim to prevent multi-FID exploit
-      // This prevents the same wallet from receiving claims via multiple FIDs
+      // SECURITY: Record wallet claim to prevent multi-FID exploit (per rotation)
       const walletClaimData = {
         fid: fidNum,
         timestamp: Date.now(),
@@ -506,6 +560,20 @@ export default async function handler(req, res) {
       await redis.set(walletClaimKey, JSON.stringify(walletClaimData), {
         EX: 30 * 24 * 60 * 60 // 30 days (longer than any rotation)
       });
+      
+      // SECURITY: Set PERMANENT wallet-to-FID binding (if not already set)
+      // This wallet can NEVER be used by a different FID
+      if (!existingWalletOwner) {
+        await redis.set(walletOwnerKey, fidNum.toString());
+        console.log('[SIMPLE CLAIM] Wallet permanently bound to FID:', { wallet: walletAddress, fid: fidNum });
+      }
+      
+      // SECURITY: Set PERMANENT FID-to-wallet binding (if not already set)
+      // This FID can NEVER claim to a different wallet
+      if (!existingFidWallet) {
+        await redis.set(fidWalletKey, walletAddress.toLowerCase());
+        console.log('[SIMPLE CLAIM] FID permanently bound to wallet:', { fid: fidNum, wallet: walletAddress });
+      }
       
       console.log('[SIMPLE CLAIM] Wallet claim recorded:', { wallet: walletAddress, fid: fidNum });
 
