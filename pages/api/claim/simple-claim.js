@@ -6,7 +6,7 @@
 
 import { getRedisClient } from '../../../lib/redis';
 import { getFeaturedProject } from '../../../lib/projects';
-import { fetchUserByFid, verifyWalletOwnership } from '../../../lib/neynar';
+import { fetchUserByFid, verifyWalletOwnership, verifyCustodyWallet } from '../../../lib/neynar';
 import { trackMetric, METRIC_TYPES } from '../../../lib/analytics';
 import { checkFidNotBlocked } from '../../../lib/fid-blocking';
 import { parseUnits, getAddress, createWalletClient, createPublicClient, http } from 'viem';
@@ -23,12 +23,12 @@ const CLAIM_AMOUNT_KEY = 'config:claim:amount';
 const CLAIMS_DISABLED_KEY = 'config:claims:disabled';
 
 // Security configuration - INCREASED to combat exploits
-const MIN_NEYNAR_SCORE = 0.6; // Minimum Neynar user score (keep at 0.6 - accounts have legit scores)
+const MIN_NEYNAR_SCORE = 0.6; // Minimum Neynar user score
 const MIN_ACCOUNT_AGE_DAYS = 7; // Minimum Farcaster account age in days (increased from 2)
 const MAX_CLAIMS_PER_WALLET = 1; // SECURITY: Maximum claims per wallet address per rotation (prevents multi-FID exploit)
 const MIN_FOLLOWERS = 10; // Minimum follower count to prevent bot accounts
-const MIN_WALLET_AGE_DAYS = 14; // SECURITY: Minimum wallet age on-chain (prevents fresh wallet exploit)
-const MIN_WALLET_TX_COUNT = 5; // SECURITY: Minimum transactions on wallet (proves wallet is actually used)
+const REQUIRE_CUSTODY_WALLET = true; // SECURITY: Only custody wallet can claim (not any verified wallet)
+const REQUIRE_POWER_BADGE = false; // Optional: Require Farcaster power badge (very strict - enable if needed)
 
 // Helper function to get current claim amount from Redis
 async function getClaimAmount(redis) {
@@ -235,30 +235,6 @@ export default async function handler(req, res) {
       });
     }
     
-    // SECURITY: Check wallet age and activity on-chain (prevents fresh wallet exploit)
-    try {
-      const txCount = await publicClient.getTransactionCount({ address: walletAddress });
-      
-      console.log('[SIMPLE CLAIM] Wallet activity check:', { wallet: walletAddress, txCount });
-      
-      if (txCount < MIN_WALLET_TX_COUNT) {
-        console.warn('[SIMPLE CLAIM] Fresh wallet rejection:', {
-          wallet: walletAddress,
-          txCount,
-          required: MIN_WALLET_TX_COUNT,
-          fid: fidNum,
-        });
-        return res.status(403).json({
-          error: `Wallet too new. Need at least ${MIN_WALLET_TX_COUNT} transactions on Base (you have ${txCount}). Use an established wallet.`,
-          success: false,
-          walletTxCount: txCount,
-          minTxCount: MIN_WALLET_TX_COUNT,
-        });
-      }
-    } catch (error) {
-      console.error('[SIMPLE CLAIM] Wallet activity check failed:', error.message);
-      // Don't fail claim if we can't check - other security measures still apply
-    }
 
     // SECURITY: Check if this transaction has already been used for a claim
     // This prevents replay attacks where someone reuses a valid tx hash
@@ -361,17 +337,51 @@ export default async function handler(req, res) {
       });
     }
 
-    // SECURITY FIX: Verify wallet ownership - prevent FID spoofing
-    const isWalletVerified = await verifyWalletOwnership(fidNum, walletAddress, apiKey);
-    if (!isWalletVerified) {
-      console.warn('[SIMPLE CLAIM] FID spoofing attempt detected:', {
-        claimedFid: fidNum,
-        walletAddress,
-      });
-      return res.status(403).json({
-        error: 'Wallet address not verified for this Farcaster account. Connect your wallet to your Farcaster profile first.',
-        success: false,
-      });
+    // SECURITY FIX: Verify wallet is CUSTODY wallet (not just any verified wallet)
+    // This prevents the "fresh wallet" exploit where users add new wallets to old accounts
+    if (REQUIRE_CUSTODY_WALLET) {
+      const custodyCheck = await verifyCustodyWallet(fidNum, walletAddress, apiKey);
+      
+      if (!custodyCheck.isCustody) {
+        console.warn('[SIMPLE CLAIM] Non-custody wallet rejection:', {
+          fid: fidNum,
+          walletAddress,
+          custodyAddress: custodyCheck.custodyAddress,
+        });
+        return res.status(403).json({
+          error: 'Only your Farcaster custody wallet can claim. You must use the wallet that was created with your Farcaster account.',
+          success: false,
+          yourWallet: walletAddress,
+          requiredWallet: custodyCheck.custodyAddress,
+          tip: 'Your custody wallet is the one shown in your Farcaster settings, not a connected wallet.',
+        });
+      }
+      
+      // Optional: Require power badge for extra security
+      if (REQUIRE_POWER_BADGE && !custodyCheck.hasPowerBadge) {
+        console.warn('[SIMPLE CLAIM] No power badge rejection:', {
+          fid: fidNum,
+          hasPowerBadge: custodyCheck.hasPowerBadge,
+        });
+        return res.status(403).json({
+          error: 'Farcaster Power Badge required to claim. Build your reputation on Farcaster first.',
+          success: false,
+          hasPowerBadge: false,
+        });
+      }
+    } else {
+      // Fallback to regular wallet verification if custody check disabled
+      const isWalletVerified = await verifyWalletOwnership(fidNum, walletAddress, apiKey);
+      if (!isWalletVerified) {
+        console.warn('[SIMPLE CLAIM] FID spoofing attempt detected:', {
+          claimedFid: fidNum,
+          walletAddress,
+        });
+        return res.status(403).json({
+          error: 'Wallet address not verified for this Farcaster account. Connect your wallet to your Farcaster profile first.',
+          success: false,
+        });
+      }
     }
 
     const claimKey = getClaimKey(fidNum);
