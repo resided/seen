@@ -10,15 +10,14 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Rate limiting: 100 requests per IP per minute
+  // Rate limiting: 500 requests per IP per minute (generous for tracking)
   const { checkRateLimit, getClientIP } = await import('../../lib/rate-limit');
   const clientIP = getClientIP(req);
-  const rateLimit = await checkRateLimit(`track:${clientIP}`, 100, 60000);
+  const rateLimit = await checkRateLimit(`track:${clientIP}`, 500, 60000);
   if (!rateLimit.allowed) {
-    return res.status(429).json({ 
-      error: 'Too many requests. Please slow down.',
-      retryAfter: Math.ceil((rateLimit.resetAt - Date.now()) / 1000)
-    });
+    // Don't block - just skip tracking silently to not break UX
+    console.warn('[TRACK-CLICK] Rate limited:', { clientIP, resetAt: rateLimit.resetAt });
+    return res.status(200).json({ success: true, tracked: false, rateLimited: true });
   }
 
   try {
