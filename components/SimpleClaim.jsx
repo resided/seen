@@ -21,7 +21,7 @@ export default function SimpleClaim({ userFid, isInFarcaster = false, hasClicked
   const [treasuryAddress, setTreasuryAddress] = useState(null);
   const [neynarScore, setNeynarScore] = useState(null);
   const [neynarScoreTooLow, setNeynarScoreTooLow] = useState(false);
-  const MIN_NEYNAR_SCORE = 0.6;
+  const MIN_NEYNAR_SCORE = 0.51;
 
   // Fetch treasury address
   useEffect(() => {

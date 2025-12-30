@@ -7,7 +7,7 @@ import { checkRateLimit, getClientIP } from '../../lib/rate-limit'
 import { isValidEthereumAddress, isValidUrl } from '../../lib/payment-verification'
 import { checkFidNotBlocked } from '../../lib/fid-blocking'
 
-const MIN_NEYNAR_SCORE = 0.6; // Minimum Neynar user score required to submit
+const MIN_NEYNAR_SCORE = 0.51; // Minimum Neynar user score required to submit
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

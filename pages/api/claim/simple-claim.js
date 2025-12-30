@@ -23,7 +23,7 @@ const CLAIM_AMOUNT_KEY = 'config:claim:amount';
 const CLAIMS_DISABLED_KEY = 'config:claims:disabled';
 
 // Security configuration - INCREASED to combat exploits
-const MIN_NEYNAR_SCORE = 0.6; // Minimum Neynar user score
+const MIN_NEYNAR_SCORE = 0.51; // Minimum Neynar user score
 const MIN_ACCOUNT_AGE_DAYS = 14; // Minimum Farcaster account age in days (increased to 14)
 const MAX_CLAIMS_PER_WALLET = 1; // SECURITY: Maximum claims per wallet address per rotation
 const MIN_FOLLOWERS = 50; // Minimum follower count (increased to 50)
