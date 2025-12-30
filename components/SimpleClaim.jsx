@@ -38,7 +38,10 @@ export default function SimpleClaim({ userFid, isInFarcaster = false, hasClicked
 
   // Check claim status
   const checkStatus = async () => {
-    if (!userFid) return;
+    if (!userFid) {
+      setLoading(false);
+      return;
+    }
 
     try {
       const res = await fetch(`/api/claim/simple-claim?fid=${userFid}&wallet=${address || ''}`);
@@ -67,7 +70,7 @@ export default function SimpleClaim({ userFid, isInFarcaster = false, hasClicked
       if (data.accountTooNew) reasons.push(`Account must be ${data.minAccountAgeDays}+ days old (yours is ${data.accountAgeDays || 0} days)`);
       if (data.walletAlreadyClaimed) reasons.push('This wallet already claimed this rotation');
       if (data.walletOwnedByAnotherFid) reasons.push('This wallet is bound to another account');
-      if (data.fidBoundToAnotherWallet) reasons.push(`Your account is bound to wallet: ${data.boundWallet?.slice(0,6)}...${data.boundWallet?.slice(-4)}`);
+      if (data.fidBoundToAnotherWallet) reasons.push(`Must use wallet ${data.boundWallet?.slice(0,6)}...${data.boundWallet?.slice(-4)} (currently connected: ${address?.slice(0,6)}...${address?.slice(-4)})`);
       setBlockingReasons(reasons);
 
       setLoading(false);
