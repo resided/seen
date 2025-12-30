@@ -86,9 +86,9 @@ export default async function handler(req, res) {
           if (user) {
             // Always store the clean username (without emojis)
             finalBuilderUsername = user.username || null;
-            // Only auto-populate builder name if it's empty
+            // Only auto-populate builder name if it's empty - use username (no emojis)
             if (!finalBuilder || finalBuilder.trim() === '') {
-            finalBuilder = user.display_name || user.username || '';
+              finalBuilder = user.username || '';
             }
             finalBuilderFid = user.fid || finalBuilderFid;
           }
