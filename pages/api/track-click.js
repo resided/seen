@@ -106,14 +106,20 @@ export default async function handler(req, res) {
       });
 
       // IMPORTANT: Track FID clicks for claim verification (for featured projects)
-      if (fid && project?.status === 'featured') {
-        // Use rotationId if available, otherwise use project ID as fallback
-        const clickKey = project.rotationId || `project-${project.id}`;
+      // Also check against actual featured project to be safe
+      const { getFeaturedProject } = await import('../../lib/projects');
+      const featuredProject = await getFeaturedProject();
+      const isFeatured = project?.status === 'featured' || (featuredProject && featuredProject.id === projectIdNum);
+
+      if (fid && isFeatured) {
+        // Use rotationId from either source, fallback to project ID
+        const rotationId = project?.rotationId || featuredProject?.rotationId;
+        const clickKey = rotationId || `project-${projectIdNum}`;
         const fidClickKey = `miniapp:click:${clickKey}:${fid}`;
         await redis.setEx(fidClickKey, 48 * 60 * 60, Date.now().toString());
-        console.log('[TRACK-CLICK] FID click tracked for claim verification:', { fid, clickKey, projectId: project.id, hasRotationId: !!project.rotationId });
+        console.log('[TRACK-CLICK] FID click tracked for claim verification:', { fid, clickKey, projectId: projectIdNum, rotationId, isFeatured });
       } else {
-        console.log('[TRACK-CLICK] FID click NOT tracked:', { fid, projectStatus: project?.status, hasRotationId: !!project?.rotationId });
+        console.log('[TRACK-CLICK] FID click NOT tracked:', { fid, projectId: projectIdNum, projectStatus: project?.status, featuredId: featuredProject?.id, isFeatured });
       }
     }
 
