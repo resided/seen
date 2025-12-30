@@ -48,10 +48,14 @@ export default function SimpleClaim({ userFid, isInFarcaster = false, hasClicked
       setTokenAmount(data.tokenAmount || '40000');
       setFeaturedName(data.featuredProjectName || '');
 
-      // Check for Neynar score
-      if (data.neynarScore !== undefined) {
+      // Check for Neynar score (must be a valid number, not null/undefined)
+      if (typeof data.neynarScore === 'number') {
         setNeynarScore(data.neynarScore);
         setNeynarScoreTooLow(data.neynarScore < MIN_NEYNAR_SCORE);
+      } else {
+        // Score not available - don't block claiming, just hide the score display
+        setNeynarScore(null);
+        setNeynarScoreTooLow(false);
       }
 
       // Set specific message for low Neynar score
