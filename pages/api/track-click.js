@@ -53,27 +53,28 @@ export default async function handler(req, res) {
     }
 
     // Get project to check if it's featured and has rotationId
-    const { getProjectById, updateProjectStats } = await import('../../lib/projects');
+    const { getProjectById } = await import('../../lib/projects');
     const project = await getProjectById(projectIdNum);
-    
-    // For featured projects, use rotationId as the window key (stable across timer changes)
-    // For non-featured projects, update persistent stats directly
+
+    // Use rotationId for featured projects, or date-based key as fallback
+    // This must match the key format used by getProjectStatsToday
+    let windowKey;
     if (project?.status === 'featured' && project?.rotationId) {
-      const windowKey = project.rotationId;
+      windowKey = project.rotationId;
+    } else {
+      // Fallback to date-based key (matches getProjectStatsToday behavior)
+      windowKey = new Date().toISOString().split('T')[0];
+    }
+
     const key = type === 'click' ? CLICKS_KEY : VIEWS_KEY;
     const projectKey = `${key}:${projectIdNum}:${windowKey}`;
 
     // Increment counter
     await redis.incr(projectKey);
-    
-      // Set expiration: 48 hours for featured (to cover full 24h window + buffer)
-      await redis.expire(projectKey, 48 * 60 * 60);
-    } else {
-      // Non-featured projects: update persistent stats directly so they accumulate forever
-      const statField = type === 'click' ? 'clicks' : 'views';
-      const currentValue = project?.stats?.[statField] || 0;
-      await updateProjectStats(projectIdNum, { [statField]: currentValue + 1 });
-    }
+
+    // Set expiration: 48 hours for featured, 7 days for non-featured
+    const expiration = project?.status === 'featured' ? 48 * 60 * 60 : 7 * 24 * 60 * 60;
+    await redis.expire(projectKey, expiration);
 
     // Also track unique clicks/views (using IP or FID if available)
     const clientIP = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 
