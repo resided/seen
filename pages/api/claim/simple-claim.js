@@ -69,7 +69,11 @@ export default async function handler(req, res) {
   const getFidWalletKey = (fid) => `fid:wallet:${fid}`;
 
   // SECURITY: Check if FID has clicked the miniapp (required for claiming)
-  const getMiniappClickKey = (fid) => `miniapp:click:${featured.rotationId}:${fid}`;
+  // MUST match the key format used in track-click.js
+  const getMiniappClickKey = (fid) => {
+    const clickKey = featured.rotationId || `project-${featured.id}`;
+    return `miniapp:click:${clickKey}:${fid}`;
+  };
 
   // ========== GET = CHECK STATUS ==========
   if (req.method === 'GET') {
@@ -130,6 +134,7 @@ export default async function handler(req, res) {
     const miniappClickKey = getMiniappClickKey(fid);
     const hasClickedMiniapp = await redis.get(miniappClickKey);
     const notClickedMiniapp = !hasClickedMiniapp;
+    console.log('[SIMPLE-CLAIM] Miniapp click check:', { fid, miniappClickKey, hasClickedMiniapp: !!hasClickedMiniapp, rotationId: featured.rotationId, featuredId: featured.id });
 
     // Check Neynar score and follower count for display purposes
     let neynarScore = null;
