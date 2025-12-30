@@ -136,45 +136,12 @@ export default async function handler(req, res) {
     const notClickedMiniapp = !hasClickedMiniapp;
     console.log('[SIMPLE-CLAIM] Miniapp click check:', { fid, miniappClickKey, hasClickedMiniapp: !!hasClickedMiniapp, rotationId: featured.rotationId, featuredId: featured.id });
 
-    // Check Neynar score and follower count for display purposes
-    let neynarScore = null;
-    let neynarScoreTooLow = false;
-    let followerCount = null;
-    let followersTooLow = false;
-    let accountAgeDays = null;
-    let accountTooNew = false;
-    const apiKey = process.env.NEYNAR_API_KEY;
-    if (apiKey) {
-      try {
-        const fidNum = parseInt(fid);
-        const user = await fetchUserByFid(fidNum, apiKey);
-        if (user) {
-          neynarScore = user.experimental?.neynar_user_score;
-          if (neynarScore !== null && neynarScore !== undefined) {
-            neynarScoreTooLow = neynarScore < MIN_NEYNAR_SCORE;
-          }
-          
-          // Check follower count
-          followerCount = user.follower_count || 0;
-          followersTooLow = followerCount < MIN_FOLLOWERS;
-          
-          // Check account age
-          const registeredAt = user.registered_at || user.timestamp || user.profile?.timestamp;
-          if (registeredAt) {
-            const accountCreated = new Date(registeredAt);
-            const accountAgeMs = Date.now() - accountCreated.getTime();
-            accountAgeDays = accountAgeMs / (1000 * 60 * 60 * 24);
-            accountTooNew = accountAgeDays < MIN_ACCOUNT_AGE_DAYS;
-          }
-        }
-      } catch (error) {
-        console.error('[SIMPLE CLAIM] Neynar check failed in GET:', error);
-        // Don't fail the request, just don't return score
-      }
-    }
+    // NOTE: Neynar validation (score, followers, account age) is ONLY checked on POST
+    // This speeds up the GET status check and reduces API rate limiting
+    // Users will see claim button enabled, but will get error if they don't meet requirements
 
     return res.status(200).json({
-      canClaim: !hasClaimed && !claimsDisabled && !neynarScoreTooLow && !isBlocked && !walletAlreadyClaimed && !followersTooLow && !accountTooNew && !walletOwnedByAnotherFid && !fidBoundToAnotherWallet && !notClickedMiniapp,
+      canClaim: !hasClaimed && !claimsDisabled && !isBlocked && !walletAlreadyClaimed && !walletOwnedByAnotherFid && !fidBoundToAnotherWallet && !notClickedMiniapp,
       claimed: !!hasClaimed,
       claimedAt: hasClaimed || null,
       featuredProjectId: featured.id,
@@ -182,15 +149,7 @@ export default async function handler(req, res) {
       tokenAmount: TOKEN_AMOUNT,
       disabled: claimsDisabled,
       blocked: isBlocked,
-      neynarScore: neynarScore,
-      neynarScoreTooLow: neynarScoreTooLow,
-      minNeynarScore: MIN_NEYNAR_SCORE,
-      followerCount: followerCount,
-      followersTooLow: followersTooLow,
-      minFollowers: MIN_FOLLOWERS,
-      accountAgeDays: accountAgeDays ? parseFloat(accountAgeDays.toFixed(1)) : null,
-      accountTooNew: accountTooNew,
-      minAccountAgeDays: MIN_ACCOUNT_AGE_DAYS,
+      // Neynar fields not checked on GET (only on POST) for faster response
       walletAlreadyClaimed: walletAlreadyClaimed,
       walletClaimInfo: walletClaimInfo ? { fid: walletClaimInfo.fid, timestamp: walletClaimInfo.timestamp } : null,
       walletOwnedByAnotherFid: walletOwnedByAnotherFid,

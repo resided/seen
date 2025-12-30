@@ -52,22 +52,15 @@ export default function SimpleClaim({ userFid, isInFarcaster = false, hasClicked
       setTokenAmount(data.tokenAmount || '60000');
       setFeaturedName(data.featuredProjectName || '');
 
-      // Check for Neynar score (must be a valid number, not null/undefined)
-      if (typeof data.neynarScore === 'number') {
-        setNeynarScore(data.neynarScore);
-        setNeynarScoreTooLow(data.neynarScore < MIN_NEYNAR_SCORE);
-      } else {
-        setNeynarScore(null);
-        setNeynarScoreTooLow(false);
-      }
+      // Neynar validation (score, followers, account age) only checked on claim attempt
+      // This speeds up status checks and reduces API rate limiting
+      setNeynarScore(null);
+      setNeynarScoreTooLow(false);
 
-      // Collect ALL blocking reasons to show user
+      // Collect blocking reasons to show user (Neynar checks happen on claim attempt)
       const reasons = [];
       if (data.disabled) reasons.push('Claims are temporarily disabled');
       if (data.blocked) reasons.push('Your account is blocked');
-      if (data.neynarScoreTooLow) reasons.push(`Neynar score too low (${data.neynarScore?.toFixed(2) || '?'} < ${data.minNeynarScore})`);
-      if (data.followersTooLow) reasons.push(`Need ${data.minFollowers}+ followers (you have ${data.followerCount || 0})`);
-      if (data.accountTooNew) reasons.push(`Account must be ${data.minAccountAgeDays}+ days old (yours is ${data.accountAgeDays || 0} days)`);
       if (data.walletAlreadyClaimed) reasons.push('This wallet already claimed this rotation');
       if (data.walletOwnedByAnotherFid) reasons.push('This wallet is bound to another account');
       if (data.fidBoundToAnotherWallet) reasons.push(`Must use wallet ${data.boundWallet?.slice(0,6)}...${data.boundWallet?.slice(-4)} (currently connected: ${address?.slice(0,6)}...${address?.slice(-4)})`);
