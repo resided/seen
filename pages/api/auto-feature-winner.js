@@ -1,14 +1,11 @@
 // Auto-feature the highest voted active project
-// Runs on schedule via cron or can be triggered manually
-// When current featured expires (24h), highest voted project wins
+// Runs at midnight (00:00) via cron or can be triggered manually
+// Top voted project wins; if no votes, keep current featured
 
-import { getFeaturedProject, getActiveProjects, getAllProjects, setFeaturedProject, resetAllVotes, resetRotationId } from '../../lib/projects';
+import { getFeaturedProject, getAllProjects, setFeaturedProject, resetAllVotes, resetRotationId } from '../../lib/projects';
 import { isAuthenticated } from '../../lib/admin-auth';
 import { saveFeaturedHistory } from '../../lib/featured-history';
 import { verifyCronOrAdmin } from '../../lib/cron-auth';
-
-// How long a project stays featured before auto-rotation (24 hours)
-const FEATURED_DURATION_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Get all eligible projects for featuring (active OR queued, not archived)
@@ -36,73 +33,77 @@ export default async function handler(req, res) {
 
   try {
     console.log('[AUTO-FEATURE] Cron triggered at', new Date().toISOString());
-    
+
     // Check current featured project
     const currentFeatured = await getFeaturedProject();
 
+    // If no featured project, pick the top voted one immediately
     if (!currentFeatured) {
-      console.log('[AUTO-FEATURE] No featured project found');
-      
-      // Try to feature any eligible project if none is featured
+      console.log('[AUTO-FEATURE] No featured project - selecting top voted');
+
       const eligibleProjects = await getEligibleProjects();
-      if (eligibleProjects.length > 0) {
-        const randomWinner = eligibleProjects[Math.floor(Math.random() * eligibleProjects.length)];
-        const result = await setFeaturedProject(randomWinner.id);
-        await resetRotationId();
-        
-        console.log('[AUTO-FEATURE] Featured first project:', randomWinner.name);
+
+      if (!eligibleProjects || eligibleProjects.length === 0) {
         return res.status(200).json({
-          success: true,
-          message: 'Featured first available project (none was featured)',
-          action: 'featured',
-          winner: {
-            id: randomWinner.id,
-            name: randomWinner.name,
-          },
+          message: 'No eligible projects available to feature',
+          action: 'none',
         });
       }
-      
-      return res.status(200).json({
-        message: 'No featured project and no eligible projects - skipping auto-feature',
-        action: 'none',
+
+      // Sort by votes (descending), then alphabetically
+      const sortedByVotes = eligibleProjects
+        .map(p => ({ ...p, votes: p.votes || 0 }))
+        .sort((a, b) => {
+          if (b.votes !== a.votes) return b.votes - a.votes;
+          return a.name.localeCompare(b.name);
+        });
+
+      const winner = sortedByVotes[0];
+
+      // If no votes, pick randomly
+      const selectedProject = winner.votes === 0
+        ? eligibleProjects[Math.floor(Math.random() * eligibleProjects.length)]
+        : winner;
+
+      const result = await setFeaturedProject(selectedProject.id);
+
+      if (!result) {
+        throw new Error('Failed to set featured project');
+      }
+
+      // Generate new rotation ID for claims
+      const newRotationId = await resetRotationId();
+
+      console.log('[AUTO-FEATURE] Featured project set (was empty):', {
+        id: selectedProject.id,
+        name: selectedProject.name,
+        votes: selectedProject.votes || 0,
+        rotationId: newRotationId,
       });
-    }
-
-    // Check if featured project has been up long enough
-    const featuredAt = new Date(currentFeatured.featuredAt);
-    const now = new Date();
-    const timeElapsed = now - featuredAt;
-
-    console.log('[AUTO-FEATURE] Current featured:', {
-      name: currentFeatured.name,
-      featuredAt: currentFeatured.featuredAt,
-      timeElapsedHours: (timeElapsed / (60 * 60 * 1000)).toFixed(2),
-      durationHours: (FEATURED_DURATION_MS / (60 * 60 * 1000)).toFixed(1),
-    });
-
-    if (timeElapsed < FEATURED_DURATION_MS) {
-      const remainingTime = FEATURED_DURATION_MS - timeElapsed;
-      const remainingHours = (remainingTime / (60 * 60 * 1000)).toFixed(1);
 
       return res.status(200).json({
-        message: 'Current featured project still active',
-        action: 'none',
-        currentFeatured: {
-          id: currentFeatured.id,
-          name: currentFeatured.name,
-          featuredAt: currentFeatured.featuredAt,
-          timeElapsed: `${(timeElapsed / (60 * 60 * 1000)).toFixed(1)} hours`,
-          remainingTime: `${remainingHours} hours`,
+        success: true,
+        message: winner.votes === 0
+          ? 'Auto-featured random project (no votes, was empty)'
+          : 'Auto-featured top voted project (was empty)',
+        action: 'featured',
+        winner: {
+          id: selectedProject.id,
+          name: selectedProject.name,
+          votes: selectedProject.votes || 0,
+          builder: selectedProject.builder,
+          category: selectedProject.category,
         },
+        rotationId: newRotationId,
       });
     }
 
-    console.log('[AUTO-FEATURE] Featured project expired - looking for next winner');
+    // Midnight rotation - get highest voted eligible project (active OR queued)
+    console.log('[AUTO-FEATURE] Midnight rotation - looking for next winner');
 
-    // Featured has expired - get highest voted eligible project (active OR queued)
     const eligibleProjects = await getEligibleProjects();
 
-    console.log('[AUTO-FEATURE] Eligible projects:', eligibleProjects.length, 
+    console.log('[AUTO-FEATURE] Eligible projects:', eligibleProjects.length,
       eligibleProjects.map(p => ({ name: p.name, status: p.status, votes: p.votes || 0 })));
 
     if (!eligibleProjects || eligibleProjects.length === 0) {
@@ -110,7 +111,7 @@ export default async function handler(req, res) {
       return res.status(200).json({
         message: 'No eligible projects available to feature (need active or queued projects)',
         action: 'none',
-        expiredFeatured: {
+        currentFeatured: {
           id: currentFeatured.id,
           name: currentFeatured.name,
         },
@@ -135,59 +136,25 @@ export default async function handler(req, res) {
     const winner = sortedByVotes[0];
     console.log('[AUTO-FEATURE] Top candidates:', sortedByVotes.slice(0, 3).map(p => ({ name: p.name, votes: p.votes })));
 
-    // If no one voted, randomly select from eligible projects instead of keeping expired project
+    // If no one voted, keep current featured project
     if (winner.votes === 0) {
-      console.log('[AUTO-FEATURE] No votes - selecting random project');
-      const randomIndex = Math.floor(Math.random() * eligibleProjects.length);
-      const randomWinner = eligibleProjects[randomIndex];
+      console.log('[AUTO-FEATURE] No votes - keeping current featured project');
 
-      // Save current featured project's stats
-      await saveFeaturedHistory(currentFeatured, currentFeatured.stats);
-
-      // Feature random winner
-      const result = await setFeaturedProject(randomWinner.id);
-
-      if (!result) {
-        throw new Error('Failed to set featured project');
-      }
-      
-      // IMPORTANT: Generate new rotation ID for claims
-      const newRotationId = await resetRotationId();
-      console.log('[AUTO-FEATURE] Generated new rotation ID:', newRotationId);
-
-      console.log('[AUTO-FEATURE] Random winner featured (no votes):', {
-        winner: {
-          id: randomWinner.id,
-          name: randomWinner.name,
-        },
-        previous: {
-          id: currentFeatured.id,
-          name: currentFeatured.name,
-        },
-      });
-
-      // Reset all votes for the next round
+      // Reset votes for next round anyway
       await resetAllVotes();
       console.log('[AUTO-FEATURE] All votes reset to 0 for next round');
 
       return res.status(200).json({
         success: true,
-        message: 'Auto-featured random project (no votes)',
-        action: 'featured',
-        winner: {
-          id: randomWinner.id,
-          name: randomWinner.name,
-          votes: 0,
-          builder: randomWinner.builder,
-          category: randomWinner.category,
-        },
-        previous: {
+        message: 'No votes cast - keeping current featured project',
+        action: 'kept',
+        currentFeatured: {
           id: currentFeatured.id,
           name: currentFeatured.name,
-          timeElapsed: `${(timeElapsed / (60 * 60 * 1000)).toFixed(1)} hours`,
+          builder: currentFeatured.builder,
+          category: currentFeatured.category,
         },
-        rotationId: newRotationId,
-        note: 'No votes - random selection',
+        note: 'No votes - current project stays featured',
       });
     }
 
@@ -200,7 +167,7 @@ export default async function handler(req, res) {
     if (!result) {
       throw new Error('Failed to set featured project');
     }
-    
+
     // IMPORTANT: Generate new rotation ID for claims
     const newRotationId = await resetRotationId();
     console.log('[AUTO-FEATURE] Generated new rotation ID:', newRotationId);
@@ -214,7 +181,6 @@ export default async function handler(req, res) {
       previous: {
         id: currentFeatured.id,
         name: currentFeatured.name,
-        duration: `${(timeElapsed / (60 * 60 * 1000)).toFixed(1)} hours`,
         statsSaved: true,
       },
     });
@@ -237,7 +203,6 @@ export default async function handler(req, res) {
       previous: {
         id: currentFeatured.id,
         name: currentFeatured.name,
-        timeElapsed: `${(timeElapsed / (60 * 60 * 1000)).toFixed(1)} hours`,
       },
       runnerUp: sortedByVotes[1] ? {
         name: sortedByVotes[1].name,

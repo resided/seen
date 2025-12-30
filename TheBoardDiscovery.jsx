@@ -147,6 +147,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
   const [customTipAmount, setCustomTipAmount] = useState(''); // Stored as ETH internally
   const [customTipAmountUsd, setCustomTipAmountUsd] = useState(''); // Display value in USD
   const pendingTipAmount = useRef(null); // Store tip amount when sending to avoid stale closures
+  const lastClickTime = useRef(0); // Track when last click happened to avoid stale fetch overwrites
   const [treasuryAddress, setTreasuryAddress] = useState(null);
   
   // Minimum tip: $0.20 USD (20 cents)
@@ -297,9 +298,14 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
 
       // Fetch today's stats
       const fetchStats = () => {
+        const fetchStartTime = Date.now();
       fetch(`/api/projects/stats?projectId=${app.id}`)
         .then(res => res.json())
         .then(data => {
+          // Skip update if a click happened after this fetch started (prevents stale data overwrite)
+          if (lastClickTime.current > fetchStartTime) {
+            return;
+          }
           if (data.stats) {
             setLiveStats({
               views: data.stats.views || app.stats?.views || 0,
@@ -785,6 +791,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
               
               // Track click
               try {
+                lastClickTime.current = Date.now(); // Mark click time to prevent stale fetch overwrites
                 await fetch('/api/track-click', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
