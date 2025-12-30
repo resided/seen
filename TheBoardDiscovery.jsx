@@ -787,15 +787,18 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
           <button 
             onClick={async () => {
               if (!isInFarcaster || !app.links?.miniapp) return;
-              
+
               // Track click
               try {
                 lastClickTime.current = Date.now(); // Mark click time to prevent stale fetch overwrites
-                await fetch('/api/track-click', {
+                console.log('[CLICK] Tracking click:', { projectId: app.id, fid: userFid });
+                const res = await fetch('/api/track-click', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ projectId: app.id, type: 'click', fid: userFid }),
                 });
+                const data = await res.json();
+                console.log('[CLICK] Track response:', data);
                 // Update local stats
                 setLiveStats(prev => ({ ...prev, clicks: (prev.clicks || 0) + 1 }));
               } catch (error) {

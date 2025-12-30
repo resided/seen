@@ -131,10 +131,25 @@ export default async function handler(req, res) {
     }
 
     // SECURITY: Check if FID has clicked the miniapp
+    // Try multiple key formats to be robust
     const miniappClickKey = getMiniappClickKey(fid);
-    const hasClickedMiniapp = await redis.get(miniappClickKey);
+    const fallbackKey = `miniapp:click:project-${featured.id}:${fid}`;
+
+    const hasClickedPrimary = await redis.get(miniappClickKey);
+    const hasClickedFallback = await redis.get(fallbackKey);
+    const hasClickedMiniapp = hasClickedPrimary || hasClickedFallback;
     const notClickedMiniapp = !hasClickedMiniapp;
-    console.log('[SIMPLE-CLAIM] Miniapp click check:', { fid, miniappClickKey, hasClickedMiniapp: !!hasClickedMiniapp, rotationId: featured.rotationId, featuredId: featured.id });
+
+    console.log('[SIMPLE-CLAIM] Miniapp click check:', {
+      fid,
+      miniappClickKey,
+      hasClickedPrimary: !!hasClickedPrimary,
+      fallbackKey,
+      hasClickedFallback: !!hasClickedFallback,
+      hasClickedMiniapp: !!hasClickedMiniapp,
+      rotationId: featured.rotationId,
+      featuredId: featured.id
+    });
 
     // NOTE: Neynar validation (score, followers, account age) is ONLY checked on POST
     // This speeds up the GET status check and reduces API rate limiting

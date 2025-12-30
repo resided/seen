@@ -131,11 +131,22 @@ export default async function handler(req, res) {
       await trackBattleView(projectIdNum);
     }
 
+    // Get the click key that was used (for debugging)
+    let trackedClickKey = null;
+    if (type === 'click' && fid) {
+      const { getFeaturedProject } = await import('../../lib/projects');
+      const fp = await getFeaturedProject();
+      const rotId = project?.rotationId || fp?.rotationId;
+      trackedClickKey = rotId || `project-${projectIdNum}`;
+    }
+
     return res.status(200).json({
       success: true,
       tracked: true,
       type,
-      projectId: projectIdNum
+      projectId: projectIdNum,
+      fidTracked: fid || null,
+      clickKey: trackedClickKey,
     });
   } catch (error) {
     console.error('Error tracking click/view:', error);
