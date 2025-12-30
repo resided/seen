@@ -298,12 +298,11 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
 
       // Fetch today's stats
       const fetchStats = () => {
-        const fetchStartTime = Date.now();
       fetch(`/api/projects/stats?projectId=${app.id}`)
         .then(res => res.json())
         .then(data => {
-          // Skip update if a click happened after this fetch started (prevents stale data overwrite)
-          if (lastClickTime.current > fetchStartTime) {
+          // Skip update if a click happened within last 3 seconds (prevents stale data overwrite)
+          if (Date.now() - lastClickTime.current < 3000) {
             return;
           }
           if (data.stats) {
