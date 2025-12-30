@@ -16,11 +16,12 @@ export default function SimpleClaim({ userFid, isInFarcaster = false, hasClicked
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState(false);
   const [message, setMessage] = useState('');
-  const [tokenAmount, setTokenAmount] = useState('40000');
+  const [tokenAmount, setTokenAmount] = useState('60000');
   const [featuredName, setFeaturedName] = useState('');
   const [treasuryAddress, setTreasuryAddress] = useState(null);
   const [neynarScore, setNeynarScore] = useState(null);
   const [neynarScoreTooLow, setNeynarScoreTooLow] = useState(false);
+  const [blockingReasons, setBlockingReasons] = useState([]);
   const MIN_NEYNAR_SCORE = 0.51;
 
   // Fetch treasury address
@@ -45,7 +46,7 @@ export default function SimpleClaim({ userFid, isInFarcaster = false, hasClicked
 
       setCanClaim(data.canClaim);
       setClaimed(data.claimed);
-      setTokenAmount(data.tokenAmount || '40000');
+      setTokenAmount(data.tokenAmount || '60000');
       setFeaturedName(data.featuredProjectName || '');
 
       // Check for Neynar score (must be a valid number, not null/undefined)
@@ -53,19 +54,24 @@ export default function SimpleClaim({ userFid, isInFarcaster = false, hasClicked
         setNeynarScore(data.neynarScore);
         setNeynarScoreTooLow(data.neynarScore < MIN_NEYNAR_SCORE);
       } else {
-        // Score not available - don't block claiming, just hide the score display
         setNeynarScore(null);
         setNeynarScoreTooLow(false);
       }
 
-      // Set specific message for low Neynar score
-      if (data.error && data.error.includes('Neynar')) {
-        setNeynarScoreTooLow(true);
-      }
+      // Collect ALL blocking reasons to show user
+      const reasons = [];
+      if (data.disabled) reasons.push('Claims are temporarily disabled');
+      if (data.blocked) reasons.push('Your account is blocked');
+      if (data.neynarScoreTooLow) reasons.push(`Neynar score too low (${data.neynarScore?.toFixed(2) || '?'} < ${data.minNeynarScore})`);
+      if (data.followersTooLow) reasons.push(`Need ${data.minFollowers}+ followers (you have ${data.followerCount || 0})`);
+      if (data.accountTooNew) reasons.push(`Account must be ${data.minAccountAgeDays}+ days old (yours is ${data.accountAgeDays || 0} days)`);
+      if (data.walletAlreadyClaimed) reasons.push('This wallet already claimed this rotation');
+      if (data.walletOwnedByAnotherFid) reasons.push('This wallet is bound to another account');
+      if (data.fidBoundToAnotherWallet) reasons.push(`Your account is bound to wallet: ${data.boundWallet?.slice(0,6)}...${data.boundWallet?.slice(-4)}`);
+      setBlockingReasons(reasons);
 
       setLoading(false);
 
-      // Clear message if user can now claim
       if (data.canClaim) {
         setMessage('');
       }
@@ -176,30 +182,17 @@ export default function SimpleClaim({ userFid, isInFarcaster = false, hasClicked
         )}
       </div>
 
-      {/* Neynar Score Too Low Message */}
-      {neynarScoreTooLow && !claimed && (
+      {/* Blocking Reasons */}
+      {blockingReasons.length > 0 && !claimed && !canClaim && (
         <div className="mb-4 p-4 border-2 border-red-400 bg-black">
           <div className="text-center">
-            <div className="mb-3 flex items-center justify-center">
-              <div className="w-12 h-12 border-2 border-red-400 flex items-center justify-center relative">
-                <div className="absolute inset-0 border-2 border-red-400" style={{ transform: 'rotate(45deg)' }}></div>
-                <div className="text-xl font-black relative z-10 text-red-400">✗</div>
-              </div>
-            </div>
-            <div className="text-xs font-bold mb-2 text-red-400 tracking-wider">NEYNAR SCORE TOO LOW</div>
-            {neynarScore !== null && (
-              <div className="text-[10px] tracking-[0.15em] text-gray-300 mb-2">
-                YOUR SCORE: <span className="text-red-400 font-bold">{neynarScore.toFixed(2)}</span>
-              </div>
-            )}
-            <div className="text-[10px] tracking-[0.15em] text-gray-300 mb-2">
-              REQUIRED: <span className="text-white font-bold">{MIN_NEYNAR_SCORE}</span> OR HIGHER
-            </div>
-            <div className="text-[9px] tracking-[0.2em] text-gray-500 mb-2">
-              ONLY USERS WITH A SCORE OF {MIN_NEYNAR_SCORE}+ CAN CLAIM
-            </div>
-            <div className="text-[8px] tracking-[0.15em] text-gray-600 italic border-t border-gray-700 pt-2 mt-2">
-              *SUBJECT TO CHANGE
+            <div className="text-xs font-bold mb-3 text-red-400 tracking-wider">CANNOT CLAIM</div>
+            <div className="space-y-2">
+              {blockingReasons.map((reason, i) => (
+                <div key={i} className="text-[10px] tracking-[0.1em] text-gray-300 border-b border-gray-800 pb-2">
+                  ✗ {reason}
+                </div>
+              ))}
             </div>
           </div>
         </div>

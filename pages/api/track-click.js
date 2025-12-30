@@ -69,8 +69,11 @@ export default async function handler(req, res) {
     const key = type === 'click' ? CLICKS_KEY : VIEWS_KEY;
     const projectKey = `${key}:${projectIdNum}:${windowKey}`;
 
+    console.log('[TRACK-CLICK] Debug:', { projectId: projectIdNum, type, windowKey, projectKey, projectStatus: project?.status, hasRotationId: !!project?.rotationId });
+
     // Increment counter
-    await redis.incr(projectKey);
+    const newCount = await redis.incr(projectKey);
+    console.log('[TRACK-CLICK] Incremented:', { projectKey, newCount });
 
     // Set expiration: 48 hours for featured, 7 days for non-featured
     const expiration = project?.status === 'featured' ? 48 * 60 * 60 : 7 * 24 * 60 * 60;

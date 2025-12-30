@@ -22,11 +22,11 @@ const TREASURY_PRIVATE_KEY = process.env.TREASURY_PRIVATE_KEY;
 const CLAIM_AMOUNT_KEY = 'config:claim:amount';
 const CLAIMS_DISABLED_KEY = 'config:claims:disabled';
 
-// Security configuration - INCREASED to combat exploits
+// Security configuration
 const MIN_NEYNAR_SCORE = 0.51; // Minimum Neynar user score
-const MIN_ACCOUNT_AGE_DAYS = 14; // Minimum Farcaster account age in days (increased to 14)
+const MIN_ACCOUNT_AGE_DAYS = 7; // Minimum Farcaster account age in days
 const MAX_CLAIMS_PER_WALLET = 1; // SECURITY: Maximum claims per wallet address per rotation
-const MIN_FOLLOWERS = 50; // Minimum follower count (increased to 50)
+const MIN_FOLLOWERS = 10; // Minimum follower count
 const REQUIRE_CUSTODY_WALLET = false; // Disabled - too restrictive for most users
 const REQUIRE_POWER_BADGE = false; // Optional: Require Farcaster power badge
 const REQUIRE_RECENT_ACTIVITY = false; // Optional: Require user to have posted recently (blocks lurkers)
