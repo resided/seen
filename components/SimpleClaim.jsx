@@ -71,6 +71,7 @@ export default function SimpleClaim({ userFid, isInFarcaster = false, hasClicked
       if (data.walletAlreadyClaimed) reasons.push('This wallet already claimed this rotation');
       if (data.walletOwnedByAnotherFid) reasons.push('This wallet is bound to another account');
       if (data.fidBoundToAnotherWallet) reasons.push(`Must use wallet ${data.boundWallet?.slice(0,6)}...${data.boundWallet?.slice(-4)} (currently connected: ${address?.slice(0,6)}...${address?.slice(-4)})`);
+      if (data.notClickedMiniapp) reasons.push('You must click the featured mini app first');
       setBlockingReasons(reasons);
 
       setLoading(false);

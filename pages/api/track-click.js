@@ -22,7 +22,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { projectId, type } = req.body; // type: 'click' or 'view'
+    const { projectId, type, fid } = req.body; // type: 'click' or 'view', fid for claim verification
 
     // Validate inputs - be more lenient with projectId
     if (projectId === undefined || projectId === null || projectId === '') {
@@ -104,6 +104,13 @@ export default async function handler(req, res) {
       await trackMetric(METRIC_TYPES.MINIAPP_CLICK, {
         projectId: projectIdNum,
       });
+
+      // IMPORTANT: Track FID clicks for claim verification (only for featured projects)
+      if (fid && project?.status === 'featured' && project?.rotationId) {
+        const fidClickKey = `miniapp:click:${project.rotationId}:${fid}`;
+        await redis.setEx(fidClickKey, 48 * 60 * 60, Date.now().toString());
+        console.log('[TRACK-CLICK] FID click tracked for claim verification:', { fid, rotationId: project.rotationId });
+      }
     }
 
     // Track battle engagement if project is in active battle

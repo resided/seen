@@ -134,7 +134,7 @@ const ActivityTicker = ({ totalListings = 0, totalVolume = 0 }) => {
 // ============================================
 // FEATURED APP CARD
 // ============================================
-const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, onMiniappClick, ethPrice = null, ethPriceLoading = false, hasClickedMiniapp = false }) => {
+const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, onMiniappClick, ethPrice = null, ethPriceLoading = false, hasClickedMiniapp = false, userFid = null }) => {
   const [countdown, setCountdown] = useState({ h: 0, m: 0, s: 0 });
   const [creatorProfileUrl, setCreatorProfileUrl] = useState(null);
   const [builderData, setBuilderData] = useState(null);
@@ -794,7 +794,7 @@ const FeaturedApp = ({ app, onTip, isInFarcaster = false, isConnected = false, o
                 await fetch('/api/track-click', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ projectId: app.id, type: 'click' }),
+                  body: JSON.stringify({ projectId: app.id, type: 'click', fid: userFid }),
                 });
                 // Update local stats
                 setLiveStats(prev => ({ ...prev, clicks: (prev.clicks || 0) + 1 }));
@@ -3854,14 +3854,15 @@ export default function Seen() {
                   <div className="text-sm text-gray-500">LOADING...</div>
                 </div>
               ) : featuredApp ? (
-                <FeaturedApp 
-                  app={featuredApp} 
-                  onTip={handleTip} 
+                <FeaturedApp
+                  app={featuredApp}
+                  onTip={handleTip}
                   isInFarcaster={isInFarcaster}
                   isConnected={isConnected}
                   ethPrice={ethPrice}
                   ethPriceLoading={ethPriceLoading}
                   hasClickedMiniapp={hasClickedMiniapp}
+                  userFid={userInfo?.fid || null}
                   onMiniappClick={() => {
                     setHasClickedMiniapp(true);
                     // Store with project info for validation

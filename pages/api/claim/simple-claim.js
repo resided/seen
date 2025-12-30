@@ -68,6 +68,9 @@ export default async function handler(req, res) {
   // This prevents adding new wallets to an existing FID
   const getFidWalletKey = (fid) => `fid:wallet:${fid}`;
 
+  // SECURITY: Check if FID has clicked the miniapp (required for claiming)
+  const getMiniappClickKey = (fid) => `miniapp:click:${featured.rotationId}:${fid}`;
+
   // ========== GET = CHECK STATUS ==========
   if (req.method === 'GET') {
     const { fid, wallet } = req.query;
@@ -123,6 +126,11 @@ export default async function handler(req, res) {
       }
     }
 
+    // SECURITY: Check if FID has clicked the miniapp
+    const miniappClickKey = getMiniappClickKey(fid);
+    const hasClickedMiniapp = await redis.get(miniappClickKey);
+    const notClickedMiniapp = !hasClickedMiniapp;
+
     // Check Neynar score and follower count for display purposes
     let neynarScore = null;
     let neynarScoreTooLow = false;
@@ -161,7 +169,7 @@ export default async function handler(req, res) {
     }
 
     return res.status(200).json({
-      canClaim: !hasClaimed && !claimsDisabled && !neynarScoreTooLow && !isBlocked && !walletAlreadyClaimed && !followersTooLow && !accountTooNew && !walletOwnedByAnotherFid && !fidBoundToAnotherWallet,
+      canClaim: !hasClaimed && !claimsDisabled && !neynarScoreTooLow && !isBlocked && !walletAlreadyClaimed && !followersTooLow && !accountTooNew && !walletOwnedByAnotherFid && !fidBoundToAnotherWallet && !notClickedMiniapp,
       claimed: !!hasClaimed,
       claimedAt: hasClaimed || null,
       featuredProjectId: featured.id,
@@ -183,6 +191,7 @@ export default async function handler(req, res) {
       walletOwnedByAnotherFid: walletOwnedByAnotherFid,
       fidBoundToAnotherWallet: fidBoundToAnotherWallet,
       boundWallet: boundWallet,
+      notClickedMiniapp: notClickedMiniapp,
     });
   }
 
@@ -227,6 +236,18 @@ export default async function handler(req, res) {
     }
 
     const fidNum = parseInt(fid);
+
+    // SECURITY: Verify user has clicked the miniapp before claiming
+    const miniappClickKey = getMiniappClickKey(fid);
+    const hasClickedMiniapp = await redis.get(miniappClickKey);
+    if (!hasClickedMiniapp) {
+      console.warn('[SIMPLE CLAIM] User has not clicked miniapp:', { fid });
+      return res.status(400).json({
+        error: 'You must click the featured mini app before claiming',
+        success: false,
+        notClickedMiniapp: true,
+      });
+    }
 
     // SECURITY: Check if FID is blocked from platform
     const fidAllowed = await checkFidNotBlocked(res, fidNum);
