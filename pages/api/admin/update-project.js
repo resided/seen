@@ -48,6 +48,7 @@ export default async function handler(req, res) {
       github,
       twitter,
       stats,
+      votes,
       featuredAt,
     } = req.body;
 
@@ -69,6 +70,7 @@ export default async function handler(req, res) {
     if (category !== undefined) updateData.category = category;
     if (status !== undefined) updateData.status = status;
     if (stats !== undefined) updateData.stats = stats;
+    if (votes !== undefined) updateData.votes = parseInt(votes) || 0;
     if (featuredAt !== undefined) updateData.featuredAt = featuredAt;
     
     // Handle builder and builderFid - auto-populate from FID if FID provided but builder not
@@ -195,6 +197,24 @@ export default async function handler(req, res) {
         }
       } catch (redisError) {
         console.error('Error syncing Redis window counter:', redisError);
+        // Don't fail the update if Redis sync fails
+      }
+    }
+
+    // If votes were updated, also sync Redis vote leaderboard
+    if (votes !== undefined) {
+      try {
+        const redis = await getRedisClient();
+        if (redis) {
+          // Update the sorted set leaderboard with new vote count
+          await redis.zAdd('vote:leaderboard', {
+            score: parseInt(votes) || 0,
+            value: projectId.toString(),
+          });
+          console.log(`Updated votes leaderboard: projectId=${projectId}, votes=${votes}`);
+        }
+      } catch (redisError) {
+        console.error('Error syncing Redis vote leaderboard:', redisError);
         // Don't fail the update if Redis sync fails
       }
     }

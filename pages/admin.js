@@ -348,6 +348,7 @@ export default function Admin() {
       links: project.links || { twitter: '', website: '', farcaster: '' },
       views: project.views || 0,
       clicks: project.clicks || 0,
+      votes: project.votes || 0,
     });
     // Scroll to edit form
     setTimeout(() => {
@@ -366,8 +367,8 @@ export default function Admin() {
     try {
       setMessage('Saving changes...');
 
-      // Extract views and clicks for stats object
-      const { views, clicks, links, ...otherData } = editFormData;
+      // Extract views, clicks, votes for stats object
+      const { views, clicks, votes, links, ...otherData } = editFormData;
 
       const response = await fetch('/api/admin/update-project', {
         method: 'POST',
@@ -380,6 +381,7 @@ export default function Admin() {
           website: links?.website,
           github: links?.github,
           twitter: links?.twitter,
+          votes: votes || 0,
           stats: {
             views: views || 0,
             clicks: clicks || 0,
@@ -1212,7 +1214,7 @@ const ProjectSection = ({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">Views</label>
                     <input
@@ -1228,6 +1230,15 @@ const ProjectSection = ({
                       type="number"
                       value={editFormData.clicks || 0}
                       onChange={(e) => onEditFormChange('clicks', parseInt(e.target.value) || 0)}
+                      className="w-full bg-black border border-white/30 px-3 py-2 text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Votes</label>
+                    <input
+                      type="number"
+                      value={editFormData.votes || 0}
+                      onChange={(e) => onEditFormChange('votes', parseInt(e.target.value) || 0)}
                       className="w-full bg-black border border-white/30 px-3 py-2 text-white"
                     />
                   </div>
